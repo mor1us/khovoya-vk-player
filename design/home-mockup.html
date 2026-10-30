@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Хвоя — главная (макет)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a1510; --bg2:#0e1c15; --panel:rgba(22,40,31,.62); --panel-solid:#132219;
+  --line:rgba(170,230,195,.08); --line2:rgba(170,230,195,.14);
+  --text:#e8f3ec; --text2:#9db8a8; --text3:#6b8778;
+  --mint:#7ee0a8; --mint2:#a8f0c6; --mint-ink:#062114;
+  --tint:#5fd39a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:#050a07;font-family:Inter,"Segoe UI",system-ui,sans-serif;color:var(--text);display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+.win{width:1400px;height:860px;border-radius:14px;overflow:hidden;position:relative;background:var(--bg);border:1px solid var(--line2);box-shadow:0 30px 80px rgba(0,0,0,.6);display:grid;grid-template-rows:44px 1fr 88px;grid-template-columns:248px 1fr}
+.glow{position:absolute;inset:0;pointer-events:none;
+  background:
+   radial-gradient(600px 380px at 78% 8%, rgba(214,120,90,.16), transparent 70%),
+   radial-gradient(700px 500px at 38% 30%, rgba(95,211,154,.13), transparent 70%),
+   radial-gradient(500px 400px at 10% 100%, rgba(40,120,80,.18), transparent 70%)}
+/* title bar */
+.titlebar{grid-column:1/3;display:flex;align-items:center;gap:14px;padding:0 0 0 16px;position:relative;z-index:2;border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:9px;font-family:Manrope,'Segoe UI',system-ui,sans-serif;font-weight:800;font-size:15px;letter-spacing:.2px;width:216px}
+.logo i{width:22px;height:22px;border-radius:7px;background:linear-gradient(140deg,#a8f0c6,#2f9e6a);display:grid;place-items:center}
+.logo i svg{width:13px;height:13px}
+.nav-arrows{display:flex;gap:6px}
+.nav-arrows span{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--text2);background:rgba(255,255,255,.03)}
+.search{flex:1;max-width:520px;margin:0 auto;height:32px;border-radius:10px;background:rgba(255,255,255,.045);border:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 12px;color:var(--text3);font-size:13px}
+.search kbd{margin-left:auto;font:500 11px Inter;color:var(--text3);border:1px solid var(--line2);border-radius:5px;padding:1px 6px}
+.tb-right{display:flex;align-items:center;gap:6px}
+.avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7ee0a8,#2c6b4c);display:grid;place-items:center;font:700 12px Manrope,'Segoe UI',system-ui,sans-serif;color:var(--mint-ink);margin-right:10px}
+.wbtn{width:46px;height:44px;display:grid;place-items:center;color:var(--text2)}
+/* sidebar */
+.side{position:relative;z-index:2;padding:14px 12px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:2px;background:rgba(8,18,13,.35)}
+.nav{display:flex;align-items:center;gap:12px;height:38px;padding:0 12px;border-radius:10px;color:var(--text2);font-size:14px;font-weight:500}
+.nav.on{background:rgba(126,224,168,.12);color:var(--mint2)}
+.nav.on::before{content:"";position:absolute;left:12px;width:3px;height:18px;border-radius:3px;background:var(--mint)}
+.nav svg{width:19px;height:19px;flex:none}
+.sec{font:600 11px Inter;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);padding:18px 12px 8px;display:flex;justify-content:space-between}
+.pl{display:flex;align-items:center;gap:11px;padding:6px 10px;border-radius:9px;font-size:13px;color:var(--text2)}
+.pl b{width:32px;height:32px;border-radius:7px;flex:none}
+.pl small{display:block;font-size:11px;color:var(--text3);margin-top:1px}
+.side .bottom{margin-top:auto}
+/* main */
+.main{position:relative;z-index:1;overflow:hidden;padding:26px 32px 0}
+.hello{font:700 26px Manrope,'Segoe UI',system-ui,sans-serif;letter-spacing:-.3px}
+.hello span{color:var(--text3);font-weight:600}
+/* wave */
+.row1{display:grid;grid-template-columns:1.55fr 1fr;gap:18px;margin-top:18px}
+.wave{position:relative;height:232px;border-radius:20px;overflow:hidden;background:#0f2a1e;border:1px solid var(--line2);padding:24px 26px;display:flex;flex-direction:column}
+.wave canvas{position:absolute;inset:0;width:100%;height:100%}
+.wave > *:not(canvas){position:relative}
+.wave .lbl{font:600 11px Inter;letter-spacing:1px;text-transform:uppercase;color:var(--mint2);opacity:.85}
+.wave h2{font:800 40px Manrope,'Segoe UI',system-ui,sans-serif;letter-spacing:-1px;margin-top:6px}
+.wave p{color:#bcd6c6;font-size:13px;margin-top:4px;max-width:330px}
+.wave .ctrl{margin-top:auto;display:flex;align-items:center;gap:12px}
+.bigplay{width:54px;height:54px;border-radius:50%;background:var(--mint);display:grid;place-items:center;box-shadow:0 8px 24px rgba(126,224,168,.35)}
+.chips{display:flex;gap:6px;background:rgba(0,0,0,.25);padding:4px;border-radius:12px}
+.chip{font:500 12.5px Inter;padding:7px 13px;border-radius:9px;color:#bcd6c6}
+.chip.on{background:rgba(255,255,255,.12);color:#fff}
+.wave .next{position:absolute;right:22px;bottom:22px;display:flex;align-items:center;gap:10px;background:rgba(5,15,10,.45);border:1px solid var(--line2);padding:8px 12px 8px 8px;border-radius:12px;backdrop-filter:blur(8px)}
+.wave .next b{width:34px;height:34px;border-radius:7px}
+.wave .next small{display:block;font-size:10.5px;color:var(--text3)}
+.wave .next span{font-size:12.5px}
+/* recent tiles */
+.recent{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:start}
+.recent h3, .sect h3{font:700 17px Manrope,'Segoe UI',system-ui,sans-serif;letter-spacing:-.2px;grid-column:1/3;display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
+.sect h3 a, .recent h3 a{font:500 12.5px Inter;color:var(--text3)}
+.tile{display:flex;align-items:center;gap:11px;height:58px;border-radius:12px;background:var(--panel);border:1px solid var(--line);overflow:hidden;font:600 13px Inter;padding-right:10px}
+.tile b{width:58px;height:58px;flex:none}
+.tile small{display:block;font:400 11.5px Inter;color:var(--text3);margin-top:2px}
+.tile.playing{border-color:rgba(126,224,168,.35);background:rgba(126,224,168,.08)}
+.eq{display:flex;gap:2px;align-items:flex-end;height:12px;margin-left:auto}
+.eq i{width:3px;background:var(--mint);border-radius:2px}
+/* playlists */
+.sect{margin-top:24px}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:18px;margin-top:12px}
+.grid .cv{max-height:150px}
+.card .cv{aspect-ratio:1;max-width:150px;border-radius:12px;position:relative;overflow:hidden;box-shadow:0 10px 24px rgba(0,0,0,.35)}
+.card .cv .hp{position:absolute;right:10px;bottom:10px;width:40px;height:40px;border-radius:50%;background:var(--mint);display:grid;place-items:center;box-shadow:0 6px 16px rgba(0,0,0,.4)}
+.card .cv .cnt{position:absolute;left:10px;top:10px;font:600 10.5px Inter;background:rgba(0,0,0,.45);padding:3px 7px;border-radius:6px;color:#e8f3ec;backdrop-filter:blur(6px)}
+.card .t{font:600 13.5px Inter;margin-top:10px}
+.card .s{font-size:12px;color:var(--text3);margin-top:2px}
+/* covers (abstract art) */
+.c1{background:radial-gradient(circle at 30% 30%,#ffb38a,#c2410c 55%,#431407)}
+.c2{background:linear-gradient(135deg,#1e3a8a,#7c3aed 60%,#f0abfc)}
+.c3{background:radial-gradient(circle at 70% 20%,#a7f3d0,#047857 50%,#022c22)}
+.c4{background:conic-gradient(from 200deg at 40% 60%,#111,#3f3f46,#a1a1aa,#111)}
+.c5{background:linear-gradient(160deg,#fde68a,#f59e0b 40%,#7c2d12)}
+.c6{background:radial-gradient(circle at 60% 70%,#f9a8d4,#be185d 50%,#3b0a1e)}
+.c7{background:linear-gradient(200deg,#67e8f9,#0e7490 50%,#082f49)}
+.c8{background:radial-gradient(circle at 20% 80%,#d9f99d,#4d7c0f 50%,#1a2e05)}
+/* player */
+.player{grid-column:1/3;position:relative;z-index:3;display:grid;grid-template-columns:330px 1fr 330px;align-items:center;padding:0 22px;background:rgba(8,18,13,.82);border-top:1px solid var(--line2);backdrop-filter:blur(20px)}
+.now{display:flex;align-items:center;gap:13px}
+.now b{width:56px;height:56px;border-radius:10px;flex:none;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.now .tt{font:600 14px Inter}
+.now .ar{font-size:12.5px;color:var(--text2);margin-top:2px}
+.ico{color:var(--text2);display:grid;place-items:center}
+.center{display:flex;flex-direction:column;align-items:center;gap:8px}
+.btns{display:flex;align-items:center;gap:22px}
+.btns .ico.on{color:var(--mint)}
+.pp{width:42px;height:42px;border-radius:50%;background:#e8f3ec;display:grid;place-items:center}
+.prog{display:flex;align-items:center;gap:10px;width:100%;max-width:560px;font:500 11px Inter;color:var(--text3)}
+.wf{flex:1;height:22px;display:flex;align-items:center;gap:2px}
+.wf i{flex:1;border-radius:2px;background:rgba(232,243,236,.18)}
+.wf i.p{background:var(--mint)}
+.right{display:flex;justify-content:flex-end;align-items:center;gap:16px}
+.xf{font:600 10.5px Inter;color:var(--mint2);border:1px solid rgba(126,224,168,.3);padding:3px 7px;border-radius:6px}
+.vol{width:96px;height:4px;border-radius:3px;background:rgba(232,243,236,.15);position:relative}
+.vol::after{content:"";position:absolute;left:0;top:0;bottom:0;width:68%;border-radius:3px;background:var(--text2)}
+.tracks{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px 18px;margin-top:10px}
+.tr{display:grid;grid-template-columns:42px 1fr auto auto;gap:12px;align-items:center;padding:6px 8px;border-radius:10px}
+.tr:hover{background:rgba(255,255,255,.04)}
+.tr b{width:42px;height:42px;border-radius:8px}
+.tr .n{font:600 13px Inter}.tr .a{font-size:12px;color:var(--text3);margin-top:2px}
+.tr .d{font-size:12px;color:var(--text3)}
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="glow"></div>
+
+  <div class="titlebar">
+    <div class="logo"><i><svg viewBox="0 0 24 24" fill="#062114"><path d="M12 2l5 7h-3l4 6h-3l3 5H6l3-5H6l4-6H7z"/></svg></i>Хвоя</div>
+    <div class="nav-arrows">
+      <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></span>
+      <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity=".4"><path d="M9 18l6-6-6-6"/></svg></span>
+    </div>
+    <div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Треки, артисты, плейлисты<kbd>Ctrl F</kbd></div>
+    <div class="tb-right">
+      <div class="avatar">М</div>
+      <div class="wbtn"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1 6h10" stroke="currentColor"/></svg></div>
+      <div class="wbtn"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="10" height="10" stroke="currentColor"/></svg></div>
+      <div class="wbtn"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor"/></svg></div>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="nav on" style="position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/></svg>Главная</div>
+    <div class="nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Моя музыка</div>
+    <div class="nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Плейлисты</div>
+    <div class="nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 19h16"/></svg>Загрузки</div>
+
+    <div class="sec">Мои плейлисты <span>+</span></div>
+    <div class="pl"><b class="c1"></b><div>Для качалки<small>84 трека</small></div></div>
+    <div class="pl"><b class="c4"></b><div>Фонк<small>212 треков</small></div></div>
+    <div class="pl"><b class="c2"></b><div>Ночь<small>47 треков</small></div></div>
+    <div class="pl"><b class="c3"></b><div>В дорогу<small>63 трека</small></div></div>
+    <div class="pl"><b class="c6"></b><div>Катки с пацанами<small>120 треков</small></div></div>
+
+    <div class="bottom nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>Настройки</div>
+  </aside>
+
+  <main class="main">
+    <div class="hello">Добрый вечер <span>· что включим?</span></div>
+
+    <div class="row1">
+      <div class="wave">
+        <canvas id="wv"></canvas>
+        <div class="lbl">Поток без конца</div>
+        <h2>Волна</h2>
+        <p>Подстраивается под тебя: лайкай, что зашло, пропускай то, что нет.</p>
+        <div class="ctrl">
+          <div class="bigplay"><svg width="22" height="22" viewBox="0 0 24 24" fill="#062114"><path d="M7 4.5v15l13-7.5z"/></svg></div>
+          <div class="chips"><span class="chip on">Микс</span><span class="chip">Новое</span><span class="chip">Любимое</span></div>
+        </div>
+        <div class="next"><b class="c5"></b><div><small>Дальше в Волне</small><span>Неон над городом</span></div></div>
+      </div>
+
+      <div class="recent">
+        <h3>Недавно играло <a>Вся история</a></h3>
+        <div class="tile playing"><b class="c7"></b><div>Холодный свет<small>Северный ветер</small></div><div class="eq"><i style="height:6px"></i><i style="height:12px"></i><i style="height:8px"></i></div></div>
+        <div class="tile"><b class="c1"></b><div>Для качалки<small>Плейлист</small></div></div>
+        <div class="tile"><b class="c4"></b><div>Фонк<small>Плейлист</small></div></div>
+        <div class="tile"><b class="c8"></b><div>Лето в бетоне<small>Дворы</small></div></div>
+        <div class="tile"><b class="c2"></b><div>Ночь<small>Плейлист</small></div></div>
+        <div class="tile"><b class="c6"></b><div>Розовый дым<small>Мира Лин</small></div></div>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h3>Твои плейлисты <a>Все</a></h3>
+      <div class="grid">
+        <div class="card"><div class="cv c1"><span class="cnt">84</span><div class="hp"><svg width="16" height="16" viewBox="0 0 24 24" fill="#062114"><path d="M7 4.5v15l13-7.5z"/></svg></div></div><div class="t">Для качалки</div><div class="s">4 ч 12 мин</div></div>
+        <div class="card"><div class="cv c4"><span class="cnt">212</span></div><div class="t">Фонк</div><div class="s">10 ч 3 мин</div></div>
+        <div class="card"><div class="cv c2"><span class="cnt">47</span></div><div class="t">Ночь</div><div class="s">2 ч 40 мин</div></div>
+        <div class="card"><div class="cv c3"><span class="cnt">63</span></div><div class="t">В дорогу</div><div class="s">3 ч 18 мин</div></div>
+        <div class="card"><div class="cv c6"><span class="cnt">120</span></div><div class="t">Катки с пацанами</div><div class="s">6 ч 55 мин</div></div>
+        <div class="card"><div class="cv c8"><span class="cnt">31</span></div><div class="t">Новое за неделю</div><div class="s">Подборка ВК</div></div>
+      </div>
+    </div>
+<div class="sect"><h3>Похоже на то, что ты слушаешь <a>Ещё</a></h3><div class="tracks"><div class="tr"><b class="c5"></b><div><div class="n">Неон над городом</div><div class="a">Ночной трамвай</div></div><span class="d">3:12</span><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 19h16"/></svg></span></div><div class="tr"><b class="c3"></b><div><div class="n">Тихий шум</div><div class="a">Лес и бетон</div></div><span class="d">2:58</span><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 19h16"/></svg></span></div><div class="tr"><b class="c2"></b><div><div class="n">Космос в окне</div><div class="a">Мира Лин</div></div><span class="d">3:47</span><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 19h16"/></svg></span></div><div class="tr"><b class="c8"></b><div><div class="n">Кислота</div><div class="a">Дворы</div></div><span class="d">2:21</span><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 19h16"/></svg></span></div><div class="tr"><b class="c1"></b><div><div class="n">Пламя</div><div class="a">Северный ветер</div></div><span class="d">3:05</span><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 19h16"/></svg></span></div><div class="tr"><b class="c7"></b><div><div class="n">Глубина</div><div class="a">Отражения</div></div><span class="d">4:10</span><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 19h16"/></svg></span></div></div></div>
+  </main>
+
+  <footer class="player">
+    <div class="now">
+      <b class="c7"></b>
+      <div><div class="tt">Холодный свет</div><div class="ar">Северный ветер</div></div>
+      <span class="ico" style="margin-left:8px;color:var(--mint)"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.4-9.3-8.6C1 9.2 3 5.5 6.6 5.5c2 0 3.3 1.1 4 2.2.7-1.1 2-2.2 4-2.2 3.6 0 5.6 3.7 3.9 6.9C19 16.6 12 21 12 21z"/></svg></span>
+      <span class="ico" title="Не то"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 15v4a3 3 0 003 3l4-9V2H5.7a2 2 0 00-2 1.7l-1.4 9A2 2 0 004.3 15zM17 2h3a2 2 0 012 2v7a2 2 0 01-2 2h-3"/></svg></span>
+    </div>
+    <div class="center">
+      <div class="btns">
+        <span class="ico on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg></span>
+        <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></span>
+        <span class="pp"><svg width="18" height="18" viewBox="0 0 24 24" fill="#0a1510"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></span>
+        <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></span>
+        <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 013-3h15M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 01-3 3H3"/></svg></span>
+      </div>
+      <div class="prog">1:24<div class="wf" id="wf"></div>3:41</div>
+    </div>
+    <div class="right">
+      <span class="xf" title="Кроссфейд">⤨ 6 с</span>
+      <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h13M3 12h13M3 18h9M18 14v7m-3-3h6"/></svg></span>
+      <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14"/></svg></span>
+      <div class="vol"></div>
+    </div>
+  </footer>
+</div>
+
+<script>
+// progress as SoundCloud-style mini waveform
+const wf=document.getElementById('wf');let seed=7;
+const r=()=>{seed=(seed*9301+49297)%233280;return seed/233280};
+for(let i=0;i<90;i++){const e=document.createElement('i');const h=4+Math.round((Math.sin(i/6)*.35+.55+r()*.4)*16);e.style.height=Math.min(22,h)+'px';if(i<34)e.className='p';wf.appendChild(e)}
+// wave card: flowing lines
+const c=document.getElementById('wv'),x=c.getContext('2d');
+function draw(t){const w=c.width=c.clientWidth*2,h=c.height=c.clientHeight*2;
+ const g=x.createLinearGradient(0,0,w,h);g.addColorStop(0,'#0c2a1d');g.addColorStop(1,'#123d2a');x.fillStyle=g;x.fillRect(0,0,w,h);
+ for(let k=0;k<7;k++){x.beginPath();const a=0.10+k*0.035;
+  for(let i=0;i<=w;i+=8){const y=h*0.62+Math.sin(i/(150+k*30)+t/1400+k)*(28+k*9)+Math.sin(i/70+t/900)*6-k*14;i?x.lineTo(i,y):x.moveTo(i,y)}
+  x.strokeStyle=`rgba(126,224,168,${a})`;x.lineWidth=2+k*.6;x.stroke()}
+ requestAnimationFrame(draw)}
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
