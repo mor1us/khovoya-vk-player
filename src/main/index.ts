@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell, session } from 'electron'
 import { join } from 'path'
 import { VkClient } from './vk/client'
 import { VkAudioApi, type AudioApi } from './vk/audio'
@@ -29,7 +29,19 @@ function createWindow(): BrowserWindow {
   return w
 }
 
+/** Аудио ВК идёт через Web Audio (кроссфейд), а ему нужен CORS. Добавляем заголовок к ответам аудио-серверов ВК. */
+function allowVkAudioCors() {
+  const filter = { urls: ['https://*.vkuseraudio.net/*', 'https://*.vkuseraudio.com/*', 'https://*.vk-cdn.net/*', 'https://*.userapi.com/*', 'https://*.vk.me/*', 'https://*.mycdn.me/*'] }
+  session.defaultSession.webRequest.onHeadersReceived(filter, (d, cb) => {
+    const h = { ...d.responseHeaders }
+    for (const k of Object.keys(h)) if (k.toLowerCase() === 'access-control-allow-origin') delete h[k]
+    h['Access-Control-Allow-Origin'] = ['*']
+    cb({ responseHeaders: h })
+  })
+}
+
 async function setup() {
+  allowVkAudioCors()
   store = new TokenStore()
   if (MOCK) {
     api = new MockAudioApi(await startMockMedia(join(app.getAppPath(), 'dev/fixtures')))
@@ -57,6 +69,8 @@ async function setup() {
   })
   void fetchImageDataUrl
 }
+
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
