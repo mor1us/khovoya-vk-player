@@ -11,7 +11,7 @@ import { VkClient, VK_UA } from './vk/client'
 import { VkAudioApi, type AudioApi } from './vk/audio'
 import { MockAudioApi } from './vk/mock'
 import { startMockMedia } from './vk/mockServer'
-import { fetchWebToken, loginWindow, logoutVk, userInfo } from './auth/webSession'
+import { fetchWebToken, loginWindow, logoutVk, userInfo, log } from './auth/webSession'
 import { TokenKeeper } from './auth/webToken'
 import { fetchImageDataUrl } from './auth/captcha'
 import type { LoginStep } from '../shared/types'
@@ -79,7 +79,7 @@ async function setup() {
         })
       }
     })
-    api = new VkAudioApi(client, () => keeper.userId())
+    api = new VkAudioApi(client, () => keeper.userId(), log)
   }
   registerCore({
     win: () => win,

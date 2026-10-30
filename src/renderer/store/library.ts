@@ -1,7 +1,11 @@
 import { create } from 'zustand'
 import type { Track, Playlist } from '../../shared/types'
 
+export type ForYou = { title: string; playlists: Playlist[] }
+
 type Lib = {
+  forYou: ForYou[] | null
+  loadForYou(force?: boolean): Promise<void>
   mine: Track[]
   mineLoaded: boolean
   playlists: Playlist[]
@@ -14,6 +18,11 @@ type Lib = {
 }
 
 export const useLibrary = create<Lib>((set, get) => ({
+  forYou: null,
+  async loadForYou(force) {
+    if (get().forYou && !force) return
+    try { set({ forYou: await window.api.invoke<ForYou[]>('vk:forYou') }) } catch { set({ forYou: [] }) }
+  },
   mine: [], mineLoaded: false, playlists: [], error: null,
   async loadMine(force) {
     if (get().mineLoaded && !force) return get().mine

@@ -53,11 +53,23 @@ function Similar() {
   )
 }
 
+function ForYouRows() {
+  const forYou = useLibrary((s) => s.forYou)
+  useEffect(() => { void useLibrary.getState().loadForYou() }, [])
+  if (forYou === null) return <><div className="h"><h3>Для вас</h3></div><div className="crates">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="crate"><div className="skeleton" style={{ height: 118, width: 118 }} /></div>)}</div></>
+  return <>{forYou.map((b) => (
+    <div key={b.title} style={{ marginBottom: 18 }}>
+      <div className="h"><h3>{b.title}</h3><span className="muted" style={{ font: '500 11px var(--M)' }}>ДЛЯ ВАС</span></div>
+      <Crates list={b.playlists.slice(0, 12)} />
+    </div>))}</>
+}
+
 export function Home() {
   const playlists = useLibrary((s) => s.playlists)
   return (
     <div className="home">
-      <div className="h"><h3>Ящики с плейлистами</h3><button className="link" onClick={() => useUi.getState().go('playlists')}>Все {playlists.length} →</button></div>
+      <ForYouRows />
+      <div className="h"><h3>Мои плейлисты</h3><button className="link" onClick={() => useUi.getState().go('playlists')}>Все {playlists.length} →</button></div>
       {playlists.length ? <Crates list={playlists.slice(0, 12)} /> : <div className="empty-state">Плейлистов пока нет</div>}
       <div className="bento"><WaveCard /><Similar /></div>
     </div>

@@ -1,5 +1,6 @@
 import type { Track, Playlist } from '../../shared/types'
 import { mapTrack, mapPlaylist } from './models'
+import { parseCatalog, type ForYouBlock } from './catalog'
 
 type Caller = { call<T = any>(method: string, params: Record<string, string | number | undefined>): Promise<T> }
 
@@ -19,13 +20,27 @@ export interface AudioApi {
   removeFromPlaylist(p: Playlist, ids: string[]): Promise<void>
   deletePlaylist(p: Playlist): Promise<void>
   reorder(t: Track, before?: string, after?: string, playlist?: Playlist): Promise<void>
+  forYou(): Promise<ForYouBlock[]>
 }
 
 const PAGE = 1000
 const vkId = (id: string) => Number(id.split('_')[1])
 
 export class VkAudioApi implements AudioApi {
-  constructor(private vk: Caller, private me: () => number) {}
+  constructor(private vk: Caller, private me: () => number, private log: (m: string) => void = () => {}) {}
+
+  /** Подборки «для вас» из каталога ВК (плейлисты дня и т.п.). */
+  async forYou(): Promise<ForYouBlock[]> {
+    const r = await this.vk.call<any>('catalog.getAudio', { need_blocks: 1, v: '5.215' })
+    let blocks = parseCatalog(r, this.me())
+    const sec = r?.catalog?.default_section
+    if (!blocks.length && sec) {
+      const s = await this.vk.call<any>('catalog.getSection', { section_id: sec, v: '5.215' })
+      blocks = parseCatalog({ ...s, blocks: s?.section?.blocks ?? s?.blocks }, this.me())
+    }
+    if (!blocks.length) this.log(`каталог без подборок: ключи ${Object.keys(r ?? {}).join(',')}`)
+    return blocks
+  }
 
   private async pages(params: Record<string, string | number | undefined>): Promise<Track[]> {
     const out: Track[] = []
