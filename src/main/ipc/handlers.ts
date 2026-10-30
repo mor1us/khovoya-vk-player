@@ -29,7 +29,7 @@ export function registerCore(c: Ctx) {
   handle('auth:session', () => c.session())
 
   handle('vk:myTracks', () => c.api().myTracks())
-  handle('vk:search', (q: string, off?: number) => c.api().search(q, off))
+  handle('vk:search', (q: string, off?: number, byDate?: boolean) => c.api().search(q, off, byDate))
   handle('vk:playlists', () => c.api().playlists())
   handle('vk:playlistTracks', (p: Playlist) => c.api().playlistTracks(p))
   handle('vk:recommendations', (t?: string, n?: number) => c.api().recommendations(t, n))

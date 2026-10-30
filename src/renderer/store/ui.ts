@@ -1,3 +1,4 @@
+import { cleanQuery } from '../ui/searchTags'
 import { create } from 'zustand'
 import type { Playlist, Session } from '../../shared/types'
 
@@ -29,7 +30,7 @@ export const useUi = create<Ui>((set, get) => ({
   openPlaylist(p) { set({ playlist: p }); get().go('playlist') },
   setQuery(q) { set({ query: q }) },
   submit(q) {
-    const s = (q ?? get().query).trim()
+    const s = cleanQuery(q ?? get().query)
     if (!s) return
     const hist = JSON.parse(localStorage.getItem('searchHistory') ?? '[]') as string[]
     localStorage.setItem('searchHistory', JSON.stringify([s, ...hist.filter((x) => x !== s)].slice(0, 10)))

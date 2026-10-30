@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useUi, type Tab } from '../store/ui'
 import * as I from './icons'
+import { TAGS } from './searchTags'
 
 const TABS: [Tab, string][] = [['home', 'Главная'], ['mine', 'Моё'], ['playlists', 'Плейлисты'], ['downloads', 'Загрузки']]
 export const searchRef: { current: HTMLInputElement | null } = { current: null }
@@ -25,10 +26,11 @@ export function TopBar({ onLogout }: { onLogout: () => void }) {
           onChange={(e) => useUi.getState().setQuery(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { useUi.getState().submit(); input.current?.blur() } if (e.key === 'Escape') input.current?.blur() }} />
         {query ? <button onClick={() => useUi.getState().setQuery('')} title="Очистить"><I.IX size={14} /></button> : <kbd>Ctrl F</kbd>}
-        {hist.length > 0 && (
-          <div className="menu" style={{ top: 46, left: 0, right: 0 }}>
-            <div className="lbl">Недавние запросы</div>
-            {hist.map((h) => <button key={h} onMouseDown={() => useUi.getState().submit(h)}>{h}</button>)}
+        {focus && !query && (
+          <div className="menu" style={{ top: 46, right: 0, width: 340 }}>
+            {hist.length > 0 && <><div className="lbl">Недавние запросы</div>{hist.slice(0, 5).map((h) => <button key={h} onMouseDown={() => useUi.getState().submit(h)}>{h}</button>)}<div className="sep" /></>}
+            <div className="lbl">Теги</div>
+            <div className="tags">{TAGS.map((t) => <span key={t} className="tag" onMouseDown={() => useUi.getState().submit(t)}>#{t}</span>)}</div>
           </div>
         )}
       </div>
