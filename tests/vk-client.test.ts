@@ -39,7 +39,7 @@ describe('VkClient', () => {
   it('error 5 calls onAuthLost and throws', async () => {
     const lost = vi.fn()
     const { fn } = fakeFetch([{ error: { error_code: 5 } }])
-    const e = await base(fn, { onAuthLost: lost }).call('x', {}).catch((e) => e)
+    const e = (await base(fn, { onAuthLost: lost }).call("x", {}).catch((x: unknown) => x)) as VkError
     expect(e).toBeInstanceOf(VkError)
     expect(e.code).toBe(5)
     expect(lost).toHaveBeenCalledOnce()
