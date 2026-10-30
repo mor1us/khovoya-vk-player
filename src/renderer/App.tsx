@@ -11,6 +11,7 @@ import { Login } from './pages/Login'
 import { Pages } from './pages/Pages'
 import { DialogHost } from './ui/Dialog'
 import { applySettings } from './store/settings'
+import { bindDiscord } from './store/discord'
 import { bindDownloads } from './store/downloads'
 
 let booted = false
@@ -19,6 +20,7 @@ function boot() {
   booted = true
   player.getState().restore()
   bindDownloads()
+  bindDiscord()
   bindMedia(player, () => searchRef.current?.focus())
   const w = bindWave()
   playerHooks.trackChange.push(w.onTrackChange)

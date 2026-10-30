@@ -3,6 +3,9 @@ import { createDownloads, registerMediaScheme, MEDIA_SCHEME } from './downloads/
 import type { Track, Settings } from '../shared/types'
 import { settings } from './system/settings'
 import { setupTray, attachWindow } from './system/tray'
+import { DiscordPresence } from './system/discord'
+import { buildActivity } from './system/discordActivity'
+import type { DiscordUpdate } from '../shared/types'
 import { join } from 'path'
 import { VkClient } from './vk/client'
 import { VkAudioApi, type AudioApi } from './vk/audio'
@@ -97,6 +100,12 @@ async function setup() {
     const r = await dialog.showOpenDialog(win, { title: 'Папка для скачанной музыки', defaultPath: settings.get().downloadDir, properties: ['openDirectory', 'createDirectory'] })
     return r.canceled ? null : r.filePaths[0]
   })
+  const discord = new DiscordPresence()
+  const applyDiscord = () => { const s = settings.get(); if (s.discordEnabled && s.discordAppId) discord.start(s.discordAppId); else discord.stop() }
+  applyDiscord()
+  settings.onChange(applyDiscord)
+  handle('discord:update', (u: DiscordUpdate) => { if (settings.get().discordEnabled) discord.update(buildActivity(u.track, u.playing, u.position, Date.now())) })
+  app.on('before-quit', () => discord.stop())
   const wave = jsonFile<unknown>('wave-profile.json', () => null)
   handle('wave:get', () => wave.read())
   handle('wave:set', (p: unknown) => wave.write(p))
