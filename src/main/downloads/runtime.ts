@@ -4,7 +4,7 @@ import { join } from 'path'
 import { existsSync, mkdirSync, writeFileSync, unlinkSync } from 'fs'
 import { pathToFileURL } from 'url'
 import ffmpegPath from 'ffmpeg-static'
-import { KATE_UA } from '../vk/client'
+import { VK_UA } from '../vk/client'
 import { DownloadManager } from './manager'
 import { jsonFile } from '../system/jsonFile'
 
@@ -21,7 +21,7 @@ function ffmpegBin(): string {
 
 function runFfmpeg(args: string[], onProgress: (sec: number) => void, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const full = ['-user_agent', KATE_UA, ...args]
+    const full = ['-user_agent', VK_UA, ...args]
     const p = spawn(ffmpegBin(), full, { windowsHide: true })
     let err = ''
     p.stdout.on('data', (b: Buffer) => { const m = /out_time_us=(\d+)/.exec(b.toString()); if (m) onProgress(+m[1] / 1e6) })

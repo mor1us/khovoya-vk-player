@@ -32,8 +32,6 @@ export type Settings = {
   crossfadeSec: number // 0..12
 }
 
-export type LoginInput = { username: string; password: string; code?: string; captchaSid?: string; captchaKey?: string }
-
 export type LoginStep =
   | { kind: 'ok'; userName: string; avatar?: string }
   | { kind: '2fa'; phoneMask?: string; validationSid?: string }

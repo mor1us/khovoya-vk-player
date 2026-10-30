@@ -1,12 +1,11 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import type { Channel } from '../../shared/ipc'
 import type { AudioApi } from '../vk/audio'
-import type { LoginInput, LoginStep, Session, Playlist, Track } from '../../shared/types'
+import type { Session, Playlist, Track } from '../../shared/types'
 
 export type Ctx = {
   win: () => BrowserWindow | null
   api: () => AudioApi
-  login: (i: LoginInput) => Promise<LoginStep>
   logout: () => void
   session: () => Promise<Session>
 }
@@ -26,7 +25,6 @@ export function handle(ch: Channel, fn: (...a: any[]) => unknown) {
 }
 
 export function registerCore(c: Ctx) {
-  handle('auth:login', (i: LoginInput) => c.login(i))
   handle('auth:logout', () => c.logout())
   handle('auth:session', () => c.session())
 

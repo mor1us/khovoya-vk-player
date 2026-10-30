@@ -11,6 +11,6 @@ describe('ipc whitelist', () => {
     expect(isAllowedChannel(42 as unknown as string)).toBe(false)
   })
   it('has every channel the plan lists', () => {
-    for (const c of ['auth:login','auth:logout','auth:session','vk:myTracks','vk:playlists','pl:reorder','dl:start','settings:set','win:close','discord:update']) expect(IPC).toHaveProperty(c)
+    for (const c of ['auth:browser','auth:logout','auth:session','vk:myTracks','vk:playlists','pl:reorder','dl:start','settings:set','win:close','discord:update']) expect(IPC).toHaveProperty(c)
   })
 })

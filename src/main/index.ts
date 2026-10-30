@@ -7,14 +7,14 @@ import { DiscordPresence } from './system/discord'
 import { buildActivity } from './system/discordActivity'
 import type { DiscordUpdate } from '../shared/types'
 import { join } from 'path'
-import { VkClient } from './vk/client'
+import { VkClient, VK_UA } from './vk/client'
 import { VkAudioApi, type AudioApi } from './vk/audio'
 import { MockAudioApi } from './vk/mock'
 import { startMockMedia } from './vk/mockServer'
-import { login, userInfo, fetchImageDataUrl } from './auth/kate'
-import { authorizeUrl, parseRedirect, parseManual, BROWSER_UA } from './auth/browserLogin'
+import { fetchWebToken, loginWindow, logoutVk, userInfo } from './auth/webSession'
+import { TokenKeeper } from './auth/webToken'
+import { fetchImageDataUrl } from './auth/captcha'
 import type { LoginStep } from '../shared/types'
-import { TokenStore } from './auth/tokenStore'
 import { registerCore, handle } from './ipc/handlers'
 import { jsonFile } from './system/jsonFile'
 import type { Session } from '../shared/types'
@@ -22,7 +22,7 @@ import type { Session } from '../shared/types'
 const MOCK = process.env.VK_MOCK === '1'
 let win: BrowserWindow | null = null
 let api: AudioApi
-let store: TokenStore
+let keeper: TokenKeeper
 let mockLoggedIn = process.env.VK_MOCK_LOGIN !== '1'
 
 function createWindow(): BrowserWindow {
@@ -50,16 +50,26 @@ function allowVkAudioCors() {
   })
 }
 
+/** Запросы плеера к серверам музыки ВК — с подписью официального приложения (как у VK Android). */
+function signVkAudioRequests() {
+  const filter = { urls: ['https://*.vkuseraudio.net/*', 'https://*.vkuseraudio.com/*', 'https://*.vk-cdn.net/*', 'https://*.mycdn.me/*'] }
+  session.defaultSession.webRequest.onBeforeSendHeaders(filter, (d, cb) => {
+    cb({ requestHeaders: { ...d.requestHeaders, 'User-Agent': VK_UA, 'X-VK-Android-Client': 'new' } })
+  })
+}
+
 async function setup() {
   allowVkAudioCors()
-  store = new TokenStore()
+  signVkAudioRequests()
+  keeper = new TokenKeeper(fetchWebToken, Date.now, () => win?.webContents.send('auth:lost'))
   if (MOCK) {
     api = new MockAudioApi(await startMockMedia(join(app.getAppPath(), 'dev/fixtures')))
   } else {
     // Капча посреди работы: просим окно показать картинку и ждём ответ (пока — пропуск, ответ придёт в Task 10).
     const client = new VkClient({
-      token: () => store.load()?.token ?? null,
-      onAuthLost: () => { store.clear(); win?.webContents.send('auth:lost') },
+      token: async () => (await keeper.get())?.token ?? null,
+      onTokenRejected: () => keeper.invalidate(),
+      onAuthLost: () => { keeper.clear(); win?.webContents.send('auth:lost') },
       onCaptcha: async (sid, img) => {
         const imageDataUrl = await fetchImageDataUrl(fetch, img).catch(() => '')
         if (!win || !imageDataUrl) return ''
@@ -69,19 +79,18 @@ async function setup() {
         })
       }
     })
-    api = new VkAudioApi(client, () => store.load()?.userId ?? 0)
+    api = new VkAudioApi(client, () => keeper.userId())
   }
   registerCore({
     win: () => win,
     api: () => api,
-    login: async (i) => (MOCK ? ((mockLoggedIn = true), { kind: 'ok', userName: 'Мориус' }) : login(i, { fetch, store })),
-    logout: () => { if (MOCK) mockLoggedIn = false; else store.clear() },
+    logout: () => { if (MOCK) mockLoggedIn = false; else { keeper.clear(); void logoutVk() } },
     session: async (): Promise<Session> => {
       if (MOCK) return mockLoggedIn ? { loggedIn: true, userName: 'Мориус', userId: 1 } : { loggedIn: false }
-      const s = store.load()
-      if (!s) return { loggedIn: false }
-      const me = await userInfo(fetch, s.token)
-      return { loggedIn: true, userName: me.name, avatar: me.avatar, userId: s.userId }
+      const t = await keeper.get()
+      if (!t) return { loggedIn: false }
+      const me = await userInfo(t.token)
+      return { loggedIn: true, userName: me.name, avatar: me.avatar, userId: t.userId }
     }
   })
   let changeTimer: NodeJS.Timeout | null = null
@@ -102,15 +111,14 @@ async function setup() {
     const r = await dialog.showOpenDialog(win, { title: 'Папка для скачанной музыки', defaultPath: settings.get().downloadDir, properties: ['openDirectory', 'createDirectory'] })
     return r.canceled ? null : r.filePaths[0]
   })
-  handle('auth:browser', () => (MOCK ? ((mockLoggedIn = true), { kind: 'ok', userName: 'Мориус' }) : browserLogin()))
-  handle('auth:openBrowser', () => shell.openExternal(authorizeUrl()))
-  handle('auth:token', async (text: string): Promise<LoginStep> => {
-    const r = parseManual(String(text ?? ''))
-    if (!r) return { kind: 'error', message: 'Не нашёл ключ в этой ссылке. Скопируй адрес страницы целиком после входа.' }
+  handle('auth:browser', async (): Promise<LoginStep> => {
     if (MOCK) { mockLoggedIn = true; return { kind: 'ok', userName: 'Мориус' } }
-    const me = await userInfo(fetch, r.token)
-    if (!me.id) return { kind: 'error', message: 'Ключ не подошёл. Войди ещё раз и скопируй новую ссылку.' }
-    store.save({ token: r.token, userId: r.userId || me.id })
+    const r = await loginWindow(win)
+    if ('error' in r) return { kind: 'error', message: r.error }
+    keeper.clear()
+    const t = await keeper.get()
+    if (!t) return { kind: 'error', message: 'ВК не выдал доступ. Попробуй войти ещё раз.' }
+    const me = await userInfo(t.token)
     return { kind: 'ok', userName: me.name, avatar: me.avatar }
   })
   const discord = new DiscordPresence()
@@ -122,35 +130,6 @@ async function setup() {
   const wave = jsonFile<unknown>('wave-profile.json', () => null)
   handle('wave:get', () => wave.read())
   handle('wave:set', (p: unknown) => wave.write(p))
-}
-
-/** Окно ВК для входа: код, SMS, QR. Пароль приложение не видит, забираем только ключ из адреса после входа. */
-function browserLogin(): Promise<LoginStep> {
-  return new Promise((resolve) => {
-    const w = new BrowserWindow({
-      width: 520, height: 720, parent: win ?? undefined, modal: !!win, title: 'Вход через ВК', autoHideMenuBar: true, backgroundColor: '#ffffff',
-      webPreferences: { partition: 'vkauth', contextIsolation: true, nodeIntegration: false, sandbox: true }
-    })
-    let done = false
-    const finish = async (r: LoginStep) => { if (done) return; done = true; if (!w.isDestroyed()) w.close(); resolve(r) }
-    const check = async (url: string) => {
-      const r = parseRedirect(url)
-      if (!r) return
-      if ('error' in r) return finish({ kind: 'error', message: r.error })
-      store.save({ token: r.token, userId: r.userId })
-      const me = await userInfo(fetch, r.token)
-      void finish({ kind: 'ok', userName: me.name, avatar: me.avatar })
-    }
-    const wc = w.webContents
-    wc.setUserAgent(BROWSER_UA)
-    wc.on('will-redirect', (_e, url) => void check(url))
-    wc.on('will-navigate', (_e, url) => void check(url))
-    wc.on('did-navigate', (_e, url) => void check(url))
-    wc.on('did-redirect-navigation', (_e, url) => void check(url))
-    wc.setWindowOpenHandler(({ url }) => { void wc.loadURL(url); return { action: 'deny' } })
-    w.on('closed', () => { if (!done) { done = true; resolve({ kind: 'error', message: 'Окно входа закрыто' }) } })
-    void w.loadURL(authorizeUrl(), { userAgent: BROWSER_UA })
-  })
 }
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')

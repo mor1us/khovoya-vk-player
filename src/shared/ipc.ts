@@ -1,6 +1,6 @@
 /** Единый список каналов между окном и главным процессом. Всё, чего здесь нет, мост отбрасывает. */
 export const IPC = {
-  'auth:login': true, 'auth:browser': true, 'auth:token': true, 'auth:openBrowser': true, 'auth:logout': true, 'auth:session': true,
+  'auth:browser': true, 'auth:logout': true, 'auth:session': true,
   'vk:myTracks': true, 'vk:search': true, 'vk:playlists': true, 'vk:playlistTracks': true,
   'vk:recommendations': true, 'vk:popular': true, 'vk:byId': true, 'vk:add': true, 'vk:remove': true,
   'pl:create': true, 'pl:edit': true, 'pl:addTracks': true, 'pl:removeTracks': true, 'pl:delete': true, 'pl:reorder': true,
