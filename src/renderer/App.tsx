@@ -9,6 +9,7 @@ import { Stage, MiniBar } from './ui/Stage'
 import { TopBar, searchRef } from './ui/TopBar'
 import { Login } from './pages/Login'
 import { Pages } from './pages/Pages'
+import { DialogHost } from './ui/Dialog'
 import { bindDownloads } from './store/downloads'
 
 let booted = false
@@ -106,7 +107,7 @@ export function App() {
       {wide && <Stage />}
       <main className="main"><TopBar onLogout={logout} /><Pages /></main>
       {!wide && hasTrack && <MiniBar />}
-      <Toasts /><Offline /><CaptchaModal />
+      <Toasts /><Offline /><CaptchaModal /><DialogHost />
     </div>
   )
 }

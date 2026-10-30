@@ -1,3 +1,4 @@
+import { ask } from './Dialog'
 import { useEffect, useState } from 'react'
 import { create } from 'zustand'
 import type { Playlist, Track } from '../../shared/types'
@@ -38,7 +39,7 @@ export function TrackMenu() {
       })}>{inMine ? 'Убрать из моей музыки' : '♥ Добавить в мою музыку'}</button>}
       <button onClick={() => setSub(!sub)}>Добавить в плейлист ›</button>
       {sub && <div style={{ paddingLeft: 10, maxHeight: 200, overflow: 'auto' }}>
-        <button onClick={() => run(async () => { const name = prompt('Название плейлиста'); if (name) await createPlaylistWith(name, tracks) })}>+ Новый плейлист</button>
+        <button onClick={() => run(async () => { const name = await ask('Новый плейлист', '', 'Создать'); if (name) await createPlaylistWith(name, tracks) })}>+ Новый плейлист</button>
         {playlists.map((p) => <button key={p.id} onClick={() => run(() => addToPlaylist(p, tracks))}>{p.title}</button>)}
       </div>}
       {m.ctxPlaylist?.isMine && <button onClick={() => run(async () => {

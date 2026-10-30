@@ -171,3 +171,20 @@ select.filter{width:auto}
 .artists button:hover{border-color:var(--g);color:var(--g)}
 .skeleton{height:56px;border-radius:12px;background:var(--p1);margin-bottom:2px;animation:sk 1.2s ease-in-out infinite alternate}
 @keyframes sk{from{opacity:.5}to{opacity:1}}
+
+/* плейлисты */
+.seg{display:flex;background:var(--p1);border:1px solid var(--ln);border-radius:10px;padding:3px}
+.seg button{padding:6px 12px;border-radius:8px;font:600 12.5px var(--B);color:var(--t2)}
+.seg button.on{background:var(--g);color:var(--k)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:26px 22px;padding:8px 0 0 10px}
+.grid .crate,.grid .stack{width:100%}
+.grid .stack{height:auto;aspect-ratio:1}
+.plhead{display:flex;gap:26px;align-items:flex-end;margin-bottom:20px}
+.plhead .big{width:190px;height:190px;border-radius:20px}
+.plhead .info{display:flex;flex-direction:column;gap:8px;min-width:0}
+.plhead .k{font:500 11px var(--M);color:var(--g);text-transform:uppercase;letter-spacing:.6px}
+.plhead h1{font:800 40px/1.05 var(--H);letter-spacing:-1.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plhead .meta{font:500 12px var(--M);color:var(--t3)}
+.plhead .btns{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--t2);font:600 13px var(--B);margin-bottom:12px}
+.back:hover{color:var(--text)}
