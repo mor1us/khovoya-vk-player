@@ -47,7 +47,7 @@ function Similar() {
   const own = new Set(mine.map((t) => t.id))
   return (
     <div className="box">
-      <h3>Похоже <button onClick={() => setTick(tick + 1)}>Ещё →</button></h3>
+      <h3>Похоже <span className="pager"><button disabled={tick === 0} title="Назад" onClick={() => setTick(Math.max(0, tick - 1))}>‹</button><button title="Ещё" onClick={() => setTick(tick + 1)}>›</button></span></h3>
       <div className="minis">
         {list === null && [0, 1, 2, 3, 4].map((i) => <div key={i} className="skeleton" style={{ height: 48 }} />)}
         {list?.length === 0 && <div className="empty-state">Рекомендации пока недоступны</div>}

@@ -4,11 +4,11 @@
   --text:#F5F5F5; --t2:#A8A8A8; --t3:#5C5C5C;
   --H:'Manrope','Segoe UI',system-ui,sans-serif;
   --B:'Inter','Segoe UI',system-ui,sans-serif;
-  --M:'JetBrains Mono',Consolas,monospace;
+  --M:'Onest','Segoe UI',system-ui,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%}
-body{background:var(--k);color:var(--text);font-family:var(--B);font-size:14px;overflow:hidden;user-select:none;-webkit-font-smoothing:antialiased}
+body{font-variant-numeric:tabular-nums;background:var(--k);color:var(--text);font-family:var(--B);font-size:14px;overflow:hidden;user-select:none;-webkit-font-smoothing:antialiased}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 input{font:inherit;color:inherit}
 ::-webkit-scrollbar{width:10px;height:10px}
