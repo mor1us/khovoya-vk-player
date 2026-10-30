@@ -95,7 +95,7 @@ export function App() {
 
   async function logout() {
     await window.api.invoke('auth:logout')
-    player.getState().toggle().catch(() => {})
+    player.getState().pause()
     useLibrary.setState({ mine: [], mineLoaded: false, playlists: [] })
     useUi.getState().setSession({ loggedIn: false })
   }

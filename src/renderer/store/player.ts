@@ -40,6 +40,7 @@ export type PlayerState = {
   rev: number
   playList(tracks: Track[], startId: string | undefined, source: string): Promise<void>
   toggle(): Promise<void>
+  pause(): void
   next(): Promise<void>
   prev(): Promise<void>
   seek(s: number): void
@@ -123,7 +124,25 @@ export function createPlayer(d: PlayerDeps): StoreApi<PlayerState> {
       busy = true
       void start(nxt, 'first', 0, s.position).finally(() => { busy = false })
     })
-    d.engine.onError(() => { /* обрабатывается в start через withUrlRefresh */ })
+    /** Обрыв посреди трека: один перезапрос ссылки и продолжение с того же места, иначе — следующий трек. */
+    d.engine.onError(async () => {
+      const s = get()
+      const cur = s.current
+      if (!cur || busy || loadedId !== cur.id) return
+      busy = true
+      const at = s.position
+      try {
+        let fresh = ''
+        try { fresh = await d.refreshUrl(cur) } catch { fresh = '' }
+        if (fresh) {
+          try { await d.engine.load(fresh, at); if (get().playing) await d.engine.play(); return } catch { /* не вышло — пропускаем */ }
+        }
+        d.onNotice?.(`«${cur.title}» оборвался — включаю следующий`)
+        const nxt = s.queue?.next(false) ?? null
+        loadedId = null
+        await start(nxt, 'first', 0, at)
+      } finally { busy = false }
+    })
 
     return {
       queue: null, current: null, playing: false, position: 0, duration: 0, volume: 0.8,
@@ -146,6 +165,8 @@ export function createPlayer(d: PlayerDeps): StoreApi<PlayerState> {
         if (loadedId !== s.current.id) { await start(s.current, 'first', s.position); return }
         await d.engine.play(); set({ playing: true })
       },
+
+      pause() { d.engine.pause(); set({ playing: false }) },
 
       async next() {
         const s = get(); if (!s.queue || busy) return
