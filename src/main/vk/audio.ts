@@ -1,4 +1,4 @@
-import type { Track, Playlist } from '../../shared/types'
+import type { Track, Playlist, ArtistRef } from '../../shared/types'
 import { mapTrack, mapPlaylist } from './models'
 import { parseCatalog, type ForYouBlock } from './catalog'
 
@@ -21,6 +21,7 @@ export interface AudioApi {
   deletePlaylist(p: Playlist): Promise<void>
   reorder(t: Track, before?: string, after?: string, playlist?: Playlist): Promise<void>
   forYou(): Promise<ForYouBlock[]>
+  artistTracks(a: ArtistRef): Promise<Track[]>
 }
 
 const PAGE = 1000
@@ -28,6 +29,20 @@ const vkId = (id: string) => Number(id.split('_')[1])
 
 export class VkAudioApi implements AudioApi {
   constructor(private vk: Caller, private me: () => number, private log: (m: string) => void = () => {}) {}
+
+  /** Треки исполнителя, новые сверху. */
+  async artistTracks(a: ArtistRef): Promise<Track[]> {
+    const byDate = (xs: Track[]) => xs.sort((x, y) => (y.addedAt ?? 0) - (x.addedAt ?? 0))
+    if (a.id) {
+      try {
+        const r = await this.vk.call<{ items: any[] }>('audio.getAudiosByArtist', { artist_id: a.id, count: 30 })
+        return byDate(r.items.map(mapTrack))
+      } catch (e) { this.log(`getAudiosByArtist: ${(e as Error).message}`) }
+    }
+    const r = await this.vk.call<{ items: any[] }>('audio.search', { q: a.name, count: 60, sort: 0, performer_only: 1 })
+    const name = a.name.trim().toLowerCase()
+    return byDate(r.items.map(mapTrack).filter((t) => t.artist.toLowerCase().split(/\s+(?:feat\.?|ft\.?|x|&)\s+|,/)[0].trim() === name))
+  }
 
   /** Подборки «для вас» из каталога ВК (плейлисты дня и т.п.). */
   async forYou(): Promise<ForYouBlock[]> {

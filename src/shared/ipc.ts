@@ -2,7 +2,7 @@
 export const IPC = {
   'auth:browser': true, 'auth:logout': true, 'auth:session': true,
   'vk:myTracks': true, 'vk:search': true, 'vk:playlists': true, 'vk:playlistTracks': true,
-  'vk:recommendations': true, 'vk:popular': true, 'vk:forYou': true, 'vk:byId': true, 'vk:add': true, 'vk:remove': true,
+  'vk:recommendations': true, 'vk:popular': true, 'vk:forYou': true, 'vk:artistTracks': true, 'vk:byId': true, 'vk:add': true, 'vk:remove': true,
   'pl:create': true, 'pl:edit': true, 'pl:addTracks': true, 'pl:removeTracks': true, 'pl:delete': true, 'pl:reorder': true,
   'dl:start': true, 'dl:list': true, 'dl:cancel': true, 'dl:localPath': true, 'dl:openFolder': true,
   'settings:get': true, 'settings:set': true, 'settings:pickDir': true,

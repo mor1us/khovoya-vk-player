@@ -35,6 +35,7 @@ export function registerCore(c: Ctx) {
   handle('vk:recommendations', (t?: string, n?: number) => c.api().recommendations(t, n))
   handle('vk:popular', () => c.api().popular())
   handle('vk:forYou', () => c.api().forYou())
+  handle('vk:artistTracks', (a: { id?: string; name: string }) => c.api().artistTracks(a))
   handle('vk:byId', (ids: string[]) => c.api().byId(ids))
   handle('vk:add', (t: Track) => c.api().add(t))
   handle('vk:remove', (t: Track) => c.api().remove(t))

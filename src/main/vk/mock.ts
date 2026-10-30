@@ -54,6 +54,10 @@ export class MockAudioApi implements AudioApi {
       if (!this.pls.some((x) => x.p.id === id)) this.pls.push({ p: mk(id, title, 30), ids: this.all.slice(200 + (id % 7) * 10, 230 + (id % 7) * 10).map((t) => t.id) })
     return [{ title: 'Собрано алгоритмами', playlists: this.pls.filter((x) => x.p.id > 900).map((x) => ({ ...x.p })) }]
   }
+  async artistTracks(a: { name: string }) {
+    const now = Date.now() / 1000
+    return this.all.filter((t) => t.artist === a.name).slice(0, 12).map((t, i) => ({ ...t, addedAt: a.name.length % 2 ? now - (i + 1) * 86400 : now - (30 + i) * 86400 }))
+  }
   async myTracks() { return [...this.mine] }
   async search(q: string) {
     const s = q.toLowerCase()

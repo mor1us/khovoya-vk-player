@@ -10,6 +10,8 @@ export type Track = {
   coverUrl?: string
   addedAt?: number
   available: boolean
+  /** Основные исполнители из ВК (main_artists), если есть. */
+  artists?: { id: string; name: string }[]
 }
 
 export type Playlist = {
@@ -63,3 +65,5 @@ export type WaveProfile = {
 export type SysState = { background: boolean }
 
 export type DiscordUpdate = { track: Track | null; playing: boolean; position: number }
+
+export type ArtistRef = { id?: string; name: string }

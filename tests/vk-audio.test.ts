@@ -64,3 +64,18 @@ async function contract(api: AudioApi) {
 describe('MockAudioApi', () => {
   it('passes the same contract', async () => { await contract(new MockAudioApi('http://127.0.0.1:1')) })
 })
+
+describe('artistTracks', () => {
+  it('by id → audio.getAudiosByArtist, newest first', async () => {
+    const { calls, client } = fakeClient(() => ({ items: [{ ...raw(1), date: 100 }, { ...raw(2), date: 300 }] }))
+    const r = await new VkAudioApi(client as any, () => 7).artistTracks({ id: 'abc', name: 'A' })
+    expect(calls[0]).toMatchObject({ m: 'audio.getAudiosByArtist', p: { artist_id: 'abc' } })
+    expect(r.map((t) => t.vkId)).toEqual([2, 1])
+  })
+  it('without id → search by name, only that artist, newest first', async () => {
+    const { calls, client } = fakeClient(() => ({ items: [{ ...raw(1), artist: 'Дворы', date: 5 }, { ...raw(2), artist: 'Другие', date: 9 }, { ...raw(3), artist: 'Дворы feat. X', date: 7 }] }))
+    const r = await new VkAudioApi(client as any, () => 7).artistTracks({ name: 'Дворы' })
+    expect(calls[0].m).toBe('audio.search')
+    expect(r.map((t) => t.vkId)).toEqual([3, 1])
+  })
+})

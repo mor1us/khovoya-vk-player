@@ -6,7 +6,9 @@ import { useWave } from '../store/wave'
 import { usePlayer, player } from '../store/playerInstance'
 import { Crates } from '../ui/Crates'
 import { WaveCard } from '../ui/WaveCard'
-import { TrackRow } from '../ui/TrackRow'
+import { Cover } from '../ui/Cover'
+import { openTrackMenu } from '../ui/TrackMenu'
+import { ArtistsBox } from '../ui/ArtistsBox'
 import { artistKey } from '../wave/profile'
 
 function why(t: Track, base: Track | null, mine: Set<string>, weights: Record<string, number>): string {
@@ -34,8 +36,8 @@ function Similar() {
         const own = new Set(mine.map((t) => t.id))
         const fresh = r.filter((t) => t.available && t.id !== target?.id)
         const pick = [...fresh.filter((t) => !own.has(t.id)), ...fresh.filter((t) => own.has(t.id))]
-        const start = (tick * 4) % Math.max(1, pick.length - 3)
-        setList(pick.slice(start, start + 4)); setBase(target)
+        const start = (tick * 5) % Math.max(1, pick.length - 4)
+        setList(pick.slice(start, start + 5)); setBase(target)
       })
       .catch(() => alive && setList([]))
     return () => { alive = false }
@@ -43,11 +45,15 @@ function Similar() {
   const own = new Set(mine.map((t) => t.id))
   return (
     <div className="box">
-      <h3>Похоже на это <button onClick={() => setTick(tick + 1)}>Ещё →</button></h3>
-      <div className="rows compact" style={{ marginTop: 12 }}>
-        {list === null && [0, 1, 2, 3].map((i) => <div key={i} className="skeleton" />)}
+      <h3>Похоже <button onClick={() => setTick(tick + 1)}>Ещё →</button></h3>
+      <div className="minis">
+        {list === null && [0, 1, 2, 3, 4].map((i) => <div key={i} className="skeleton" style={{ height: 48 }} />)}
         {list?.length === 0 && <div className="empty-state">Рекомендации пока недоступны</div>}
-        {list?.map((t) => <TrackRow key={t.id} compact track={t} why={why(t, base, own, weights)} onPlay={() => void player.getState().playList(list, t.id, 'similar')} />)}
+        {list?.map((t) => (
+          <button key={t.id} className="mini" title={`${t.artist} — ${t.title}\n${why(t, base, own, weights)}`} onClick={() => void player.getState().playList(list, t.id, 'similar')} onContextMenu={(e) => openTrackMenu(e, [t])}>
+            <Cover className="cv" url={t.coverUrl} seed={t.id} /><span className="tt">{t.title}</span>
+          </button>
+        ))}
       </div>
     </div>
   )
@@ -71,7 +77,7 @@ export function Home() {
       <ForYouRows />
       <div className="h"><h3>Мои плейлисты</h3><button className="link" onClick={() => useUi.getState().go('playlists')}>Все {playlists.length} →</button></div>
       {playlists.length ? <Crates list={playlists.slice(0, 12)} /> : <div className="empty-state">Плейлистов пока нет</div>}
-      <div className="bento"><WaveCard /><Similar /></div>
+      <div className="bento"><WaveCard /><Similar /><ArtistsBox /></div>
     </div>
   )
 }

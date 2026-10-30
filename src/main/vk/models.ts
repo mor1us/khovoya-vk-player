@@ -15,7 +15,8 @@ export function mapTrack(r: any): Track {
     url: r.url ?? '',
     coverUrl: best(r.album?.thumb),
     addedAt: r.date,
-    available: Boolean(r.url) && !r.content_restricted
+    available: Boolean(r.url) && !r.content_restricted,
+    ...(Array.isArray(r.main_artists) && r.main_artists.length ? { artists: r.main_artists.filter((a: any) => a?.id && a?.name).map((a: any) => ({ id: String(a.id), name: String(a.name) })) } : {})
   }
 }
 
