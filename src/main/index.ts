@@ -51,7 +51,14 @@ async function setup() {
     const client = new VkClient({
       token: () => store.load()?.token ?? null,
       onAuthLost: () => { store.clear(); win?.webContents.send('auth:lost') },
-      onCaptcha: async () => ''
+      onCaptcha: async (sid, img) => {
+        const imageDataUrl = await fetchImageDataUrl(fetch, img).catch(() => '')
+        if (!win || !imageDataUrl) return ''
+        return new Promise<string>((resolve) => {
+          handle('vk:captchaAnswer', (key: string) => { resolve(String(key ?? '')) })
+          win!.webContents.send('vk:captcha', { sid, imageDataUrl })
+        })
+      }
     })
     api = new VkAudioApi(client, () => store.load()?.userId ?? 0)
   }
@@ -68,7 +75,6 @@ async function setup() {
       return { loggedIn: true, userName: me.name, avatar: me.avatar, userId: s.userId }
     }
   })
-  void fetchImageDataUrl
   const wave = jsonFile<unknown>('wave-profile.json', () => null)
   handle('wave:get', () => wave.read())
   handle('wave:set', (p: unknown) => wave.write(p))
