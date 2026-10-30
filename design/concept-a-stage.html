@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Хвоя — вариант A «Сцена»</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07120d;--bg2:#0b1a13;--line:rgba(160,230,190,.09);--text:#e9f5ee;--t2:#97b4a3;--t3:#5f7c6c;--mint:#86e8b0;--ink:#04170d;
+--H:Manrope,'Segoe UI',system-ui,sans-serif;--B:Inter,'Segoe UI',system-ui,sans-serif;--M:'JetBrains Mono',Consolas,monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#030806;font-family:var(--B);color:var(--text);overflow:hidden;height:100vh}
+#fit{width:1400px;height:860px;transform-origin:0 0;position:absolute;left:0;top:0}
+.win{width:1400px;height:860px;border-radius:16px;overflow:hidden;position:relative;background:var(--bg);border:1px solid var(--line);display:grid;grid-template-columns:600px 1fr}
+.grain{position:absolute;inset:0;opacity:.07;pointer-events:none;z-index:5;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+/* stage */
+.stage{position:relative;padding:28px 44px 30px;display:flex;flex-direction:column;background:radial-gradient(520px 520px at 50% 40%,rgba(80,200,140,.16),transparent 70%),var(--bg2);border-right:1px solid var(--line)}
+.top{display:flex;align-items:center;justify-content:space-between}
+.brand{font:800 15px var(--H);letter-spacing:.5px;display:flex;gap:8px;align-items:center}
+.brand i{width:9px;height:9px;border-radius:50%;background:var(--mint);box-shadow:0 0 12px var(--mint)}
+.src{font:500 11px var(--M);color:var(--t3);letter-spacing:.5px}
+.src b{color:var(--mint);font-weight:500}
+.cover{margin:30px auto 0;width:360px;height:360px;border-radius:24px;position:relative;
+ background:radial-gradient(circle at 30% 25%,#9ff3c9,#1f8f5f 45%,#062a1a 80%);box-shadow:0 40px 80px -20px rgba(70,200,130,.35),0 0 0 1px rgba(255,255,255,.06) inset}
+.cover::after{content:"";position:absolute;inset:0;border-radius:24px;background:repeating-linear-gradient(115deg,rgba(255,255,255,.05) 0 2px,transparent 2px 9px)}
+.title{margin-top:34px;font:800 52px/1 var(--H);letter-spacing:-2px}
+.artist{margin-top:10px;font:500 17px var(--B);color:var(--t2);display:flex;gap:10px;align-items:center}
+.artist span{font:500 11px var(--M);color:var(--t3);border:1px solid var(--line);padding:3px 7px;border-radius:6px}
+.wf{margin-top:auto;height:46px;display:flex;align-items:center;gap:3px}
+.wf i{flex:1;border-radius:3px;background:rgba(233,245,238,.14)}
+.wf i.p{background:var(--mint)}
+.times{display:flex;justify-content:space-between;font:500 11px var(--M);color:var(--t3);margin-top:6px}
+.ctl{margin-top:18px;display:flex;align-items:center;justify-content:space-between}
+.ctl .ic{color:var(--t2);display:grid;place-items:center;width:38px;height:38px}
+.ctl .ic.on{color:var(--mint)}
+.mid{display:flex;align-items:center;gap:18px}
+.play{width:68px;height:68px;border-radius:22px;background:var(--mint);display:grid;place-items:center;box-shadow:0 12px 30px -6px rgba(134,232,176,.5)}
+.react{display:flex;gap:8px}
+.pill{font:600 12px var(--B);padding:8px 12px;border-radius:10px;border:1px solid var(--line);color:var(--t2);display:flex;gap:6px;align-items:center}
+.pill.like{color:var(--mint);border-color:rgba(134,232,176,.3)}
+/* browse */
+.browse{position:relative;padding:28px 40px 0;overflow:hidden}
+.bar{display:flex;align-items:center;gap:20px}
+.tabs{display:flex;gap:26px;font:800 30px var(--H);letter-spacing:-1px}
+.tabs a{color:#2c4537}
+.tabs a.on{color:var(--text)}
+.cmd{margin-left:auto;display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--t3);font-size:13px;width:250px}
+.cmd kbd{margin-left:auto;font:500 10.5px var(--M);border:1px solid var(--line);border-radius:5px;padding:2px 5px}
+.wins{display:flex;gap:4px;margin-left:8px;color:var(--t3)}
+.wins span{width:30px;height:30px;display:grid;place-items:center}
+/* wave strip */
+.wave{margin-top:24px;height:150px;border-radius:22px;position:relative;overflow:hidden;border:1px solid rgba(134,232,176,.18);background:#0c2419;display:flex;align-items:center;padding:0 26px;gap:22px}
+.wave canvas{position:absolute;inset:0;width:100%;height:100%}
+.wave>*:not(canvas){position:relative}
+.wave .wp{width:60px;height:60px;border-radius:50%;background:var(--text);display:grid;place-items:center;flex:none}
+.wave h2{font:800 34px var(--H);letter-spacing:-1px}
+.wave p{font-size:13px;color:#a9c8b6;margin-top:2px}
+.modes{margin-left:auto;display:flex;flex-direction:column;gap:6px}
+.modes span{font:600 12px var(--B);padding:7px 14px;border-radius:9px;color:#a9c8b6;text-align:right}
+.modes span.on{background:rgba(255,255,255,.1);color:#fff}
+/* crates */
+.h{display:flex;justify-content:space-between;align-items:baseline;margin-top:28px}
+.h h3{font:700 18px var(--H);letter-spacing:-.3px}
+.h a{font:500 11px var(--M);color:var(--t3);letter-spacing:.5px}
+.crates{display:flex;gap:34px;margin-top:18px;padding-left:10px}
+.crate{width:120px}
+.stack{position:relative;width:120px;height:120px}
+.stack b{position:absolute;inset:0;border-radius:14px;box-shadow:0 10px 24px rgba(0,0,0,.45)}
+.stack b:nth-child(1){transform:translate(-10px,-6px) rotate(-8deg);filter:brightness(.55)}
+.stack b:nth-child(2){transform:translate(-5px,-3px) rotate(-4deg);filter:brightness(.75)}
+.crate .t{font:600 13px var(--B);margin-top:14px}
+.crate .s{font:500 10.5px var(--M);color:var(--t3);margin-top:3px}
+/* list */
+.list{margin-top:8px}
+.row{display:grid;grid-template-columns:28px 40px 1fr 160px 60px 24px;gap:14px;align-items:center;height:52px;border-bottom:1px solid var(--line)}
+.row .n{font:500 11px var(--M);color:var(--t3)}
+.row b{width:40px;height:40px;border-radius:9px}
+.row .tt{font:600 13.5px var(--B)}.row .ar{font-size:12px;color:var(--t3)}
+.row .al{font-size:12px;color:var(--t2)}
+.row .d{font:500 11px var(--M);color:var(--t3);text-align:right}
+.row .ic{color:var(--t3)}
+.c1{background:radial-gradient(circle at 30% 30%,#ffd0a8,#e0632a 50%,#3a1206)}.c2{background:linear-gradient(135deg,#1e3a8a,#7c3aed 60%,#f0abfc)}
+.c3{background:radial-gradient(circle at 70% 20%,#a7f3d0,#047857 50%,#022c22)}.c4{background:conic-gradient(from 200deg at 40% 60%,#111,#3f3f46,#c4c4cc,#111)}
+.c5{background:linear-gradient(160deg,#fde68a,#f59e0b 40%,#7c2d12)}.c6{background:radial-gradient(circle at 60% 70%,#f9a8d4,#be185d 50%,#3b0a1e)}
+.c7{background:linear-gradient(200deg,#67e8f9,#0e7490 50%,#082f49)}.c8{background:radial-gradient(circle at 20% 80%,#d9f99d,#4d7c0f 50%,#1a2e05)}
+</style><style id="greens">
+:root{--mint:#7cf0b0;--text:#eafbf1;--t2:#a3d1b6;--t3:#6a9b7f;--line:rgba(124,240,176,.14);
+ --gbtn:linear-gradient(135deg,#d4ff9a 0%,#7cf0b0 35%,#2fd18a 70%,#119a62 100%)}
+body{background:radial-gradient(1200px 800px at 50% 50%,#04180f,#010805)}
+.win{background:
+ radial-gradient(900px 600px at 0% 0%,rgba(20,140,90,.45),transparent 60%),
+ radial-gradient(800px 600px at 100% 10%,rgba(0,168,107,.30),transparent 60%),
+ radial-gradient(700px 500px at 85% 100%,rgba(60,210,130,.20),transparent 60%),
+ radial-gradient(800px 600px at 15% 100%,rgba(16,110,80,.40),transparent 60%),
+ radial-gradient(600px 400px at 50% 45%,rgba(60,200,140,.18),transparent 70%),
+ linear-gradient(160deg,#04261a 0%,#063322 40%,#05291c 70%,#031a11 100%) !important;
+ border-color:rgba(124,240,176,.2) !important}
+/* covers: different greens */
+.c1{background:radial-gradient(circle at 30% 30%,#e6ffb0,#8fd14f 45%,#2f5e12 85%) !important}
+.c2{background:linear-gradient(135deg,#0d3b2e,#14866a 50%,#7ff5d0) !important}
+.c3{background:radial-gradient(circle at 30% 25%,#b8ffd9,#22c17a 45%,#04402a 85%) !important}
+.c4{background:conic-gradient(from 200deg at 40% 60%,#05261a,#2e6b4f,#a8e6c4,#05261a) !important}
+.c5{background:linear-gradient(160deg,#f2ffb3,#b5e655 40%,#3d6b14) !important}
+.c6{background:radial-gradient(circle at 60% 70%,#9ff5e0,#1fa88a 50%,#062e27) !important}
+.c7{background:linear-gradient(200deg,#c9f7d9,#4caf7d 50%,#123d29) !important}
+.c8{background:radial-gradient(circle at 20% 80%,#d9f99d,#5a9e1a 50%,#16310a) !important}
+.cover{background:radial-gradient(circle at 28% 22%,#e6ffc4,#6fe3a3 30%,#12a06a 60%,#05402a 90%) !important;box-shadow:0 40px 90px -20px rgba(90,230,150,.55) !important}
+.node.cur{box-shadow:0 30px 80px -10px rgba(90,230,150,.6) !important}
+/* buttons and accents */
+.play,.bigplay,.pp,.wp,.hp,.wavebox .m span.on{background:var(--gbtn) !important;box-shadow:0 12px 30px -8px rgba(47,209,138,.6) !important}
+.play svg,.pp svg,.wp svg,.hp svg{fill:#04210f}
+.wf i.p{background:linear-gradient(180deg,#d4ff9a,#2fd18a) !important}
+.wf i{background:rgba(160,240,190,.16)}
+.bar i{background:linear-gradient(90deg,#119a62,#2fd18a,#d4ff9a) !important}
+.meter i{background:linear-gradient(180deg,#d4ff9a,#2fd18a)}
+.brand i{background:var(--gbtn) !important;box-shadow:0 0 16px #7cf0b0}
+.av{background:var(--gbtn) !important}
+.tabs a{color:rgba(124,240,176,.32) !important}
+.tabs a.on{background:linear-gradient(90deg,#eafbf1,#9ff5c4);-webkit-background-clip:text;color:transparent !important}
+.title,.now h1,.wave h2,.wavebox h2{background:linear-gradient(90deg,#f2fff6 0%,#b9f7d1 55%,#7cf0b0 100%);-webkit-background-clip:text;color:transparent}
+/* panels */
+.stage{background:linear-gradient(180deg,rgba(10,70,45,.55),rgba(4,30,20,.35)) !important;border-right-color:rgba(124,240,176,.14) !important}
+.wave{background:linear-gradient(120deg,#0e5a3a,#0a3d2a 45%,#1b6b3c 100%) !important;border-color:rgba(124,240,176,.3) !important}
+.box{background:linear-gradient(150deg,rgba(40,160,100,.16),rgba(10,60,40,.22)) !important;border-color:rgba(124,240,176,.15) !important}
+.wavebox{background:linear-gradient(135deg,#1f8a57 0%,#0f5a3a 45%,#0a3a28 75%,#1d7a4a 120%) !important;border-color:rgba(160,255,200,.3) !important}
+.dock{background:linear-gradient(90deg,rgba(14,70,46,.85),rgba(8,45,30,.85),rgba(14,75,50,.85)) !important;border-color:rgba(124,240,176,.25) !important}
+.dk.on{background:linear-gradient(135deg,rgba(124,240,176,.25),rgba(47,209,138,.12)) !important}
+.cmd{background:rgba(124,240,176,.07) !important}
+.pill.like{background:linear-gradient(135deg,rgba(124,240,176,.18),rgba(47,209,138,.06))}
+.row{border-bottom-color:rgba(124,240,176,.1) !important}
+.river{background:radial-gradient(700px 320px at 50% 55%,rgba(90,230,150,.22),transparent 70%) !important}
+</style>
+</head>
+<body>
+<div id="fit"><div class="win"><div class="grain"></div>
+
+<section class="stage">
+  <div class="top"><div class="brand"><i></i>ХВОЯ</div><div class="src">ИГРАЕТ ИЗ · <b>ВОЛНА / МИКС</b></div></div>
+  <div class="cover"></div>
+  <div class="title">Холодный свет</div>
+  <div class="artist">Северный ветер <span>2024</span><span>320 kbps</span></div>
+  <div class="wf" id="wf"></div>
+  <div class="times"><span>01:24</span><span>⤨ кроссфейд 6 с</span><span>03:41</span></div>
+  <div class="ctl">
+    <div class="react"><span class="pill like">♥ В мою</span><span class="pill">👎 Не то</span></div>
+    <div class="mid">
+      <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></span>
+      <span class="play"><svg width="24" height="24" viewBox="0 0 24 24" fill="#04170d"><rect x="6" y="5" width="4.2" height="14" rx="1.2"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2"/></svg></span>
+      <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></span>
+    </div>
+    <div class="react">
+      <span class="ic on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg></span>
+      <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 013-3h15M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 01-3 3H3"/></svg></span>
+    </div>
+  </div>
+</section>
+
+<section class="browse">
+  <div class="bar">
+    <nav class="tabs"><a class="on">Главная</a><a>Моё</a><a>Плейлисты</a><a>Загрузки</a></nav>
+    <div class="cmd"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Найти…<kbd>Ctrl F</kbd></div>
+    <div class="wins"><span>—</span><span>☐</span><span>✕</span></div>
+  </div>
+
+  <div class="wave"><canvas id="wv"></canvas>
+    <div class="wp"><svg width="22" height="22" viewBox="0 0 24 24" fill="#07120d"><path d="M7 4.5v15l13-7.5z"/></svg></div>
+    <div><h2>Волна</h2><p>Учится на твоих ♥ и пропусках. Сейчас: 37 реакций.</p></div>
+    <div class="modes"><span class="on">Микс</span><span>Новое</span><span>Любимое</span></div>
+  </div>
+
+  <div class="h"><h3>Ящики с плейлистами</h3><a>ВСЕ 14 →</a></div>
+  <div class="crates" id="crates"></div>
+
+  <div class="h"><h3>Похоже на то, что ты слушаешь</h3><a>ЕЩЁ →</a></div>
+  <div class="list" id="list"></div>
+</section>
+</div></div>
+<script>
+function fit(){const s=Math.min(innerWidth/1400,innerHeight/860);const f=document.getElementById('fit');f.style.transform=`scale(${s})`;f.style.left=(innerWidth-1400*s)/2+'px';f.style.top=(innerHeight-860*s)/2+'px'}
+addEventListener('resize',fit);fit();
+let sd=11;const r=()=>(sd=(sd*9301+49297)%233280)/233280;
+const wf=document.getElementById('wf');for(let i=0;i<70;i++){const e=document.createElement('i');e.style.height=(8+Math.round((Math.sin(i/5)*.3+.5+r()*.45)*34))+'px';if(i<26)e.className='p';wf.appendChild(e)}
+const cr=[["c1c5c1","Для качалки","84 · 4 Ч"],["c4c2c4","Фонк","212 · 10 Ч"],["c2c7c2","Ночь","47 · 2 Ч"],["c3c8c3","В дорогу","63 · 3 Ч"],["c6c1c6","Катки с пацанами","120 · 6 Ч"],["c8c3c8","Новое за неделю","31 · ВК"]];
+document.getElementById('crates').innerHTML=cr.map(([c,t,s])=>`<div class="crate"><div class="stack"><b class="${c.slice(0,2)}"></b><b class="${c.slice(2,4)}"></b><b class="${c.slice(4,6)}"></b></div><div class="t">${t}</div><div class="s">${s}</div></div>`).join('');
+const tr=[["c5","Неон над городом","Ночной трамвай","Из Волны","3:12"],["c3","Тихий шум","Лес и бетон","Похоже на «Холодный свет»","2:58"],["c2","Космос в окне","Мира Лин","Новое","3:47"],["c8","Кислота","Дворы","Из «Для качалки»","2:21"]];
+document.getElementById('list').innerHTML=tr.map((x,i)=>`<div class="row"><span class="n">0${i+1}</span><b class="${x[0]}"></b><div><div class="tt">${x[1]}</div><div class="ar">${x[2]}</div></div><span class="al">${x[3]}</span><span class="d">${x[4]}</span><span class="ic">↓</span></div>`).join('');
+const c=document.getElementById('wv'),x=c.getContext('2d');
+(function d(t){const w=c.width=c.clientWidth*2,h=c.height=c.clientHeight*2;x.clearRect(0,0,w,h);
+for(let k=0;k<6;k++){x.beginPath();for(let i=0;i<=w;i+=8){const y=h*.5+Math.sin(i/(170+k*30)+t/1500+k)*(26+k*8)+Math.sin(i/60+t/800)*5;i?x.lineTo(i,y):x.moveTo(i,y)}
+x.strokeStyle=`rgba(134,232,176,${.08+k*.03})`;x.lineWidth=2+k*.5;x.stroke()}requestAnimationFrame(d)})(0);
+</script></body></html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Хвоя — вариант B «Река»</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#06110c;--line:rgba(160,230,190,.09);--text:#e9f5ee;--t2:#97b4a3;--t3:#5f7c6c;--mint:#86e8b0;
+--H:Manrope,'Segoe UI',system-ui,sans-serif;--B:Inter,'Segoe UI',system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#030806;font-family:var(--B);color:var(--text);overflow:hidden;height:100vh}
+#fit{width:1400px;height:860px;transform-origin:0 0;position:absolute}
+.win{width:1400px;height:860px;border-radius:16px;overflow:hidden;position:relative;background:var(--bg);border:1px solid var(--line)}
+.grain{position:absolute;inset:0;opacity:.07;pointer-events:none;z-index:9;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.top{position:absolute;left:0;right:0;top:0;height:56px;display:flex;align-items:center;padding:0 24px;z-index:6}
+.brand{font:800 16px var(--H);display:flex;gap:9px;align-items:center}
+.brand i{width:10px;height:10px;border-radius:50%;background:var(--mint);box-shadow:0 0 14px var(--mint)}
+.top .r{margin-left:auto;display:flex;gap:14px;align-items:center;color:var(--t3);font-size:13px}
+.av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#86e8b0,#1f6b47);display:grid;place-items:center;color:#04170d;font:800 12px var(--H)}
+/* river */
+.river{position:absolute;left:0;right:0;top:56px;height:430px;background:radial-gradient(700px 300px at 50% 60%,rgba(80,200,140,.15),transparent 70%)}
+.river canvas{position:absolute;inset:0;width:100%;height:100%}
+.node{position:absolute;border-radius:18px;box-shadow:0 20px 40px rgba(0,0,0,.5);transform:translate(-50%,-50%)}
+.node.cur{border-radius:26px;box-shadow:0 30px 70px -10px rgba(80,210,140,.45),0 0 0 1px rgba(255,255,255,.08) inset}
+.lbl{position:absolute;transform:translateX(-50%);text-align:center;white-space:nowrap}
+.lbl .t{font:600 12px var(--B);color:var(--t2)}.lbl .a{font-size:11px;color:var(--t3)}
+.now{position:absolute;left:50%;top:330px;transform:translateX(-50%);text-align:center}
+.now h1{font:800 34px var(--H);letter-spacing:-1px}
+.now p{color:var(--t2);font-size:14px;margin-top:4px}
+.tag{position:absolute;font:600 10.5px var(--B);letter-spacing:1.2px;text-transform:uppercase;color:var(--t3)}
+/* bento */
+.bento{position:absolute;left:24px;right:24px;top:500px;bottom:100px;display:grid;grid-template-columns:1.1fr 1.6fr 1fr;gap:14px}
+.box{border-radius:20px;background:rgba(255,255,255,.025);border:1px solid var(--line);padding:18px 20px;position:relative;overflow:hidden}
+.box h3{font:700 15px var(--H);display:flex;justify-content:space-between}
+.box h3 span{font:500 12px var(--B);color:var(--t3)}
+.wavebox{background:linear-gradient(140deg,#123b29,#0a2018);border-color:rgba(134,232,176,.2)}
+.wavebox h2{font:800 30px var(--H);letter-spacing:-1px;margin-top:4px}
+.wavebox p{font-size:12.5px;color:#a9c8b6;margin-top:4px}
+.wavebox .m{display:flex;gap:6px;margin-top:16px}
+.wavebox .m span{font:600 12px var(--B);padding:7px 12px;border-radius:9px;color:#a9c8b6;background:rgba(0,0,0,.2)}
+.wavebox .m span.on{background:var(--mint);color:#04170d}
+.meter{display:flex;gap:3px;align-items:flex-end;height:26px;position:absolute;right:20px;top:20px}
+.meter i{width:4px;border-radius:2px;background:var(--mint)}
+.pls{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:14px}
+.pl b{display:block;aspect-ratio:1;border-radius:12px}
+.pl .t{font:600 12px var(--B);margin-top:8px}.pl .s{font-size:11px;color:var(--t3)}
+.mini{margin-top:12px;display:flex;flex-direction:column;gap:9px}
+.mi{display:flex;gap:10px;align-items:center}
+.mi b{width:34px;height:34px;border-radius:8px;flex:none}
+.mi .t{font:600 12.5px var(--B)}.mi .a{font-size:11px;color:var(--t3)}
+.mi .d{margin-left:auto;font-size:11px;color:var(--t3)}
+/* dock */
+.dock{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);height:64px;border-radius:22px;background:rgba(14,32,23,.78);border:1px solid rgba(160,230,190,.16);backdrop-filter:blur(18px);display:flex;align-items:center;gap:6px;padding:0 10px;box-shadow:0 20px 50px rgba(0,0,0,.5);z-index:7}
+.dk{height:44px;padding:0 14px;border-radius:14px;display:flex;align-items:center;gap:8px;color:var(--t2);font:600 13px var(--B)}
+.dk.on{background:rgba(134,232,176,.14);color:var(--mint)}
+.sep{width:1px;height:30px;background:var(--line);margin:0 6px}
+.ctl{display:flex;align-items:center;gap:6px}
+.ctl .i{width:38px;height:38px;display:grid;place-items:center;color:var(--t2)}
+.pp{width:46px;height:46px;border-radius:16px;background:var(--text);display:grid;place-items:center}
+.prog{width:200px;display:flex;flex-direction:column;gap:6px;margin-left:6px}
+.bar{height:4px;border-radius:3px;background:rgba(233,245,238,.14)}.bar i{display:block;height:4px;width:38%;border-radius:3px;background:var(--mint)}
+.prog small{display:flex;justify-content:space-between;font-size:10.5px;color:var(--t3)}
+.c1{background:radial-gradient(circle at 30% 30%,#ffd0a8,#e0632a 50%,#3a1206)}.c2{background:linear-gradient(135deg,#1e3a8a,#7c3aed 60%,#f0abfc)}
+.c3{background:radial-gradient(circle at 30% 25%,#9ff3c9,#1f8f5f 45%,#062a1a 80%)}.c4{background:conic-gradient(from 200deg at 40% 60%,#111,#3f3f46,#c4c4cc,#111)}
+.c5{background:linear-gradient(160deg,#fde68a,#f59e0b 40%,#7c2d12)}.c6{background:radial-gradient(circle at 60% 70%,#f9a8d4,#be185d 50%,#3b0a1e)}
+.c7{background:linear-gradient(200deg,#67e8f9,#0e7490 50%,#082f49)}.c8{background:radial-gradient(circle at 20% 80%,#d9f99d,#4d7c0f 50%,#1a2e05)}
+</style><style id="greens">
+:root{--mint:#7cf0b0;--text:#eafbf1;--t2:#a3d1b6;--t3:#6a9b7f;--line:rgba(124,240,176,.14);
+ --gbtn:linear-gradient(135deg,#d4ff9a 0%,#7cf0b0 35%,#2fd18a 70%,#119a62 100%)}
+body{background:radial-gradient(1200px 800px at 50% 50%,#04180f,#010805)}
+.win{background:
+ radial-gradient(900px 600px at 0% 0%,rgba(20,140,90,.45),transparent 60%),
+ radial-gradient(800px 600px at 100% 10%,rgba(0,168,107,.30),transparent 60%),
+ radial-gradient(700px 500px at 85% 100%,rgba(60,210,130,.20),transparent 60%),
+ radial-gradient(800px 600px at 15% 100%,rgba(16,110,80,.40),transparent 60%),
+ radial-gradient(600px 400px at 50% 45%,rgba(60,200,140,.18),transparent 70%),
+ linear-gradient(160deg,#04261a 0%,#063322 40%,#05291c 70%,#031a11 100%) !important;
+ border-color:rgba(124,240,176,.2) !important}
+/* covers: different greens */
+.c1{background:radial-gradient(circle at 30% 30%,#e6ffb0,#8fd14f 45%,#2f5e12 85%) !important}
+.c2{background:linear-gradient(135deg,#0d3b2e,#14866a 50%,#7ff5d0) !important}
+.c3{background:radial-gradient(circle at 30% 25%,#b8ffd9,#22c17a 45%,#04402a 85%) !important}
+.c4{background:conic-gradient(from 200deg at 40% 60%,#05261a,#2e6b4f,#a8e6c4,#05261a) !important}
+.c5{background:linear-gradient(160deg,#f2ffb3,#b5e655 40%,#3d6b14) !important}
+.c6{background:radial-gradient(circle at 60% 70%,#9ff5e0,#1fa88a 50%,#062e27) !important}
+.c7{background:linear-gradient(200deg,#c9f7d9,#4caf7d 50%,#123d29) !important}
+.c8{background:radial-gradient(circle at 20% 80%,#d9f99d,#5a9e1a 50%,#16310a) !important}
+.cover{background:radial-gradient(circle at 28% 22%,#e6ffc4,#6fe3a3 30%,#12a06a 60%,#05402a 90%) !important;box-shadow:0 40px 90px -20px rgba(90,230,150,.55) !important}
+.node.cur{box-shadow:0 30px 80px -10px rgba(90,230,150,.6) !important}
+/* buttons and accents */
+.play,.bigplay,.pp,.wp,.hp,.wavebox .m span.on{background:var(--gbtn) !important;box-shadow:0 12px 30px -8px rgba(47,209,138,.6) !important}
+.play svg,.pp svg,.wp svg,.hp svg{fill:#04210f}
+.wf i.p{background:linear-gradient(180deg,#d4ff9a,#2fd18a) !important}
+.wf i{background:rgba(160,240,190,.16)}
+.bar i{background:linear-gradient(90deg,#119a62,#2fd18a,#d4ff9a) !important}
+.meter i{background:linear-gradient(180deg,#d4ff9a,#2fd18a)}
+.brand i{background:var(--gbtn) !important;box-shadow:0 0 16px #7cf0b0}
+.av{background:var(--gbtn) !important}
+.tabs a{color:rgba(124,240,176,.32) !important}
+.tabs a.on{background:linear-gradient(90deg,#eafbf1,#9ff5c4);-webkit-background-clip:text;color:transparent !important}
+.title,.now h1,.wave h2,.wavebox h2{background:linear-gradient(90deg,#f2fff6 0%,#b9f7d1 55%,#7cf0b0 100%);-webkit-background-clip:text;color:transparent}
+/* panels */
+.stage{background:linear-gradient(180deg,rgba(10,70,45,.55),rgba(4,30,20,.35)) !important;border-right-color:rgba(124,240,176,.14) !important}
+.wave{background:linear-gradient(120deg,#0e5a3a,#0a3d2a 45%,#1b6b3c 100%) !important;border-color:rgba(124,240,176,.3) !important}
+.box{background:linear-gradient(150deg,rgba(40,160,100,.16),rgba(10,60,40,.22)) !important;border-color:rgba(124,240,176,.15) !important}
+.wavebox{background:linear-gradient(135deg,#1f8a57 0%,#0f5a3a 45%,#0a3a28 75%,#1d7a4a 120%) !important;border-color:rgba(160,255,200,.3) !important}
+.dock{background:linear-gradient(90deg,rgba(14,70,46,.85),rgba(8,45,30,.85),rgba(14,75,50,.85)) !important;border-color:rgba(124,240,176,.25) !important}
+.dk.on{background:linear-gradient(135deg,rgba(124,240,176,.25),rgba(47,209,138,.12)) !important}
+.cmd{background:rgba(124,240,176,.07) !important}
+.pill.like{background:linear-gradient(135deg,rgba(124,240,176,.18),rgba(47,209,138,.06))}
+.row{border-bottom-color:rgba(124,240,176,.1) !important}
+.river{background:radial-gradient(700px 320px at 50% 55%,rgba(90,230,150,.22),transparent 70%) !important}
+</style>
+</head>
+<body>
+<div id="fit"><div class="win"><div class="grain"></div>
+<div class="top"><div class="brand"><i></i>Хвоя</div>
+ <div class="r"><span>⌕ Найти трек, артиста, плейлист · Ctrl F</span><div class="av">М</div><span>—&nbsp;&nbsp;☐&nbsp;&nbsp;✕</span></div></div>
+
+<div class="river" id="river"><canvas id="cv"></canvas>
+ <div class="tag" style="left:70px;top:40px">← уже играло</div>
+ <div class="tag" style="right:70px;top:40px">дальше в очереди →</div>
+ <div class="now"><h1>Холодный свет</h1><p>Северный ветер · из Волны</p></div>
+</div>
+
+<div class="bento">
+ <div class="box wavebox"><div class="meter"><i style="height:10px"></i><i style="height:22px"></i><i style="height:15px"></i><i style="height:26px"></i></div>
+  <div style="font:600 10.5px var(--B);letter-spacing:1.2px;color:var(--mint)">ПОТОК БЕЗ КОНЦА</div>
+  <h2>Волна</h2><p>Подстраивается под твои ♥ и пропуски</p>
+  <div class="m"><span class="on">Микс</span><span>Новое</span><span>Любимое</span></div></div>
+ <div class="box"><h3>Твои плейлисты <span>Все 14</span></h3><div class="pls" id="pls"></div></div>
+ <div class="box"><h3>Похоже на это <span>Ещё</span></h3><div class="mini" id="mini"></div></div>
+</div>
+
+<div class="dock">
+ <div class="dk on">⌂ Главная</div><div class="dk">♪ Моё</div><div class="dk">▦ Плейлисты</div><div class="dk">↓</div>
+ <div class="sep"></div>
+ <div class="ctl"><span class="i">♥</span><span class="i"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></span>
+ <span class="pp"><svg width="18" height="18" viewBox="0 0 24 24" fill="#06110c"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></span>
+ <span class="i"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></span><span class="i" style="color:var(--mint)">⤨</span></div>
+ <div class="prog"><div class="bar"><i></i></div><small><span>1:24</span><span>кроссфейд 6 с</span><span>3:41</span></small></div>
+ <div class="sep"></div><div class="dk">🔊</div>
+</div>
+</div></div>
+<script>
+function fit(){const s=Math.min(innerWidth/1400,innerHeight/860);const f=document.getElementById('fit');f.style.transform=`scale(${s})`;f.style.left=(innerWidth-1400*s)/2+'px';f.style.top=(innerHeight-860*s)/2+'px'}
+addEventListener('resize',fit);fit();
+const W=1400,yAt=x=>170+Math.sin(x/230)*34;
+const q=[["c4","Фонк-ночь","Дворы",-3],["c1","Пламя","Северный ветер",-2],["c6","Розовый дым","Мира Лин",-1],["c3","",""+"",0],["c5","Неон над городом","Ночной трамвай",1],["c2","Космос в окне","Мира Лин",2],["c8","Кислота","Дворы",3]];
+const rv=document.getElementById('river');
+q.forEach(([c,t,a,k])=>{const x=W/2+k*190+(k? Math.sign(k)*40:0);const s=k?Math.max(70,130-Math.abs(k)*22):220;const y=yAt(x)-(k?0:20);
+const n=document.createElement('div');n.className='node '+c+(k?'':' cur');Object.assign(n.style,{left:x+'px',top:y+'px',width:s+'px',height:s+'px',opacity:k?1-Math.abs(k)*.2:1});if(k<0)n.style.filter='saturate(.5) brightness(.7)';rv.appendChild(n);
+if(k){const l=document.createElement('div');l.className='lbl';l.style.left=x+'px';l.style.top=(y+s/2+10)+'px';l.style.opacity=1-Math.abs(k)*.22;l.innerHTML=`<div class="t">${t}</div><div class="a">${a}</div>`;rv.appendChild(l)}});
+const pl=[["c1","Для качалки","84"],["c4","Фонк","212"],["c2","Ночь","47"],["c3","В дорогу","63"],["c6","Катки","120"]];
+document.getElementById('pls').innerHTML=pl.map(p=>`<div class="pl"><b class="${p[0]}"></b><div class="t">${p[1]}</div><div class="s">${p[2]} треков</div></div>`).join('');
+const mi=[["c5","Неон над городом","Ночной трамвай","3:12"],["c3","Тихий шум","Лес и бетон","2:58"],["c2","Космос в окне","Мира Лин","3:47"],["c8","Кислота","Дворы","2:21"]];
+document.getElementById('mini').innerHTML=mi.map(m=>`<div class="mi"><b class="${m[0]}"></b><div><div class="t">${m[1]}</div><div class="a">${m[2]}</div></div><span class="d">${m[3]}</span></div>`).join('');
+const c=document.getElementById('cv'),x=c.getContext('2d');
+(function d(t){const w=c.width=W*2,h=c.height=860;x.clearRect(0,0,w,h);
+for(let k=0;k<5;k++){x.beginPath();for(let i=0;i<=W;i+=6){const y=yAt(i)+Math.sin(i/90+t/700+k)*(4+k*3)+(k-2)*7;i?x.lineTo(i*2,y*2):x.moveTo(0,y*2)}
+const g=x.createLinearGradient(0,0,w,0);g.addColorStop(0,'rgba(134,232,176,0)');g.addColorStop(.5,`rgba(134,232,176,${.25-k*.03})`);g.addColorStop(1,'rgba(134,232,176,.03)');
+x.strokeStyle=g;x.lineWidth=3;x.stroke()}requestAnimationFrame(d)})(0);
+</script></body></html>
