@@ -4,11 +4,13 @@ import { useLibrary } from '../store/library'
 import { useUi } from '../store/ui'
 import { useWave } from '../store/wave'
 import { usePlayer, player } from '../store/playerInstance'
-import { Crates } from '../ui/Crates'
+import { Crates, Crate } from '../ui/Crates'
 import { WaveCard } from '../ui/WaveCard'
 import { Cover } from '../ui/Cover'
 import { openTrackMenu } from '../ui/TrackMenu'
 import { ArtistsBox } from '../ui/ArtistsBox'
+import { useMixes, type Mix } from '../store/mixes'
+import * as I from '../ui/icons'
 import { artistKey } from '../wave/profile'
 
 function why(t: Track, base: Track | null, mine: Set<string>, weights: Record<string, number>): string {
@@ -59,15 +61,46 @@ function Similar() {
   )
 }
 
+function MixCrate({ m }: { m: Mix }) {
+  const covers = m.tracks.filter((t) => t.coverUrl).slice(0, 4)
+  return (
+    <div className="crate" onClick={() => void player.getState().playList(m.tracks, m.tracks[0]?.id, `mix:${m.title}`)} title={`${m.tracks.length} треков`}>
+      <div className="stack">
+        <div /><div />
+        <div className="mixcv">{covers.length === 4 ? covers.map((t) => <Cover key={t.id} url={t.coverUrl} seed={t.id} />) : <Cover url={covers[0]?.coverUrl} seed={m.key} />}<span className="mixlbl">{m.key === 'fresh' ? 'NEW' : '♥'}</span></div>
+        <button className="hp" title="Играть"><I.IPlay size={16} /></button>
+      </div>
+      <div className="t">{m.title}</div>
+      <div className="s">{m.sub}</div>
+    </div>
+  )
+}
+
 function ForYouRows() {
   const forYou = useLibrary((s) => s.forYou)
-  useEffect(() => { void useLibrary.getState().loadForYou() }, [])
-  if (forYou === null) return <><div className="h"><h3>Для вас</h3></div><div className="crates">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="crate"><div className="skeleton" style={{ height: 118, width: 118 }} /></div>)}</div></>
-  return <>{forYou.map((b) => (
-    <div key={b.title} style={{ marginBottom: 18 }}>
-      <div className="h"><h3>{b.title}</h3><span className="muted" style={{ font: '500 11px var(--M)' }}>ДЛЯ ВАС</span></div>
-      <Crates list={b.playlists.slice(0, 12)} />
-    </div>))}</>
+  const mixes = useMixes((s) => s.mixes)
+  const busy = useMixes((s) => s.busy)
+  useEffect(() => { void useLibrary.getState().loadForYou(); void useMixes.getState().ensure() }, [])
+  const regen = () => { void useMixes.getState().generate(); void useLibrary.getState().loadForYou(true) }
+  const blocks = forYou ?? []
+  const first = blocks[0]
+  return (
+    <>
+      <div style={{ marginBottom: 18 }}>
+        <div className="h"><h3>{first?.title ?? 'Для вас'}</h3><button className="link" disabled={busy} onClick={regen}>{busy ? 'Собираю…' : '↻ Сгенерировать заново'}</button></div>
+        <div className="crates">
+          {mixes.map((m) => <MixCrate key={m.key} m={m} />)}
+          {first?.playlists.slice(0, 12).map((p) => <Crate key={`${p.ownerId}_${p.id}`} p={p} />)}
+          {forYou === null && !mixes.length && [0, 1, 2, 3].map((i) => <div key={i} className="crate"><div className="skeleton" style={{ height: 118, width: 118 }} /></div>)}
+        </div>
+      </div>
+      {blocks.slice(1).map((b) => (
+        <div key={b.title} style={{ marginBottom: 18 }}>
+          <div className="h"><h3>{b.title}</h3><span className="muted" style={{ font: '500 11px var(--M)' }}>ДЛЯ ВАС</span></div>
+          <Crates list={b.playlists.slice(0, 12)} />
+        </div>))}
+    </>
+  )
 }
 
 export function Home() {

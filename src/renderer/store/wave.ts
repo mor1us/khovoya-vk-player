@@ -37,11 +37,11 @@ async function candidates(profile: WaveProfile): Promise<Track[]> {
   return [...recs, ...(await useLibrary.getState().loadMine())]
 }
 
-async function batch(mode: WaveMode, profile: WaveProfile): Promise<Track[]> {
+async function batch(mode: WaveMode, profile: WaveProfile, size = 20): Promise<Track[]> {
   const mine = new Set(useLibrary.getState().mine.map((t) => t.id))
   const cand = await candidates(profile)
   const queued = new Set(player.getState().queue?.list().map((t) => t.id) ?? [])
-  return pickBatch({ candidates: cand.filter((t) => !queued.has(t.id)), mine, mode, profile, recent: recent(), now: Date.now(), rnd: cryptoRandom })
+  return pickBatch({ candidates: cand.filter((t) => !queued.has(t.id)), mine, mode, profile, recent: recent(), now: Date.now(), rnd: cryptoRandom, size })
 }
 
 export const useWave = create<Wave>((set, get) => ({
@@ -96,3 +96,6 @@ export function bindWave() {
     }
   }
 }
+
+/** Подборка по вкусу Волны (для миксов «Для вас»). */
+export function waveBatch(mode: WaveMode, size: number): Promise<Track[]> { return batch(mode, useWave.getState().profile, size) }

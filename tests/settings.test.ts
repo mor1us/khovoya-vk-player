@@ -4,13 +4,13 @@ import { normalizeSettings, defaultSettings } from '../src/main/system/settingsL
 describe('settings', () => {
   const d = defaultSettings('/music/Хвоя')
   it('defaults', () => {
-    expect(d).toEqual({ downloadDir: '/music/Хвоя', closeToTray: true, animations: true, discordEnabled: true, discordAppId: '', crossfadeSec: 6 })
+    expect(d).toEqual({ downloadDir: '/music/Хвоя', closeToTray: true, animations: true, discordEnabled: true, discordAppId: '', crossfadeSec: 4 })
   })
   it('drops unknown fields and wrong types', () => {
     const s = normalizeSettings({ hacker: 1, closeToTray: 'yes', crossfadeSec: '9' } as any, d)
     expect(s).not.toHaveProperty('hacker')
     expect(s.closeToTray).toBe(true)
-    expect(s.crossfadeSec).toBe(6)
+    expect(s.crossfadeSec).toBe(4)
   })
   it('clamps crossfade to 0..12 and rounds', () => {
     expect(normalizeSettings({ crossfadeSec: 40 }, d).crossfadeSec).toBe(12)
@@ -22,4 +22,12 @@ describe('settings', () => {
     expect(s.closeToTray).toBe(false); expect(s.discordAppId).toBe('12345'); expect(s.downloadDir).toBe('/music/Хвоя')
   })
   it('null/garbage input → defaults', () => { expect(normalizeSettings(null, d)).toEqual(d); expect(normalizeSettings('x' as any, d)).toEqual(d) })
+})
+import { migrateSettings } from '../src/main/system/settingsLogic'
+describe('migrateSettings', () => {
+  it('old default 6 s → 4 s once', () => {
+    expect(migrateSettings({ crossfadeSec: 6 }, {})).toEqual({ settings: { crossfadeSec: 4 }, migrations: { cf4: true } })
+    expect(migrateSettings({ crossfadeSec: 6 }, { cf4: true })).toEqual({ settings: { crossfadeSec: 6 }, migrations: { cf4: true } })
+    expect(migrateSettings({ crossfadeSec: 9 }, {})).toEqual({ settings: { crossfadeSec: 9 }, migrations: { cf4: true } })
+  })
 })

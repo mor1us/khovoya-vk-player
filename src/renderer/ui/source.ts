@@ -7,6 +7,7 @@ export function sourceLabel(src: string): string {
   if (src === 'similar') return 'Похоже на это'
   if (src === 'downloads') return 'Загрузки'
   if (src === 'history') return 'История'
+  if (src.startsWith('mix:')) return 'Микс / ' + src.slice(4)
   if (src.startsWith('artist:')) return 'Артист / ' + src.slice(7)
   return src
 }
