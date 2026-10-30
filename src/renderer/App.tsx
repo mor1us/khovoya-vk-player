@@ -12,6 +12,7 @@ import { Pages } from './pages/Pages'
 import { DialogHost } from './ui/Dialog'
 import { applySettings } from './store/settings'
 import { bindDiscord } from './store/discord'
+import { useHistory } from './store/history'
 import { bindDownloads } from './store/downloads'
 
 let booted = false
@@ -26,6 +27,7 @@ function boot() {
   playerHooks.trackChange.push(w.onTrackChange)
   playerHooks.queueLow.push((r) => void w.onQueueLow(r))
   playerHooks.notice.push((m) => useUi.getState().toast(m))
+  playerHooks.trackChange.push((_p, n) => { if (n) useHistory.getState().add(n) })
   setInterval(() => { if (player.getState().playing) player.getState().persist() }, 5000)
   window.addEventListener('beforeunload', () => player.getState().persist())
   window.api.on('sys:state', (s: { background: boolean }) => {

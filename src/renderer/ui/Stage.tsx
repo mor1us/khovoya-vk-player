@@ -43,6 +43,7 @@ export function Reactions() {
 }
 
 export function Stage() {
+  const tab = useUi((s) => s.tab)
   const cur = usePlayer((s) => s.current)
   const source = usePlayer((s) => s.source)
   const duration = usePlayer((s) => s.duration)
@@ -51,7 +52,13 @@ export function Stage() {
   const dur = duration || cur?.duration || 0
   return (
     <section className="stage drag">
-      <div className="top"><div className="brand"><i />ХВОЯ</div>{source && <div className="src">Играет из · <b>{sourceLabel(source)}</b></div>}</div>
+      <div className="top">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div className="brand"><i />ХВОЯ</div>
+          <button className={'hist nodrag' + (tab === 'history' ? ' on' : '')} title="История прослушивания" onClick={() => useUi.getState().go('history')}><I.IClock size={15} />История</button>
+        </div>
+        {source && <div className="src">Играет из · <b>{sourceLabel(source)}</b></div>}
+      </div>
       {!cur ? (
         <div className="empty">Ничего не играет.<br />Включи Волну или любой трек справа.</div>
       ) : (

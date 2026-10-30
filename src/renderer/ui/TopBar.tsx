@@ -37,6 +37,7 @@ export function TopBar({ onLogout }: { onLogout: () => void }) {
         {menu && (
           <div className="menu" style={{ right: 0, top: 40 }} onMouseLeave={() => setMenu(false)}>
             <div className="lbl">{session?.userName}</div>
+            <button onClick={() => { setMenu(false); useUi.getState().go('history') }}>История прослушивания</button>
             <button onClick={() => { setMenu(false); useUi.getState().go('settings') }}>Настройки</button>
             <div className="sep" />
             <button onClick={() => { setMenu(false); onLogout() }}>Выйти из ВК</button>

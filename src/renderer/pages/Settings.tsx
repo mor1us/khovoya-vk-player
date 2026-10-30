@@ -32,7 +32,7 @@ export function Settings({ onLogout }: { onLogout: () => void }) {
           <input className="filter" defaultValue={s.discordAppId} placeholder="Application ID" onBlur={(e) => void save({ discordAppId: e.target.value })} /></div>}
         <div className="item"><div className="l"><b>Аккаунт ВК</b><span>{useUi.getState().session?.userName}</span></div>
           <button className="btn-s" onClick={onLogout}>Выйти</button></div>
-        <div className="item" style={{ border: 0 }}><div className="l"><span>Хвоя 0.2.3 · без рекламы · музыка из ВКонтакте</span></div></div>
+        <div className="item" style={{ border: 0 }}><div className="l"><span>Хвоя 0.2.4 · без рекламы · музыка из ВКонтакте</span></div></div>
       </div>
     </div>
   )

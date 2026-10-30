@@ -217,3 +217,7 @@ html.no-anim *{animation:none!important;transition:none!important}
 .range{display:flex;align-items:center;gap:10px;width:220px}
 .range input{flex:1;accent-color:var(--g)}
 .range b{font:500 12px var(--M);color:var(--g);width:34px;text-align:right}
+
+.hist{display:flex;align-items:center;gap:6px;font:600 12px var(--B);color:var(--t2);padding:5px 10px;border-radius:8px;border:1px solid var(--ln)}
+.hist:hover{color:var(--text);border-color:#3a3a3a}
+.hist.on{color:var(--k);background:var(--g);border-color:var(--g)}

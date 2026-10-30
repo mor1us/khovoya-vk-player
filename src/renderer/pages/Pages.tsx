@@ -6,6 +6,7 @@ import { Playlists } from './Playlists'
 import { PlaylistPage } from './PlaylistPage'
 import { Downloads } from './Downloads'
 import { Settings } from './Settings'
+import { History } from './History'
 import { TrackMenu } from '../ui/TrackMenu'
 
 export function Pages({ onLogout }: { onLogout: () => void }) {
@@ -19,6 +20,7 @@ export function Pages({ onLogout }: { onLogout: () => void }) {
       {tab === 'playlist' && <PlaylistPage />}
       {tab === 'downloads' && <Downloads />}
       {tab === 'settings' && <Settings onLogout={onLogout} />}
+      {tab === 'history' && <History />}
       <TrackMenu />
     </>
   )
