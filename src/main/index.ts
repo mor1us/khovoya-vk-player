@@ -6,7 +6,8 @@ import { MockAudioApi } from './vk/mock'
 import { startMockMedia } from './vk/mockServer'
 import { login, userInfo, fetchImageDataUrl } from './auth/kate'
 import { TokenStore } from './auth/tokenStore'
-import { registerCore } from './ipc/handlers'
+import { registerCore, handle } from './ipc/handlers'
+import { jsonFile } from './system/jsonFile'
 import type { Session } from '../shared/types'
 
 const MOCK = process.env.VK_MOCK === '1'
@@ -68,6 +69,9 @@ async function setup() {
     }
   })
   void fetchImageDataUrl
+  const wave = jsonFile<unknown>('wave-profile.json', () => null)
+  handle('wave:get', () => wave.read())
+  handle('wave:set', (p: unknown) => wave.write(p))
 }
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
