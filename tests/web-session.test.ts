@@ -71,3 +71,32 @@ describe('TokenKeeper', () => {
     await k.get(); expect(k.userId()).toBe(99)
   })
 })
+
+import { webTokenScript, redact, pageTld } from '../src/main/auth/webToken'
+describe('in-page web token', () => {
+  it('script posts from the page with cookies to login.vk.<tld>', () => {
+    const js = webTokenScript('com')
+    expect(js).toContain("https://login.vk.com/?act=web_token")
+    expect(js).toContain("credentials: 'include'")
+    expect(js).toContain('app_id=6287487')
+    expect(js).toContain('version=1')
+  })
+  it('pageTld picks domain from page url', () => {
+    expect(pageTld('https://vk.com/audio')).toBe('com')
+    expect(pageTld('https://m.vk.ru/feed')).toBe('ru')
+    expect(pageTld('https://id.vk.com/auth')).toBeNull()
+    expect(pageTld('https://example.com')).toBeNull()
+  })
+  it('redact hides tokens in log lines', () => {
+    expect(redact('{"access_token":"vk1.a.SECRET","user_id":1}')).not.toContain('SECRET')
+    expect(redact('url?access_token=abc&x=1')).toBe('url?access_token=***&x=1')
+  })
+})
+describe('TokenKeeper.set', () => {
+  it('uses the token from the login window without another request', async () => {
+    const f = vi.fn(async () => ({ token: 'X', userId: 1, expires: 0 }))
+    const k = new TokenKeeper(f, () => 0)
+    k.set({ token: 'L', userId: 5, expires: 0 })
+    expect((await k.get())!.token).toBe('L'); expect(k.userId()).toBe(5); expect(f).not.toHaveBeenCalled()
+  })
+})

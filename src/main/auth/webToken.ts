@@ -30,6 +30,7 @@ export class TokenKeeper {
   constructor(private fetchToken: () => Promise<WebToken>, private now: () => number = Date.now, private onLost: () => void = () => {}) {}
 
   invalidate() { this.at = -Infinity }
+  set(t: WebToken) { this.cur = t; this.at = this.now() }
   clear() { this.cur = null; this.at = 0 }
   userId(): number { return this.cur?.userId ?? 0 }
 
@@ -46,4 +47,20 @@ export class TokenKeeper {
     })()
     return this.pending
   }
+}
+
+/** JS, который выполняется внутри страницы ВК: тот же запрос, что делает сам сайт. Возвращает текст ответа. */
+export function webTokenScript(tld: 'ru' | 'com'): string {
+  return `fetch('https://login.vk.${tld}/?act=web_token', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'version=1&app_id=${WEB_TOKEN_APP_ID}' }).then(r => r.text()).catch(e => 'ERR ' + e)`
+}
+
+/** Домен вошедшей страницы ВК (vk.com / m.vk.ru и т.п.), страницы входа не считаются. */
+export function pageTld(url: string): 'ru' | 'com' | null {
+  const m = /^https:\/\/(?:m\.)?vk\.(ru|com)(?:\/|$)/.exec(url)
+  return m ? (m[1] as 'ru' | 'com') : null
+}
+
+/** Для журнала: ключи доступа никогда не пишем. */
+export function redact(s: string): string {
+  return s.replace(/("access_token"\s*:\s*")[^"]*/g, '$1***').replace(/(access_token=)[^&\s"]*/g, '$1***')
 }

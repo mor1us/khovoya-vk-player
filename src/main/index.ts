@@ -115,9 +115,8 @@ async function setup() {
     if (MOCK) { mockLoggedIn = true; return { kind: 'ok', userName: 'Мориус' } }
     const r = await loginWindow(win)
     if ('error' in r) return { kind: 'error', message: r.error }
-    keeper.clear()
-    const t = await keeper.get()
-    if (!t) return { kind: 'error', message: 'ВК не выдал доступ. Попробуй войти ещё раз.' }
+    keeper.set(r)
+    const t = r
     const me = await userInfo(t.token)
     return { kind: 'ok', userName: me.name, avatar: me.avatar }
   })
