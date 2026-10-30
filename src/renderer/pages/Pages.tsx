@@ -4,6 +4,7 @@ import { Mine } from './Mine'
 import { Search } from './Search'
 import { Playlists } from './Playlists'
 import { PlaylistPage } from './PlaylistPage'
+import { Downloads } from './Downloads'
 import { TrackMenu } from '../ui/TrackMenu'
 
 export function Pages() {
@@ -15,7 +16,8 @@ export function Pages() {
       {tab === 'search' && <Search />}
       {tab === 'playlists' && <Playlists />}
       {tab === 'playlist' && <PlaylistPage />}
-      {!['home', 'mine', 'search', 'playlists', 'playlist'].includes(tab) && <div className="page"><div className="muted">Раздел скоро будет</div></div>}
+      {tab === 'downloads' && <Downloads />}
+      {!['home', 'mine', 'search', 'playlists', 'playlist', 'downloads'].includes(tab) && <div className="page"><div className="muted">Раздел скоро будет</div></div>}
       <TrackMenu />
     </>
   )

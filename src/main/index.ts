@@ -1,4 +1,6 @@
 import { app, BrowserWindow, shell, session } from 'electron'
+import { createDownloads, registerMediaScheme, MEDIA_SCHEME } from './downloads/runtime'
+import type { Track } from '../shared/types'
 import { join } from 'path'
 import { VkClient } from './vk/client'
 import { VkAudioApi, type AudioApi } from './vk/audio'
@@ -75,12 +77,23 @@ async function setup() {
       return { loggedIn: true, userName: me.name, avatar: me.avatar, userId: s.userId }
     }
   })
+  let changeTimer: NodeJS.Timeout | null = null
+  const dl = createDownloads(() => join(app.getPath('music'), 'Хвоя'), () => {
+    if (changeTimer) return
+    changeTimer = setTimeout(() => { changeTimer = null; win?.webContents.send('dl:changed') }, 300)
+  })
+  handle('dl:start', (tracks: Track[]) => dl.enqueue(tracks))
+  handle('dl:list', () => dl.list())
+  handle('dl:cancel', (id: string) => dl.cancel(id))
+  handle('dl:localPath', (id: string) => (dl.localPath(id) ? `${MEDIA_SCHEME}://local/${encodeURIComponent(id)}` : null))
+  handle('dl:openFolder', (id?: string) => { const p = id ? dl.localPath(id) : null; if (p) shell.showItemInFolder(p); else void shell.openPath(join(app.getPath('music'), 'Хвоя')) })
   const wave = jsonFile<unknown>('wave-profile.json', () => null)
   handle('wave:get', () => wave.read())
   handle('wave:set', (p: unknown) => wave.write(p))
 }
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
+registerMediaScheme()
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()

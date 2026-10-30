@@ -23,3 +23,4 @@ export const IPlus = (p: P) => <S {...p}><path d="M12 5v14M5 12h14" /></S>
 export const IBack = (p: P) => <S {...p}><path d="M15 18l-6-6 6-6" /></S>
 export const ICheck = (p: P) => <S {...p}><path d="M5 12l5 5L20 7" /></S>
 export const IX = (p: P) => <S {...p}><path d="M6 6l12 12M18 6L6 18" /></S>
+export const IFolder = (p: P) => <S {...p}><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></S>
