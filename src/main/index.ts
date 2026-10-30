@@ -12,6 +12,8 @@ import { VkAudioApi, type AudioApi } from './vk/audio'
 import { MockAudioApi } from './vk/mock'
 import { startMockMedia } from './vk/mockServer'
 import { login, userInfo, fetchImageDataUrl } from './auth/kate'
+import { authorizeUrl, parseRedirect } from './auth/browserLogin'
+import type { LoginStep } from '../shared/types'
 import { TokenStore } from './auth/tokenStore'
 import { registerCore, handle } from './ipc/handlers'
 import { jsonFile } from './system/jsonFile'
@@ -100,6 +102,7 @@ async function setup() {
     const r = await dialog.showOpenDialog(win, { title: 'Папка для скачанной музыки', defaultPath: settings.get().downloadDir, properties: ['openDirectory', 'createDirectory'] })
     return r.canceled ? null : r.filePaths[0]
   })
+  handle('auth:browser', () => (MOCK ? ((mockLoggedIn = true), { kind: 'ok', userName: 'Мориус' }) : browserLogin()))
   const discord = new DiscordPresence()
   const applyDiscord = () => { const s = settings.get(); if (s.discordEnabled && s.discordAppId) discord.start(s.discordAppId); else discord.stop() }
   applyDiscord()
@@ -109,6 +112,34 @@ async function setup() {
   const wave = jsonFile<unknown>('wave-profile.json', () => null)
   handle('wave:get', () => wave.read())
   handle('wave:set', (p: unknown) => wave.write(p))
+}
+
+/** Окно ВК для входа: код, SMS, QR. Пароль приложение не видит, забираем только ключ из адреса после входа. */
+function browserLogin(): Promise<LoginStep> {
+  return new Promise((resolve) => {
+    const w = new BrowserWindow({
+      width: 520, height: 720, parent: win ?? undefined, modal: !!win, title: 'Вход через ВК', autoHideMenuBar: true, backgroundColor: '#ffffff',
+      webPreferences: { partition: 'vkauth', contextIsolation: true, nodeIntegration: false, sandbox: true }
+    })
+    let done = false
+    const finish = async (r: LoginStep) => { if (done) return; done = true; if (!w.isDestroyed()) w.close(); resolve(r) }
+    const check = async (url: string) => {
+      const r = parseRedirect(url)
+      if (!r) return
+      if ('error' in r) return finish({ kind: 'error', message: r.error })
+      store.save({ token: r.token, userId: r.userId })
+      const me = await userInfo(fetch, r.token)
+      void finish({ kind: 'ok', userName: me.name, avatar: me.avatar })
+    }
+    const wc = w.webContents
+    wc.on('will-redirect', (_e, url) => void check(url))
+    wc.on('will-navigate', (_e, url) => void check(url))
+    wc.on('did-navigate', (_e, url) => void check(url))
+    wc.on('did-redirect-navigation', (_e, url) => void check(url))
+    wc.setWindowOpenHandler(({ url }) => { void wc.loadURL(url); return { action: 'deny' } })
+    w.on('closed', () => { if (!done) { done = true; resolve({ kind: 'error', message: 'Окно входа закрыто' }) } })
+    void w.loadURL(authorizeUrl())
+  })
 }
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')

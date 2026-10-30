@@ -68,6 +68,12 @@ export function Login({ onDone }: { onDone: (s: Extract<LoginStep, { kind: 'ok' 
           {err && <div className="err">{err}</div>}
           <button className="btn" disabled={busy}>{busy ? 'Входим…' : step === 'pass' ? 'Войти' : 'Подтвердить'}</button>
           {step === '2fa' && <button type="button" className="btn ghost" onClick={() => { setStep('pass'); setCode(''); setErr('') }}>Назад</button>}
+          <div className="hint" style={{ textAlign: 'center' }}>или</div>
+          <button type="button" className={'btn' + (/окно ВК/.test(err) ? '' : ' ghost')} disabled={busy} onClick={async () => {
+            setBusy(true); setErr('')
+            try { const r = await window.api.invoke<LoginStep>('auth:browser'); if (r.kind === 'ok') onDone(r); else if (r.kind === 'error' && r.message !== 'Окно входа закрыто') setErr(r.message) }
+            catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
+          }}>Войти через окно ВК (код, SMS, QR)</button>
           <div className="hint">Пароль уходит только на сервер ВК и нигде не сохраняется. Приложение хранит лишь ключ доступа, зашифрованный Windows.</div>
         </form>
       </div>

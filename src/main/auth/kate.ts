@@ -41,11 +41,12 @@ export async function login(input: LoginInput, deps: { fetch: typeof fetch; stor
       catch { return { kind: 'error', message: 'Не удалось загрузить картинку капчи. Попробуй ещё раз.' } }
     case 'invalid_client':
     case 'invalid_request':
+      if (/too many attempts|different sign-in method/i.test(json.error_description ?? '')) return { kind: 'error', message: friendlyVkError(json.error_description) }
       if (input.code && /code|wrong/i.test(json.error_description ?? '')) return { kind: 'error', message: 'Неверный код подтверждения' }
       return { kind: 'error', message: 'Неверный логин или пароль' }
     case 'need_password': return { kind: 'error', message: 'Нужен пароль' }
     default:
-      return { kind: 'error', message: json.error_description ? `ВК не пустил: ${json.error_description}` : 'Не удалось войти. Попробуй позже.' }
+      return { kind: 'error', message: json.error_description ? friendlyVkError(json.error_description) : 'Не удалось войти. Попробуй позже.' }
   }
 }
 
@@ -56,4 +57,10 @@ export async function userInfo(f: typeof fetch, token: string): Promise<{ name: 
     if (u) return { name: `${u.first_name} ${u.last_name}`.trim(), avatar: u.photo_100 }
   } catch { /* имя не обязательно */ }
   return { name: 'Ты' }
+}
+
+export function friendlyVkError(desc: string): string {
+  if (/too many attempts|different sign-in method/i.test(desc)) return 'ВК временно запретил вход по паролю (слишком много попыток). Нажми «Войти через окно ВК» — там можно войти по коду или QR.'
+  if (/flood|too many requests/i.test(desc)) return 'Слишком много попыток входа. Подожди немного и попробуй снова.'
+  return `ВК не пустил: ${desc}`
 }
