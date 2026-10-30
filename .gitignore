@@ -1,5 +1,5 @@
 .superpowers/
+dev/fixtures/
+dist/
 node_modules/
 out/
-dist/
-dev/fixtures/

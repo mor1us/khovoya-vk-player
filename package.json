@@ -25,18 +25,73 @@
     "electron-vite": "^2.3.0",
     "typescript": "^5.9.3",
     "vite": "^5.4.21",
-    "vitest": "^2.1.9"
-  },
-  "dependencies": {
+    "vitest": "^2.1.9",
     "@fontsource/inter": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "@fontsource/manrope": "^5.3.0",
     "@tanstack/react-virtual": "^3.14.24",
-    "@xhayper/discord-rpc": "^1.5.1",
-    "ffmpeg-static": "^5.3.0",
     "hls.js": "^1.7.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zustand": "^4.5.7"
+  },
+  "dependencies": {
+    "@xhayper/discord-rpc": "^1.5.1",
+    "ffmpeg-static": "^5.3.0"
+  },
+  "build": {
+    "appId": "ru.morius.khvoya",
+    "productName": "Хвоя",
+    "executableName": "Khvoya",
+    "copyright": "Мориус",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**",
+      "resources/**",
+      "package.json",
+      "!**/*.map",
+      "!node_modules/ffmpeg-static/ffmpeg"
+    ],
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**"
+    ],
+    "extraMetadata": {
+      "main": "out/main/index.js"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Хвоя",
+      "artifactName": "Khvoya-Setup-${version}.${ext}",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    },
+    "portable": {
+      "artifactName": "Khvoya-Portable-${version}.${ext}"
+    },
+    "publish": null
   }
 }

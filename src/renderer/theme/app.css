@@ -162,7 +162,7 @@
 .btn-s{height:36px;padding:0 14px;border-radius:10px;font:600 13px var(--B);border:1px solid var(--ln);color:var(--text);display:inline-flex;align-items:center;gap:8px}
 .btn-s:hover{border-color:#3a3a3a}
 .btn-s.g{background:var(--g);color:var(--k);border-color:var(--g)}
-.filter{height:36px;border-radius:10px;background:var(--p1);border:1px solid var(--ln);padding:0 12px;outline:0;font-size:13px;width:220px}
+.filter{height:36px;border-radius:10px;background:var(--p1);border:1px solid var(--ln);padding:0 12px;outline:0;font-size:13px;width:180px}
 .filter:focus{border-color:var(--g)}
 select.filter{width:auto}
 .empty-state{color:var(--t3);padding:40px 0;text-align:center;line-height:1.6}
