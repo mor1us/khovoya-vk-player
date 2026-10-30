@@ -50,11 +50,11 @@ export async function login(input: LoginInput, deps: { fetch: typeof fetch; stor
   }
 }
 
-export async function userInfo(f: typeof fetch, token: string): Promise<{ name: string; avatar?: string }> {
+export async function userInfo(f: typeof fetch, token: string): Promise<{ name: string; avatar?: string; id?: number }> {
   try {
     const r = await f(`https://api.vk.com/method/users.get?fields=photo_100&v=${API_VERSION}&access_token=${encodeURIComponent(token)}`, { headers: { 'User-Agent': KATE_UA } })
     const u = ((await r.json()) as any).response?.[0]
-    if (u) return { name: `${u.first_name} ${u.last_name}`.trim(), avatar: u.photo_100 }
+    if (u) return { name: `${u.first_name} ${u.last_name}`.trim(), avatar: u.photo_100, id: u.id }
   } catch { /* имя не обязательно */ }
   return { name: 'Ты' }
 }

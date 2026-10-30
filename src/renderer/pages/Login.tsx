@@ -12,6 +12,8 @@ export function Login({ onDone }: { onDone: (s: Extract<LoginStep, { kind: 'ok' 
   const [phone, setPhone] = useState<string | undefined>()
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
+  const [manual, setManual] = useState(false)
+  const [pasted, setPasted] = useState('')
 
   async function submit(e?: React.FormEvent, withCaptcha = captcha) {
     e?.preventDefault()
@@ -74,6 +76,20 @@ export function Login({ onDone }: { onDone: (s: Extract<LoginStep, { kind: 'ok' 
             try { const r = await window.api.invoke<LoginStep>('auth:browser'); if (r.kind === 'ok') onDone(r); else if (r.kind === 'error' && r.message !== 'Окно входа закрыто') setErr(r.message) }
             catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
           }}>Войти через окно ВК (код, SMS, QR)</button>
+          {!manual ? (
+            <button type="button" className="hint" style={{ textDecoration: 'underline', alignSelf: 'center' }} onClick={() => setManual(true)}>Не получается? Войти через свой браузер</button>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid var(--ln)', paddingTop: 14 }}>
+              <div className="hint">1. Открой страницу входа в своём браузере и войди в ВК (если спросят доступ для Kate Mobile — «Разрешить»).<br />2. Попадёшь на пустую страницу с надписью «Пожалуйста, не копируйте данные из адресной строки» — это нормально, ключ нужен только этому приложению на твоём ПК. Скопируй адрес этой страницы целиком и вставь ниже.</div>
+              <button type="button" className="btn ghost" onClick={() => void window.api.invoke('auth:openBrowser')}>1. Открыть страницу входа в браузере</button>
+              <input className="field" placeholder="2. Вставь адрес страницы после входа" value={pasted} onChange={(e) => setPasted(e.target.value)} />
+              <button type="button" className="btn" disabled={busy || !pasted.trim()} onClick={async () => {
+                setBusy(true); setErr('')
+                try { const r = await window.api.invoke<LoginStep>('auth:token', pasted); if (r.kind === 'ok') onDone(r); else if (r.kind === 'error') setErr(r.message) }
+                catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
+              }}>Готово</button>
+            </div>
+          )}
           <div className="hint">Пароль уходит только на сервер ВК и нигде не сохраняется. Приложение хранит лишь ключ доступа, зашифрованный Windows.</div>
         </form>
       </div>

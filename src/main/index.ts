@@ -12,7 +12,7 @@ import { VkAudioApi, type AudioApi } from './vk/audio'
 import { MockAudioApi } from './vk/mock'
 import { startMockMedia } from './vk/mockServer'
 import { login, userInfo, fetchImageDataUrl } from './auth/kate'
-import { authorizeUrl, parseRedirect } from './auth/browserLogin'
+import { authorizeUrl, parseRedirect, parseManual, BROWSER_UA } from './auth/browserLogin'
 import type { LoginStep } from '../shared/types'
 import { TokenStore } from './auth/tokenStore'
 import { registerCore, handle } from './ipc/handlers'
@@ -103,6 +103,16 @@ async function setup() {
     return r.canceled ? null : r.filePaths[0]
   })
   handle('auth:browser', () => (MOCK ? ((mockLoggedIn = true), { kind: 'ok', userName: 'Мориус' }) : browserLogin()))
+  handle('auth:openBrowser', () => shell.openExternal(authorizeUrl()))
+  handle('auth:token', async (text: string): Promise<LoginStep> => {
+    const r = parseManual(String(text ?? ''))
+    if (!r) return { kind: 'error', message: 'Не нашёл ключ в этой ссылке. Скопируй адрес страницы целиком после входа.' }
+    if (MOCK) { mockLoggedIn = true; return { kind: 'ok', userName: 'Мориус' } }
+    const me = await userInfo(fetch, r.token)
+    if (!me.id) return { kind: 'error', message: 'Ключ не подошёл. Войди ещё раз и скопируй новую ссылку.' }
+    store.save({ token: r.token, userId: r.userId || me.id })
+    return { kind: 'ok', userName: me.name, avatar: me.avatar }
+  })
   const discord = new DiscordPresence()
   const applyDiscord = () => { const s = settings.get(); if (s.discordEnabled && s.discordAppId) discord.start(s.discordAppId); else discord.stop() }
   applyDiscord()
@@ -132,13 +142,14 @@ function browserLogin(): Promise<LoginStep> {
       void finish({ kind: 'ok', userName: me.name, avatar: me.avatar })
     }
     const wc = w.webContents
+    wc.setUserAgent(BROWSER_UA)
     wc.on('will-redirect', (_e, url) => void check(url))
     wc.on('will-navigate', (_e, url) => void check(url))
     wc.on('did-navigate', (_e, url) => void check(url))
     wc.on('did-redirect-navigation', (_e, url) => void check(url))
     wc.setWindowOpenHandler(({ url }) => { void wc.loadURL(url); return { action: 'deny' } })
     w.on('closed', () => { if (!done) { done = true; resolve({ kind: 'error', message: 'Окно входа закрыто' }) } })
-    void w.loadURL(authorizeUrl())
+    void w.loadURL(authorizeUrl(), { userAgent: BROWSER_UA })
   })
 }
 
