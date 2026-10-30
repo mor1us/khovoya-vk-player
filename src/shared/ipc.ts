@@ -5,7 +5,7 @@ export const IPC = {
   'vk:recommendations': true, 'vk:popular': true, 'vk:byId': true, 'vk:add': true, 'vk:remove': true,
   'pl:create': true, 'pl:edit': true, 'pl:addTracks': true, 'pl:removeTracks': true, 'pl:delete': true, 'pl:reorder': true,
   'dl:start': true, 'dl:list': true, 'dl:cancel': true, 'dl:localPath': true, 'dl:openFolder': true,
-  'settings:get': true, 'settings:set': true,
+  'settings:get': true, 'settings:set': true, 'settings:pickDir': true,
   'wave:get': true, 'wave:set': true,
   'win:min': true, 'win:max': true, 'win:close': true,
   'discord:update': true,

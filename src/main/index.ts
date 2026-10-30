@@ -1,6 +1,8 @@
-import { app, BrowserWindow, shell, session } from 'electron'
+import { app, BrowserWindow, shell, session, dialog } from 'electron'
 import { createDownloads, registerMediaScheme, MEDIA_SCHEME } from './downloads/runtime'
-import type { Track } from '../shared/types'
+import type { Track, Settings } from '../shared/types'
+import { settings } from './system/settings'
+import { setupTray, attachWindow } from './system/tray'
 import { join } from 'path'
 import { VkClient } from './vk/client'
 import { VkAudioApi, type AudioApi } from './vk/audio'
@@ -78,7 +80,7 @@ async function setup() {
     }
   })
   let changeTimer: NodeJS.Timeout | null = null
-  const dl = createDownloads(() => join(app.getPath('music'), 'Хвоя'), () => {
+  const dl = createDownloads(() => settings.get().downloadDir, () => {
     if (changeTimer) return
     changeTimer = setTimeout(() => { changeTimer = null; win?.webContents.send('dl:changed') }, 300)
   })
@@ -86,7 +88,15 @@ async function setup() {
   handle('dl:list', () => dl.list())
   handle('dl:cancel', (id: string) => dl.cancel(id))
   handle('dl:localPath', (id: string) => (dl.localPath(id) ? `${MEDIA_SCHEME}://local/${encodeURIComponent(id)}` : null))
-  handle('dl:openFolder', (id?: string) => { const p = id ? dl.localPath(id) : null; if (p) shell.showItemInFolder(p); else void shell.openPath(join(app.getPath('music'), 'Хвоя')) })
+  handle('dl:openFolder', (id?: string) => { const p = id ? dl.localPath(id) : null; if (p) shell.showItemInFolder(p); else void shell.openPath(settings.get().downloadDir) })
+  handle('settings:get', () => settings.get())
+  handle('settings:set', (patch: Partial<Settings>) => settings.set(patch))
+  handle('win:close', () => win?.close())
+  handle('settings:pickDir', async () => {
+    if (!win) return null
+    const r = await dialog.showOpenDialog(win, { title: 'Папка для скачанной музыки', defaultPath: settings.get().downloadDir, properties: ['openDirectory', 'createDirectory'] })
+    return r.canceled ? null : r.filePaths[0]
+  })
   const wave = jsonFile<unknown>('wave-profile.json', () => null)
   handle('wave:get', () => wave.read())
   handle('wave:set', (p: unknown) => wave.write(p))
@@ -99,6 +109,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.on('second-instance', () => { if (!win) return; if (win.isMinimized()) win.restore(); win.show(); win.focus() })
-  app.whenReady().then(async () => { await setup(); win = createWindow() })
+  app.whenReady().then(async () => { await setup(); win = createWindow(); attachWindow(win); setupTray(() => win) })
   app.on('window-all-closed', () => app.quit())
+  app.on('activate', () => win?.show())
 }

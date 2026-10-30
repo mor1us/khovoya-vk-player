@@ -10,6 +10,7 @@ import { TopBar, searchRef } from './ui/TopBar'
 import { Login } from './pages/Login'
 import { Pages } from './pages/Pages'
 import { DialogHost } from './ui/Dialog'
+import { applySettings } from './store/settings'
 import { bindDownloads } from './store/downloads'
 
 let booted = false
@@ -29,10 +30,8 @@ function boot() {
     useUi.setState({ background: s.background })
     document.documentElement.classList.toggle('paused-ui', s.background)
   })
-  window.api.invoke<Settings>('settings:get').then((s) => {
-    playerHooks.crossfadeSec = s.crossfadeSec
-    document.documentElement.classList.toggle('no-anim', !s.animations)
-  }).catch(() => {})
+  window.api.invoke<Settings>('settings:get').then(applySettings).catch(() => {})
+  window.api.on('tray:cmd', (c: string) => { if (c === 'toggle') void player.getState().toggle(); if (c === 'next') void player.getState().next() })
 }
 
 function useWide() {
@@ -105,7 +104,7 @@ export function App() {
   return (
     <div className={'app' + (wide ? '' : ' narrow')}>
       {wide && <Stage />}
-      <main className="main"><TopBar onLogout={logout} /><Pages /></main>
+      <main className="main"><TopBar onLogout={logout} /><Pages onLogout={logout} /></main>
       {!wide && hasTrack && <MiniBar />}
       <Toasts /><Offline /><CaptchaModal /><DialogHost />
     </div>

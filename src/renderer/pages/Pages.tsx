@@ -5,9 +5,10 @@ import { Search } from './Search'
 import { Playlists } from './Playlists'
 import { PlaylistPage } from './PlaylistPage'
 import { Downloads } from './Downloads'
+import { Settings } from './Settings'
 import { TrackMenu } from '../ui/TrackMenu'
 
-export function Pages() {
+export function Pages({ onLogout }: { onLogout: () => void }) {
   const tab = useUi((s) => s.tab)
   return (
     <>
@@ -17,7 +18,7 @@ export function Pages() {
       {tab === 'playlists' && <Playlists />}
       {tab === 'playlist' && <PlaylistPage />}
       {tab === 'downloads' && <Downloads />}
-      {!['home', 'mine', 'search', 'playlists', 'playlist', 'downloads'].includes(tab) && <div className="page"><div className="muted">Раздел скоро будет</div></div>}
+      {tab === 'settings' && <Settings onLogout={onLogout} />}
       <TrackMenu />
     </>
   )
