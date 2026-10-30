@@ -53,6 +53,7 @@ export type PlayerState = {
 }
 
 const RECENT_MAX = 200
+const MAX_SKIPS = 3
 
 export function createPlayer(d: PlayerDeps): StoreApi<PlayerState> {
   let loadedId: string | null = null // какой трек реально загружен в движок
@@ -64,7 +65,7 @@ export function createPlayer(d: PlayerDeps): StoreApi<PlayerState> {
 
   const store = createStore<PlayerState>()((set, get) => {
     /** Запустить трек: manual — 0,3 с, auto — кроссфейд по настройке, first — без перехода. */
-    async function start(target: Track | null, mode: 'first' | 'manual' | 'auto', startAt = 0, prevListened = get().position): Promise<void> {
+    async function start(target: Track | null, mode: 'first' | 'manual' | 'auto', startAt = 0, prevListened = get().position, skipped = 0): Promise<void> {
       const prev = get().current
       if (!target) { d.engine.pause(); set({ playing: false }); return }
       const plan = fadePlan({ duration: prev?.duration ?? 0, crossfadeSec: d.crossfadeSec(), repeat: get().repeat, manual: mode === 'manual' })
@@ -75,11 +76,17 @@ export function createPlayer(d: PlayerDeps): StoreApi<PlayerState> {
       }
       const res = await withUrlRefresh(await d.resolveUrl(target), load, () => d.refreshUrl(target))
       if (res === 'skip') {
+        if (skipped + 1 >= MAX_SKIPS) {
+          d.engine.pause()
+          set({ playing: false, current: target })
+          d.onNotice?.('Не получается включить треки. Проверь интернет или войди в ВК заново.')
+          return
+        }
         d.onNotice?.(`«${target.title}» сейчас недоступен — пропускаю`)
         const q = get().queue
         if (!q) return
         const after = q.next(false)
-        if (after && after.id !== target.id) return start(after, mode === 'first' ? 'first' : mode, 0, prevListened)
+        if (after && after.id !== target.id) return start(after, mode === 'first' ? 'first' : mode, 0, prevListened, skipped + 1)
         set({ playing: false }); return
       }
       loadedId = target.id

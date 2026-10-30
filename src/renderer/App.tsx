@@ -9,12 +9,14 @@ import { Stage, MiniBar } from './ui/Stage'
 import { TopBar, searchRef } from './ui/TopBar'
 import { Login } from './pages/Login'
 import { Pages } from './pages/Pages'
+import { bindDownloads } from './store/downloads'
 
 let booted = false
 function boot() {
   if (booted) return
   booted = true
   player.getState().restore()
+  bindDownloads()
   bindMedia(player, () => searchRef.current?.focus())
   const w = bindWave()
   playerHooks.trackChange.push(w.onTrackChange)

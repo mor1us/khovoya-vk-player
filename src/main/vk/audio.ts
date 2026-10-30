@@ -18,7 +18,7 @@ export interface AudioApi {
   addToPlaylist(p: Playlist, ids: string[]): Promise<void>
   removeFromPlaylist(p: Playlist, ids: string[]): Promise<void>
   deletePlaylist(p: Playlist): Promise<void>
-  reorder(t: Track, before?: string, after?: string): Promise<void>
+  reorder(t: Track, before?: string, after?: string, playlist?: Playlist): Promise<void>
 }
 
 const PAGE = 1000
@@ -78,7 +78,10 @@ export class VkAudioApi implements AudioApi {
   async addToPlaylist(p: Playlist, ids: string[]) { await this.vk.call('audio.addToPlaylist', { owner_id: p.ownerId, playlist_id: p.id, audio_ids: ids.join(',') }) }
   async removeFromPlaylist(p: Playlist, ids: string[]) { await this.vk.call('audio.removeFromPlaylist', { owner_id: p.ownerId, playlist_id: p.id, audio_ids: ids.join(',') }) }
   async deletePlaylist(p: Playlist) { await this.vk.call('audio.deletePlaylist', { owner_id: p.ownerId, playlist_id: p.id }) }
-  async reorder(t: Track, before?: string, after?: string) {
-    await this.vk.call('audio.reorder', { audio_id: t.vkId, owner_id: t.ownerId, before: before ? vkId(before) : undefined, after: after ? vkId(after) : undefined })
+  async reorder(t: Track, before?: string, after?: string, playlist?: Playlist) {
+    await this.vk.call('audio.reorder', {
+      audio_id: t.vkId, owner_id: playlist ? playlist.ownerId : this.me(), playlist_id: playlist?.id,
+      before: before ? vkId(before) : undefined, after: after ? vkId(after) : undefined
+    })
   }
 }

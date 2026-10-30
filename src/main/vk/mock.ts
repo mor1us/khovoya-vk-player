@@ -71,12 +71,13 @@ export class MockAudioApi implements AudioApi {
   async addToPlaylist(p: Playlist, ids: string[]) { const x = this.find(p); x.ids.push(...ids.filter((i) => !x.ids.includes(i))); this.sync(x) }
   async removeFromPlaylist(p: Playlist, ids: string[]) { const x = this.find(p); x.ids = x.ids.filter((i) => !ids.includes(i)); this.sync(x) }
   async deletePlaylist(p: Playlist) { this.pls = this.pls.filter((x) => x.p.id !== p.id) }
-  async reorder(t: Track, before?: string, after?: string) {
-    const i = this.mine.findIndex((m) => m.id === t.id); if (i < 0) return
-    const [m] = this.mine.splice(i, 1)
-    const anchor = before ?? after
-    let j = anchor ? this.mine.findIndex((x) => x.id === anchor) : 0
-    if (after && j >= 0) j += 1
-    this.mine.splice(Math.max(0, j), 0, m)
+  async reorder(t: Track, before?: string, after?: string, playlist?: Playlist) {
+    const list = playlist ? this.find(playlist).ids : this.mine.map((m) => m.id)
+    const i = list.indexOf(t.id); if (i < 0) return
+    list.splice(i, 1)
+    let j = before ? list.indexOf(before) : after ? list.indexOf(after) + 1 : 0
+    if (j < 0) j = 0
+    list.splice(j, 0, t.id)
+    if (!playlist) this.mine = list.map((id) => this.all.find((x) => x.id === id)!)
   }
 }

@@ -45,7 +45,7 @@ export function registerCore(c: Ctx) {
   handle('pl:addTracks', (p: Playlist, ids: string[]) => c.api().addToPlaylist(p, ids))
   handle('pl:removeTracks', (p: Playlist, ids: string[]) => c.api().removeFromPlaylist(p, ids))
   handle('pl:delete', (p: Playlist) => c.api().deletePlaylist(p))
-  handle('pl:reorder', (t: Track, before?: string, after?: string) => c.api().reorder(t, before, after))
+  handle('pl:reorder', (t: Track, before?: string, after?: string, p?: Playlist) => c.api().reorder(t, before, after, p))
 
   handle('win:min', () => c.win()?.minimize())
   handle('win:close', () => c.win()?.close())

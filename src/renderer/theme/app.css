@@ -97,3 +97,77 @@
 .captcha img{height:60px;border-radius:8px;background:#fff}
 .modal{position:absolute;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;z-index:90}
 .modal .box{background:var(--p1);border:1px solid var(--ln);border-radius:18px;padding:26px;width:380px;display:flex;flex-direction:column;gap:12px}
+
+/* ящики плейлистов */
+.crates{display:flex;gap:30px;padding:6px 0 4px 12px;overflow-x:auto;overflow-y:visible}
+.crate{width:118px;flex:none;cursor:pointer}
+.stack{position:relative;width:118px;height:118px}
+.stack>div{position:absolute;inset:0;border-radius:14px;border:2px solid var(--k)}
+.stack>div:nth-child(1){transform:translate(-10px,-6px) rotate(-8deg);background:#1f1f1f}
+.stack>div:nth-child(2){transform:translate(-5px,-3px) rotate(-4deg);background:#2b2b2b}
+.stack .hp{position:absolute;right:8px;bottom:8px;width:38px;height:38px;border-radius:50%;background:var(--g);color:var(--k);display:grid;place-items:center;opacity:0;transform:translateY(4px);transition:.15s}
+.crate:hover .hp,.crate.drop .hp{opacity:1;transform:none}
+.crate.drop .stack>div:last-of-type{outline:3px solid var(--g)}
+.crate .t{font:600 13px var(--B);margin-top:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crate .s{font:500 10.5px var(--M);color:var(--t3);margin-top:3px;text-transform:uppercase}
+
+/* главная: нижний ряд */
+.home{display:flex;flex-direction:column;min-height:100%}
+.bento{margin-top:auto;padding-top:22px;display:grid;grid-template-columns:1fr 1.15fr;gap:14px;min-height:400px}
+.box{border-radius:22px;padding:20px 22px;position:relative;overflow:hidden;background:var(--p1);border:1px solid var(--ln)}
+.box h3{font:700 16px var(--H);display:flex;justify-content:space-between;align-items:baseline}
+.box h3 span,.box h3 button{font:500 11px var(--M);color:var(--g);text-transform:uppercase}
+.wavec{background:var(--g);border:0;color:var(--k);display:flex;flex-direction:column}
+.wavec canvas{position:absolute;left:0;right:0;bottom:0;width:100%;height:60%;pointer-events:none}
+.wavec>*:not(canvas){position:relative}
+.wavec .k{font:600 10.5px var(--M);letter-spacing:1.4px}
+.wavec h2{font:800 46px var(--H);letter-spacing:-1.5px;margin-top:6px}
+.wavec p{font-size:13px;color:#123d06;margin-top:4px;max-width:260px;line-height:1.45}
+.wavec .m{display:flex;gap:6px;margin-top:18px;flex-wrap:wrap}
+.wavec .m button{font:600 12px var(--B);padding:8px 13px;border-radius:10px;color:var(--k);box-shadow:inset 0 0 0 1.5px var(--k)}
+.wavec .m button.on{background:var(--k);color:var(--g)}
+.wavec .go{position:absolute;right:20px;bottom:20px;width:64px;height:64px;border-radius:50%;background:var(--k);color:var(--g);display:grid;place-items:center}
+.wavec .go:active{transform:scale(.96)}
+.meter{display:flex;gap:3px;align-items:flex-end;height:24px;position:absolute!important;right:22px;top:22px}
+.meter i{width:4px;border-radius:2px;background:var(--k);animation:mt 1s ease-in-out infinite alternate}
+.meter i:nth-child(2){animation-delay:-.3s}.meter i:nth-child(3){animation-delay:-.6s}.meter i:nth-child(4){animation-delay:-.15s}
+.meter.still i{animation:none}
+@keyframes mt{from{height:6px}to{height:24px}}
+
+/* строки треков */
+.rows{display:flex;flex-direction:column;gap:2px}
+.row{display:grid;grid-template-columns:28px 44px minmax(0,1fr) auto 64px 32px;gap:12px;align-items:center;height:56px;padding:0 8px;border-radius:12px;cursor:default}
+.row:hover{background:var(--p2)}
+.row.sel{background:#1f2a17}
+.row.cur{box-shadow:inset 3px 0 0 var(--g);border-radius:0 12px 12px 0;background:var(--p2)}
+.row.na{opacity:.38}
+.row .n{font:500 11px var(--M);color:var(--t3);text-align:right}
+.row .cv{width:44px;height:44px;border-radius:10px}
+.row .tt{font:600 13.5px var(--B);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row.cur .tt{color:var(--g)}
+.row .ar{font-size:12px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .why{font:500 10.5px var(--M);color:var(--g);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .d{font:500 11px var(--M);color:var(--t3);text-align:right}
+.row .acts{display:flex;gap:2px;opacity:0}
+.row:hover .acts,.row .acts.keep{opacity:1}
+.row .acts .ic{width:30px;height:30px}
+.row .dl{color:var(--g)}
+.compact .row{grid-template-columns:44px minmax(0,1fr) 54px 30px;height:60px}
+
+/* заголовки страниц */
+.ph{display:flex;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+.ph h1{font:800 28px var(--H);letter-spacing:-1px}
+.ph .cnt{font:500 12px var(--M);color:var(--t3)}
+.ph .sp{flex:1}
+.btn-s{height:36px;padding:0 14px;border-radius:10px;font:600 13px var(--B);border:1px solid var(--ln);color:var(--text);display:inline-flex;align-items:center;gap:8px}
+.btn-s:hover{border-color:#3a3a3a}
+.btn-s.g{background:var(--g);color:var(--k);border-color:var(--g)}
+.filter{height:36px;border-radius:10px;background:var(--p1);border:1px solid var(--ln);padding:0 12px;outline:0;font-size:13px;width:220px}
+.filter:focus{border-color:var(--g)}
+select.filter{width:auto}
+.empty-state{color:var(--t3);padding:40px 0;text-align:center;line-height:1.6}
+.artists{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.artists button{font:600 12.5px var(--B);padding:8px 14px;border-radius:20px;border:1px solid var(--ln)}
+.artists button:hover{border-color:var(--g);color:var(--g)}
+.skeleton{height:56px;border-radius:12px;background:var(--p1);margin-bottom:2px;animation:sk 1.2s ease-in-out infinite alternate}
+@keyframes sk{from{opacity:.5}to{opacity:1}}
