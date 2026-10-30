@@ -75,14 +75,17 @@ export function Stage() {
 export function MiniBar() {
   const cur = usePlayer((s) => s.current)
   const duration = usePlayer((s) => s.duration)
+  const volume = usePlayer((s) => s.volume)
   const pos = usePosition()
   const dur = duration || cur?.duration || 0
   return (
     <div className="minibar">
       <div className="now">{cur && <><Cover className="cv" url={cur.coverUrl} seed={cur.id} /><div style={{ minWidth: 0 }}><div className="tt">{cur.title}</div><div className="ar">{cur.artist}</div></div></>}</div>
-      <Controls compact />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
-        {cur && <><span className="muted" style={{ font: '500 11px var(--M)' }}>{fmtTime(pos)}</span><Waveform id={cur.id} n={50} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} /></>}
+      <Controls />
+      <div className="mright">
+        {cur && <><span className="muted" style={{ font: '500 11px var(--M)' }}>{fmtTime(pos)}</span><Waveform id={cur.id} n={36} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} /></>}
+        <button className="ic" onClick={() => player.getState().setVolume(volume > 0 ? 0 : 0.8)} title={volume > 0 ? 'Выключить звук' : 'Включить звук'}>{volume > 0 ? <I.IVol size={18} /> : <I.IMute size={18} />}</button>
+        <input className="mvol" type="range" min={0} max={1} step={0.01} value={volume} title={`Громкость ${Math.round(volume * 100)}%`} onChange={(e) => player.getState().setVolume(+e.target.value)} />
       </div>
     </div>
   )
