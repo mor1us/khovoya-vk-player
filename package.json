@@ -1,7 +1,7 @@
 {
   "name": "khvoya",
   "productName": "Хвоя",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Свой плеер для музыки ВК без рекламы",
   "main": "out/main/index.js",
   "author": "Мориус",
@@ -94,6 +94,15 @@
     "portable": {
       "artifactName": "Khvoya-Portable-${version}.${ext}"
     },
-    "publish": null
+    "publish": {
+      "provider": "github",
+      "owner": "mor1us",
+      "repo": "khvoya",
+      "releaseType": "release"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mor1us/khvoya.git"
   }
 }
