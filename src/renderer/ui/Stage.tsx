@@ -1,3 +1,5 @@
+import { create } from 'zustand'
+import { useEffect, useState } from 'react'
 import { usePlayer, player } from '../store/playerInstance'
 import { useUi } from '../store/ui'
 import { useLibrary } from '../store/library'
@@ -66,6 +68,24 @@ function QueueBtn() {
   return <button className={'ic qbtn' + (on ? ' on' : '')} title="Очередь" onClick={() => (on ? useUi.getState().back() : useUi.getState().go('queue'))}><I.IList size={19} /></button>
 }
 
+/** Громкость колёсиком: наводишь на трек и крутишь — ±5% за щелчок, на секунду показываем процент. */
+const useVolHint = create<{ at: number }>(() => ({ at: 0 }))
+export function wheelVolume(e: React.WheelEvent) {
+  if (!e.deltaY) return
+  const v = player.getState().volume
+  const next = Math.round(Math.min(1, Math.max(0, v + (e.deltaY < 0 ? 0.05 : -0.05))) * 100) / 100
+  player.getState().setVolume(next)
+  useVolHint.setState({ at: Date.now() })
+}
+function VolHint() {
+  const at = useVolHint((s) => s.at)
+  const volume = usePlayer((s) => s.volume)
+  const [, tick] = useState(0)
+  useEffect(() => { if (!at) return; const t = setTimeout(() => tick((x) => x + 1), 1100); return () => clearTimeout(t) }, [at])
+  if (!at || Date.now() - at > 1000) return null
+  return <div className="volhint">{volume > 0 ? <I.IVol size={16} /> : <I.IMute size={16} />}<b>{Math.round(volume * 100)}%</b><i style={{ width: `${Math.round(volume * 100)}%` }} /></div>
+}
+
 export function Stage() {
   const tab = useUi((s) => s.tab)
   const cur = usePlayer((s) => s.current)
@@ -76,6 +96,7 @@ export function Stage() {
   const dur = duration || cur?.duration || 0
   return (
     <section className="stage drag">
+      <VolHint />
       <div className="top">
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div className="brand"><i />ХВОЯ</div>
@@ -88,7 +109,7 @@ export function Stage() {
         <div className="empty">Ничего не играет.<br />Включи Волну или любой трек справа.</div>
       ) : (
         <>
-          <div className="nodrag" style={{ display: 'contents' }} onContextMenu={(e) => openTrackMenu(e, [cur])}>
+          <div className="nodrag" style={{ display: 'contents' }} onContextMenu={(e) => openTrackMenu(e, [cur])} onWheel={wheelVolume}>
           <Cover className="cover nodrag" url={cur.coverUrl} seed={cur.id} />
           <div className="title nodrag" title={cur.title}>{cur.title}</div>
           <div className="artist nodrag"><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{cur.artist}</span><span className="chip">{fmtTime(cur.duration)}</span></div>
@@ -99,7 +120,7 @@ export function Stage() {
           <div className="ctl nodrag"><Controls reactions /></div>
           <div className="vol nodrag">
             <button className="ic" onClick={() => player.getState().setVolume(volume > 0 ? 0 : 0.8)} title="Звук">{volume > 0 ? <I.IVol size={18} /> : <I.IMute size={18} />}</button>
-            <input type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => player.getState().setVolume(+e.target.value)} />
+            <input type="range" min={0} max={1} step={0.01} value={volume} onWheel={wheelVolume} title={`Громкость ${Math.round(volume * 100)}% · колёсико мыши тоже работает`} onChange={(e) => player.getState().setVolume(+e.target.value)} />
             <QueueBtn />
           </div>
         </>
@@ -116,13 +137,14 @@ export function MiniBar() {
   const dur = duration || cur?.duration || 0
   return (
     <div className="minibar">
-      <div className="now nodrag" onContextMenu={(e) => cur && openTrackMenu(e, [cur])}>{cur && <><Cover className="cv" url={cur.coverUrl} seed={cur.id} /><div style={{ minWidth: 0 }}><div className="tt">{cur.title}</div><div className="ar">{cur.artist}</div></div></>}</div>
+      <VolHint />
+      <div className="now nodrag" onContextMenu={(e) => cur && openTrackMenu(e, [cur])} onWheel={wheelVolume} title="Колёсико — громкость, правая кнопка — меню трека">{cur && <><Cover className="cv" url={cur.coverUrl} seed={cur.id} /><div style={{ minWidth: 0 }}><div className="tt">{cur.title}</div><div className="ar">{cur.artist}</div></div></>}</div>
       <Controls reactions />
       <div className="mright">
         {cur && <><span className="muted" style={{ font: '500 11px var(--M)' }}>{fmtTime(pos)}</span><Waveform id={cur.id} track={cur} n={36} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} /></>}
         <QueueBtn />
         <button className="ic" onClick={() => player.getState().setVolume(volume > 0 ? 0 : 0.8)} title={volume > 0 ? 'Выключить звук' : 'Включить звук'}>{volume > 0 ? <I.IVol size={18} /> : <I.IMute size={18} />}</button>
-        <input className="mvol" type="range" min={0} max={1} step={0.01} value={volume} title={`Громкость ${Math.round(volume * 100)}%`} onChange={(e) => player.getState().setVolume(+e.target.value)} />
+        <input className="mvol" type="range" min={0} max={1} step={0.01} value={volume} onWheel={wheelVolume} title={`Громкость ${Math.round(volume * 100)}%`} onChange={(e) => player.getState().setVolume(+e.target.value)} />
       </div>
     </div>
   )
