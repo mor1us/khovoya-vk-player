@@ -1,3 +1,4 @@
+import { PlaylistActions } from '../ui/PlaylistActions'
 import { rememberPlaylist } from '../store/sourceNav'
 import { ask, confirmAsk } from '../ui/Dialog'
 import { useEffect, useMemo, useState } from 'react'
@@ -58,7 +59,8 @@ export function PlaylistPage() {
           <div className="btns">
             <button className="btn-s g" onClick={() => void playPlaylist(p)}><I.IPlay size={14} />Играть</button>
             <button className="btn-s" onClick={() => void playPlaylist(p, true)}><I.IShuffle size={14} />Перемешать</button>
-            <button className="btn-s" onClick={() => tracks && void useDownloads.getState().start(tracks)}><I.IDown size={14} />Скачать всё</button>
+            {!p.sc && !p.local && <button className="btn-s" onClick={() => tracks && void useDownloads.getState().start(tracks)}><I.IDown size={14} />Скачать всё</button>}
+            {(p.sc || p.local) && tracks && <PlaylistActions title={p.title} tracks={tracks} local={!!p.sc} />}
             {p.isMine && <button className="btn-s" onClick={() => void edit()}>Переименовать</button>}
             {p.isMine && <button className="btn-s" onClick={() => void remove()}>Удалить</button>}
           </div>
@@ -67,7 +69,7 @@ export function PlaylistPage() {
       <div className="ph" style={{ marginBottom: 10 }}>
         <input className="filter" placeholder="Поиск в плейлисте" value={q} onChange={(e) => setQ(e.target.value)} />
         <select className="filter" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-          <option value="default">Как в ВК</option><option value="added">По дате добавления</option><option value="title">По названию</option><option value="artist">По артисту</option>
+          <option value="default">{p.sc ? 'Как на SoundCloud' : p.local ? 'Как в плейлисте' : 'Как в ВК'}</option><option value="added">По дате добавления</option><option value="title">По названию</option><option value="artist">По артисту</option>
         </select>
         {p.isMine && <span className="hint">{canReorder ? 'Перетаскивай треки, чтобы поменять порядок' : 'Порядок меняется только при сортировке по умолчанию'}</span>}
       </div>

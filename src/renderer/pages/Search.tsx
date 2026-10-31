@@ -8,11 +8,17 @@ import { SrcBadge } from '../ui/TrackRow'
 import { Cover } from '../ui/Cover'
 import { KEYWORDS, TAGS, withKeyword, activeKeyword } from '../ui/searchTags'
 import { mergeSources } from '../ui/mergeSearch'
+import { ScLink, isScUrl } from './ScLink'
 
 type Where = 'all' | 'vk' | 'sc'
 
+/** Ссылка SoundCloud — открываем её, иначе обычный поиск. */
 export function Search() {
   const q = useUi((s) => s.submitted)
+  return isScUrl(q) ? <ScLink url={q} /> : <SearchResults q={q} />
+}
+
+function SearchResults({ q }: { q: string }) {
   const [res, setRes] = useState<{ tracks: Track[]; playlists: Playlist[] } | null>(null)
   const [err, setErr] = useState('')
   const [byDate, setByDate] = useState(false)

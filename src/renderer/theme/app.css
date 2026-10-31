@@ -455,4 +455,26 @@ html.no-anim *{animation:none!important;transition:none!important}
 .arrows button{width:30px;height:30px;border-radius:9px;border:1px solid var(--ln);color:var(--g);font:700 17px/1 var(--B);display:grid;place-items:center}
 .arrows button:hover:not(:disabled){border-color:var(--g)}
 .arrows button:disabled{opacity:.3;cursor:default}
-.bigrow,.crates{scroll-behavior:auto;scrollbar-width:thin}
+/* тонкая тёмная полоска без стрелок; scrollbar-width не задаём — иначе Windows рисует светлую системную */
+.bigrow,.crates{padding-bottom:10px}
+.bigrow::-webkit-scrollbar,.crates::-webkit-scrollbar{height:6px}
+.bigrow::-webkit-scrollbar-thumb,.crates::-webkit-scrollbar-thumb{background:#262626;border:0;border-radius:3px}
+.bigrow:hover::-webkit-scrollbar-thumb,.crates:hover::-webkit-scrollbar-thumb{background:#3a3a3a}
+.bigrow::-webkit-scrollbar-button,.crates::-webkit-scrollbar-button{display:none;width:0;height:0}
+/* ссылка SoundCloud в поиске */
+.ph h1 .srcb{font-size:12px;height:22px;padding:0 7px;margin-right:12px;vertical-align:6px}
+.sclhead{display:flex;gap:22px;align-items:flex-start;margin-bottom:18px}
+.sclhead .cv{width:150px;height:150px;border-radius:16px;flex:none}
+.sclhead .k{font:700 10.5px var(--M);letter-spacing:1.5px;color:#FF5500}
+.sclhead h2{font:800 32px/1.1 var(--H);letter-spacing:-1px;margin:6px 0 4px}
+.sclhead .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.missing{flex-basis:100%;font-size:12px;color:var(--t2);background:var(--p1);border:1px solid var(--ln);border-radius:10px;padding:8px 12px;line-height:1.5}
+.missing b{color:var(--text);font-weight:600}
+.missing .link{margin-left:8px}
+/* настоящая волна SoundCloud — оранжевая */
+.wf.real i.p{background:#FF5500}
+/* комментарии SoundCloud над волной */
+.sccom{height:30px;display:flex;align-items:flex-end;margin-top:6px;overflow:hidden}
+.sccom .bubble{max-width:100%;font-size:12px;color:var(--text);background:var(--p1);border:1px solid rgba(255,85,0,.45);border-radius:10px 10px 10px 3px;padding:5px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:bub .25s ease-out}
+.sccom .bubble b{color:#FF9A5C;font-weight:700;margin-right:7px}
+@keyframes bub{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}

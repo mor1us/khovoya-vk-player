@@ -5,6 +5,7 @@ import { useWave } from '../store/wave'
 import { useSc } from '../store/sc'
 import { Cover } from './Cover'
 import { Waveform } from './Waveform'
+import { ScComments } from './ScComments'
 import { fmtTime } from './format'
 import { sourceLabel } from './source'
 import { playerHooks } from '../store/playerInstance'
@@ -92,7 +93,8 @@ export function Stage() {
           <div className="title nodrag" title={cur.title}>{cur.title}</div>
           <div className="artist nodrag"><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{cur.artist}</span><span className="chip">{fmtTime(cur.duration)}</span></div>
           </div>
-          <Waveform id={cur.id} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} className="wf nodrag" />
+          <ScComments track={cur} pos={pos} />
+          <Waveform id={cur.id} track={cur} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} className="wf nodrag" />
           <div className="times"><span>{fmtTime(pos)}</span><b>{playerHooks.crossfadeSec ? `⤨ кроссфейд ${playerHooks.crossfadeSec} с` : 'без кроссфейда'}</b><span>{fmtTime(dur)}</span></div>
           <div className="ctl nodrag"><Controls reactions /></div>
           <div className="vol nodrag">
@@ -117,7 +119,7 @@ export function MiniBar() {
       <div className="now nodrag" onContextMenu={(e) => cur && openTrackMenu(e, [cur])}>{cur && <><Cover className="cv" url={cur.coverUrl} seed={cur.id} /><div style={{ minWidth: 0 }}><div className="tt">{cur.title}</div><div className="ar">{cur.artist}</div></div></>}</div>
       <Controls reactions />
       <div className="mright">
-        {cur && <><span className="muted" style={{ font: '500 11px var(--M)' }}>{fmtTime(pos)}</span><Waveform id={cur.id} n={36} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} /></>}
+        {cur && <><span className="muted" style={{ font: '500 11px var(--M)' }}>{fmtTime(pos)}</span><Waveform id={cur.id} track={cur} n={36} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} /></>}
         <QueueBtn />
         <button className="ic" onClick={() => player.getState().setVolume(volume > 0 ? 0 : 0.8)} title={volume > 0 ? 'Выключить звук' : 'Включить звук'}>{volume > 0 ? <I.IVol size={18} /> : <I.IMute size={18} />}</button>
         <input className="mvol" type="range" min={0} max={1} step={0.01} value={volume} title={`Громкость ${Math.round(volume * 100)}%`} onChange={(e) => player.getState().setVolume(+e.target.value)} />

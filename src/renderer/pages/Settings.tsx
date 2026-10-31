@@ -39,6 +39,8 @@ export function Settings({ onLogout }: { onLogout: () => void }) {
           <Toggle on={s.closeToTray} onChange={(v) => void save({ closeToTray: v })} /></div>
         <div className="item"><div className="l"><b>Анимации</b><span>Движущиеся линии Волны и плавные переходы. В свёрнутом окне они всегда выключены.</span></div>
           <Toggle on={s.animations} onChange={(v) => void save({ animations: v })} /></div>
+        <div className="item"><div className="l"><b>Комментарии SoundCloud</b><span>Всплывают над волной в той секунде трека, где их оставили, — как на сайте SoundCloud.</span></div>
+          <Toggle on={s.scComments} onChange={(v) => void save({ scComments: v })} /></div>
         <div className="item"><div className="l"><b>Статус в Discord</b><span>Друзья видят, что ты слушаешь. Нужен ID приложения из Discord Developer Portal — инструкция в файле docs/discord-setup.md.</span></div>
           <Toggle on={s.discordEnabled} onChange={(v) => void save({ discordEnabled: v })} /></div>
         {s.discordEnabled && <div className="item"><div className="l"><b>ID приложения Discord</b><span>Только цифры, например 1234567890123456789</span></div>
@@ -46,7 +48,7 @@ export function Settings({ onLogout }: { onLogout: () => void }) {
         <UpdatesRow />
         <div className="item"><div className="l"><b>Аккаунт ВК</b><span>{useUi.getState().session?.userName}</span></div>
           <button className="btn-s" onClick={onLogout}>Выйти</button></div>
-        <div className="item" style={{ border: 0 }}><div className="l"><span>Хвоя 0.4.7 · без рекламы · музыка из ВКонтакте</span></div></div>
+        <div className="item" style={{ border: 0 }}><div className="l"><span>Хвоя 0.4.8 · без рекламы · музыка из ВКонтакте</span></div></div>
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 import type { Settings } from '../../shared/types'
 
 export const defaultSettings = (downloadDir: string): Settings => ({
-  downloadDir, closeToTray: true, animations: true, discordEnabled: true, discordAppId: '', crossfadeSec: 3
+  downloadDir, closeToTray: true, animations: true, discordEnabled: true, discordAppId: '', crossfadeSec: 3, scComments: true
 })
 
 /** Только известные поля правильного типа; кроссфейд 0..12. */
@@ -11,7 +11,7 @@ export function normalizeSettings(input: unknown, def: Settings): Settings {
   const cf = typeof x.crossfadeSec === 'number' && Number.isFinite(x.crossfadeSec) ? Math.round(Math.min(12, Math.max(0, x.crossfadeSec))) : def.crossfadeSec
   const dir = typeof x.downloadDir === 'string' && x.downloadDir.trim() ? x.downloadDir.trim() : def.downloadDir
   const appId = typeof x.discordAppId === 'string' ? x.discordAppId.replace(/\D/g, '').slice(0, 25) : def.discordAppId
-  return { downloadDir: dir, closeToTray: bool('closeToTray'), animations: bool('animations'), discordEnabled: bool('discordEnabled'), discordAppId: appId, crossfadeSec: cf }
+  return { downloadDir: dir, closeToTray: bool('closeToTray'), animations: bool('animations'), discordEnabled: bool('discordEnabled'), discordAppId: appId, crossfadeSec: cf, scComments: bool('scComments') }
 }
 
 /** Разовые обновления сохранённых настроек: старые значения кроссфейда по умолчанию (6 с, 4 с) → 3 с. */

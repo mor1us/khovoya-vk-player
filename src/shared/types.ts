@@ -49,6 +49,8 @@ export type Settings = {
   discordEnabled: boolean
   discordAppId: string
   crossfadeSec: number // 0..12
+  /** Комментарии SoundCloud по ходу трека. */
+  scComments: boolean
 }
 
 export type LoginStep =
