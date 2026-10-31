@@ -47,6 +47,6 @@ export function Crate({ p }: { p: Playlist }) {
   )
 }
 
-export function Crates({ list, lead }: { list: Playlist[]; lead?: React.ReactNode }) {
-  return <div className="crates">{lead}{list.map((p) => <Crate key={`${p.ownerId}_${p.id}`} p={p} />)}</div>
+export function Crates({ list, lead, rowRef }: { list: Playlist[]; lead?: React.ReactNode; rowRef?: React.Ref<HTMLDivElement> }) {
+  return <div className="crates" ref={rowRef}>{lead}{list.map((p) => <Crate key={`${p.ownerId}_${p.id}`} p={p} />)}</div>
 }

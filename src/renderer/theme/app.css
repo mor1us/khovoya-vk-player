@@ -449,3 +449,10 @@ html.no-anim *{animation:none!important;transition:none!important}
 .scacc .av{width:30px;height:30px;border-radius:50%}
 .scacc b{font-weight:700;color:#FF9A5C}
 .khb.sc{background:#FF5500;color:#0B0B0B}
+/* листание рядов карточек */
+.hr{display:flex;align-items:center;gap:12px}
+.arrows{display:flex;gap:6px}
+.arrows button{width:30px;height:30px;border-radius:9px;border:1px solid var(--ln);color:var(--g);font:700 17px/1 var(--B);display:grid;place-items:center}
+.arrows button:hover:not(:disabled){border-color:var(--g)}
+.arrows button:disabled{opacity:.3;cursor:default}
+.bigrow,.crates{scroll-behavior:auto;scrollbar-width:thin}

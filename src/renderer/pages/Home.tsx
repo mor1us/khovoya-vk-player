@@ -11,6 +11,7 @@ import * as I from '../ui/icons'
 import { BigCard } from '../ui/BigCard'
 import { DailyCard } from '../ui/DailyCard'
 import { dailyOnly } from '../store/dailyLogic'
+import { useHScroll, Arrows } from '../ui/HScroll'
 
 /** «Забытое любимое» и др. миксы — отдельной карточкой-стопкой из 4 обложек. */
 function MixCrate({ m }: { m: Mix }) {
@@ -36,10 +37,11 @@ function DailyRow() {
   const regen = () => { void useMixes.getState().generate(); void useLibrary.getState().loadForYou(true) }
   const daily = dailyOnly(forYou ?? [])
   const loading = forYou === null && !mixes.length
+  const row = useHScroll()
   return (
     <div style={{ margin: '22px 0 18px' }}>
-      <div className="h"><h3>Плейлисты дня</h3><button className="link" disabled={busy} onClick={regen}>{busy ? 'Собираю…' : '↻ Сгенерировать заново'}</button></div>
-      <div className="bigrow">
+      <div className="h"><h3>Плейлисты дня</h3><span className="hr"><button className="link" disabled={busy} onClick={regen}>{busy ? 'Собираю…' : '↻ Сгенерировать заново'}</button><Arrows s={row} /></span></div>
+      <div className="bigrow" ref={row.ref}>
         {daily.map((p, i) => <DailyCard key={`${p.ownerId}_${p.id}`} p={p} i={i} />)}
         {mixes.filter((m) => m.key !== 'fav').map((m) => <BigCard key={m.key} title={m.title} sub={m.sub} seed={m.key} fill={m.key === 'fresh' ? '#39FF14' : '#1B1B1B'}
           onClick={() => void player.getState().playList(m.tracks, m.tracks[0]?.id, `mix:${m.title}`)} onPlay={() => void player.getState().playList(m.tracks, m.tracks[0]?.id, `mix:${m.title}`)} />)}
@@ -52,13 +54,14 @@ function DailyRow() {
 export function Home() {
   const playlists = useLibrary((s) => s.playlists)
   const fav = useMixes((s) => s.mixes.find((m) => m.key === 'fav'))
+  const row = useHScroll()
   const lead = fav ? <><MixCrate m={fav} /><div className="crsep" aria-hidden /></> : null
   return (
     <div className="home">
       <WaveCard />
       <DailyRow />
-      <div className="h"><h3>Мои плейлисты</h3><button className="link" onClick={() => useUi.getState().go('playlists')}>Все {playlists.length} →</button></div>
-      {playlists.length || fav ? <Crates list={playlists.slice(0, 12)} lead={lead} /> : <div className="empty-state">Плейлистов пока нет</div>}
+      <div className="h"><h3>Мои плейлисты</h3><span className="hr"><button className="link" onClick={() => useUi.getState().go('playlists')}>Все {playlists.length} →</button><Arrows s={row} /></span></div>
+      {playlists.length || fav ? <Crates list={playlists.slice(0, 12)} lead={lead} rowRef={row.ref} /> : <div className="empty-state">Плейлистов пока нет</div>}
       <div className="artrow"><ArtistsBox /></div>
     </div>
   )
