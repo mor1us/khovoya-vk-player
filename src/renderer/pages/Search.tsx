@@ -5,6 +5,7 @@ import { player } from '../store/playerInstance'
 import { VirtualTrackList } from '../ui/VirtualTrackList'
 import { Crates } from '../ui/Crates'
 import { SrcBadge } from '../ui/TrackRow'
+import { Cover } from '../ui/Cover'
 import { KEYWORDS, TAGS, withKeyword, activeKeyword } from '../ui/searchTags'
 import { mergeSources } from '../ui/mergeSearch'
 
@@ -40,7 +41,8 @@ export function Search() {
   const scTracks = sc ?? []
   const merged = where === 'vk' ? vkTracks : where === 'sc' ? scTracks : mergeSources(vkTracks, scTracks)
   const tracks = noMixes ? merged.filter((t) => !t.duration || t.duration <= 15 * 60) : merged // без часовых диджей-сетов
-  const artists = res ? [...new Map(tracks.map((t) => [t.artist.toLowerCase(), t.artist])).values()].slice(0, 8) : []
+  // артисты из выдачи: у каждого значок, откуда он — ВК или SoundCloud
+  const artists = res ? [...new Map(tracks.map((t) => [t.artist.toLowerCase() + '|' + (t.src ?? 'vk'), { name: t.artist, src: (t.src === 'sc' ? 'sc' : 'vk') as 'vk' | 'sc', cover: t.coverUrl, id: t.id }])).values()].slice(0, 10) : []
   return (
     <div className="page fill">
       <div className="ph"><h1>«{q}»</h1>{res && <span className="cnt">{tracks.length} треков</span>}<span className="sp" />
@@ -60,7 +62,11 @@ export function Search() {
       {err && <div className="empty-state">{err}</div>}
       {!res && !err && [0, 1, 2, 3, 4].map((i) => <div key={i} className="skeleton" />)}
       {res && <>
-        {artists.length > 1 && <div className="artists">{artists.map((a) => <button key={a} onClick={() => useUi.getState().submit(a)}>{a}</button>)}</div>}
+        {artists.length > 1 && <div className="artists">{artists.map((a) => (
+          <button key={a.name + a.src} className={a.src} title={a.src === 'sc' ? 'Артист SoundCloud' : 'Артист ВКонтакте'}
+            onClick={() => { if (a.src === 'sc') useUi.getState().setSearchWhere('sc'); useUi.getState().submit(a.name) }}>
+            <Cover className="av" url={a.cover} seed={a.id} /><SrcBadge src={a.src} />{a.name}
+          </button>))}</div>}
         {where !== 'sc' && res.playlists.length > 0 && <><div className="h"><h3>Плейлисты</h3></div><Crates list={res.playlists} /><div style={{ height: 16 }} /></>}
         <div className="h"><h3>Треки</h3></div>
         {!tracks.length && <div className="tags" style={{ marginBottom: 12 }}>{TAGS.slice(0, 8).map((t) => <span key={t} className="tag" onClick={() => useUi.getState().submit(t)}>#{t}</span>)}</div>}

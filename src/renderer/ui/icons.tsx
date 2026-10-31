@@ -29,3 +29,5 @@ export const ITune = (p: P) => <S {...p}><path d="M4 7h10M18 7h2M4 17h4M12 17h8"
 export const ISimilar = (p: P) => <S {...p}><circle cx="9" cy="12" r="5" /><circle cx="15" cy="12" r="5" /></S>
 export const IList = (p: P) => <S {...p}><path d="M9 6h11M9 12h11M9 18h11" /><circle cx="4.5" cy="6" r="1.3" fill="currentColor" stroke="none" /><circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none" /><circle cx="4.5" cy="18" r="1.3" fill="currentColor" stroke="none" /></S>
 export const IHeartOff = (p: P) => <S {...p}><path d="M12 21s-7-4.4-9.3-8.6C1 9.2 3 5.5 6.6 5.5c2 0 3.3 1.1 4 2.2.7-1.1 2-2.2 4-2.2 3.6 0 5.6 3.7 3.9 6.9C19 16.6 12 21 12 21z" /><path d="M3 3l18 18" /></S>
+export const IUser = (p: P) => <S {...p}><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" /></S>
+export const IArrowUpLeft = (p: P) => <S {...p}><path d="M17 17L7 7M7 15V7h8" /></S>

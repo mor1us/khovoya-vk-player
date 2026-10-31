@@ -57,9 +57,33 @@ export function mapScTrack(r: any): Track | null {
     src: 'sc',
     scAuth: r.track_authorization,
     scStream: tr?.url,
-    link: r.permalink_url
+    link: r.permalink_url,
+    wave: r.waveform_url
   }
 }
+
+export const isScUrl = (s: string) => /^https?:\/\/(?:www\.|m\.|on\.)?soundcloud\.com\/\S+/i.test(s.trim())
+
+export type ScResolved =
+  | { kind: 'track'; track: Track }
+  | { kind: 'playlist'; title: string; author: string; cover?: string; link?: string; tracks: Track[] }
+
+/** Сжать рисунок громкости SoundCloud до n столбиков 0..1. */
+export function bars(samples: number[], n: number, height = 140): number[] {
+  if (!samples.length) return []
+  const out: number[] = []
+  const step = samples.length / n
+  for (let i = 0; i < n; i++) {
+    const from = Math.floor(i * step), to = Math.max(from + 1, Math.floor((i + 1) * step))
+    let m = 0
+    for (let j = from; j < to && j < samples.length; j++) m = Math.max(m, samples[j])
+    out.push(m / height)
+  }
+  const top = Math.max(...out) || 1
+  return out.map((v) => Math.max(0.08, Math.min(1, v / top)))
+}
+
+export type ScComment = { at: number; text: string; user: string; avatar?: string }
 
 export class SoundCloud {
   private cid: string | null
@@ -106,6 +130,57 @@ export class SoundCloud {
   async related(t: Track, limit = 30): Promise<Track[]> {
     const j = await this.api(`/tracks/${t.vkId}/related`, { limit })
     return (j?.collection ?? []).map(mapScTrack).filter((x: Track | null): x is Track => !!x)
+  }
+
+  /** Варианты запроса, пока человек печатает. */
+  async suggest(q: string, limit = 8): Promise<string[]> {
+    const j = await this.api('/search/queries', { q, limit })
+    return [...new Set<string>((j?.collection ?? []).map((x: any) => String(x?.output || x?.query || '').trim()).filter(Boolean))]
+  }
+
+  /** Артисты SoundCloud по запросу (для подсказок). */
+  async users(q: string, limit = 4): Promise<{ name: string; avatar?: string; link?: string; followers: number }[]> {
+    const j = await this.api('/search/users', { q, limit })
+    return (j?.collection ?? []).filter((u: any) => u?.username).map((u: any) => ({
+      name: String(u.username), avatar: u.avatar_url ? String(u.avatar_url).replace('-large.', '-t200x200.') : undefined, link: u.permalink_url, followers: Number(u.followers_count) || 0
+    }))
+  }
+
+  /** Трек или плейлист по ссылке с soundcloud.com. */
+  async resolve(url: string): Promise<ScResolved> {
+    const r = await this.api('/resolve', { url: url.trim() })
+    if (r?.kind === 'track') { const t = mapScTrack(r); if (!t) throw new Error('Не получилось открыть трек'); return { kind: 'track', track: t } }
+    if (r?.kind === 'playlist' || r?.kind === 'system-playlist') {
+      const raw: any[] = r.tracks ?? []
+      const full = new Map<number, any>(raw.filter((x) => x?.title).map((x) => [x.id, x]))
+      const missing = raw.filter((x) => !x?.title).map((x) => x.id)
+      for (let i = 0; i < missing.length; i += 50) { // SoundCloud отдаёт плейлист не целиком — дозапрашиваем треки пачками
+        const part = await this.api('/tracks', { ids: missing.slice(i, i + 50).join(',') }).catch(() => [])
+        for (const x of Array.isArray(part) ? part : []) full.set(x.id, x)
+      }
+      const tracks = raw.map((x) => mapScTrack(full.get(x.id) ?? x)).filter((t): t is Track => !!t)
+      return { kind: 'playlist', title: String(r.title ?? 'Плейлист SoundCloud'), author: String(r.user?.username ?? ''), cover: artwork(r) ?? tracks[0]?.coverUrl, link: r.permalink_url, tracks }
+    }
+    throw new Error('По этой ссылке нет ни трека, ни плейлиста')
+  }
+
+  /** Настоящий рисунок громкости трека (столбики 0..1). */
+  async waveform(t: Track, n = 70): Promise<number[]> {
+    if (!t.wave) return []
+    const url = t.wave.replace(/\.png(\?.*)?$/, '.json')
+    const r = await this.fetch(url, { headers: { 'User-Agent': SC_UA } })
+    if (!r.ok) return []
+    const j = await r.json()
+    return bars(Array.isArray(j?.samples) ? j.samples : [], n, Number(j?.height) || 140)
+  }
+
+  /** Комментарии по ходу трека (секунда → текст). */
+  async comments(t: Track): Promise<ScComment[]> {
+    const j = await this.api(`/tracks/${t.vkId}/comments`, { threaded: 0, filter_replies: 0, limit: 200, offset: 0 })
+    return (j?.collection ?? [])
+      .filter((c: any) => typeof c?.timestamp === 'number' && c?.body)
+      .map((c: any) => ({ at: c.timestamp / 1000, text: String(c.body).slice(0, 140), user: String(c.user?.username ?? ''), avatar: c.user?.avatar_url }))
+      .sort((a: ScComment, b: ScComment) => a.at - b.at)
   }
 
   /** Ссылка на поток живёт недолго — получаем её прямо перед прослушиванием или скачиванием. */

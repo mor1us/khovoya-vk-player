@@ -19,6 +19,8 @@ export type Track = {
   scAuth?: string
   scStream?: string
   link?: string
+  /** Ссылка на рисунок громкости SoundCloud. */
+  wave?: string
 }
 
 export type Playlist = {

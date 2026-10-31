@@ -106,6 +106,25 @@ async function setup() {
   const scStream = (t: Track) => (MOCK ? Promise.resolve(t.scStream ?? '') : sc.streamUrl(t))
   handle('sc:search', (q: string) => scSearch(q).catch((e) => { log('soundcloud: поиск — ' + (e as Error).message); throw e }))
   handle('sc:related', (t: Track) => (MOCK ? scSearch(t.artist) : sc.related(t)))
+  handle('sc:resolve', async (url: string) => {
+    if (!MOCK) return sc.resolve(url).catch((e) => { log('soundcloud: ссылка — ' + (e as Error).message); throw e })
+    const tracks = await scSearch('Неон')
+    return { kind: 'playlist', title: 'Тестовый плейлист SoundCloud', author: 'mock', tracks }
+  })
+  handle('sc:suggest', async (q: string) => {
+    if (!MOCK) return sc.suggest(q).catch(() => [])
+    const r = await api.search(q)
+    return [...new Set(r.tracks.flatMap((t) => [t.artist.toLowerCase(), `${t.artist} ${t.title}`.toLowerCase()]))].slice(0, 6)
+  })
+  handle('sc:users', async (q: string) => {
+    if (!MOCK) return sc.users(q).catch(() => [])
+    const r = await scSearch(q)
+    return [...new Set(r.map((t) => t.artist))].slice(0, 2).map((name) => ({ name: name + ' (SC)', followers: 1200 }))
+  })
+  handle('sc:waveform', (t: Track, n?: number) => (MOCK ? [] : sc.waveform(t, n).catch(() => [])))
+  handle('sc:comments', (t: Track) => (MOCK
+    ? [{ at: 3, text: 'вот тут дроп 🔥', user: 'neon_fan' }, { at: 9, text: 'лучший момент', user: 'kid' }, { at: 20, text: 'на репите', user: 'synth' }]
+    : sc.comments(t).catch(() => [])))
   handle('sc:stream', (t: Track) => scStream(t).catch((e) => { log('soundcloud: поток — ' + (e as Error).message); throw e }))
   // Лайки SoundCloud и свои плейлисты Хвои (ВК + SoundCloud вперемешку) хранятся на компе.
   const scLikes = jsonFile<unknown[]>('sc-likes.json', () => [])

@@ -64,3 +64,37 @@ describe('SoundCloud', () => {
     expect(asked).toContain('client_id=' + CID)
   })
 })
+
+import { bars, isScUrl } from '../src/main/sc/soundcloud'
+describe('SoundCloud: ссылки, волна звука, комментарии', () => {
+  it('узнаёт ссылки SoundCloud', () => {
+    expect(isScUrl('https://soundcloud.com/synthboy/sets/night')).toBe(true)
+    expect(isScUrl('https://on.soundcloud.com/AbCd')).toBe(true)
+    expect(isScUrl('кишлак')).toBe(false)
+  })
+  it('сжимает рисунок громкости до нужного числа столбиков', () => {
+    const b = bars([10, 20, 140, 70, 35, 0], 3)
+    expect(b).toHaveLength(3)
+    expect(Math.max(...b)).toBe(1)
+    expect(b.every((x) => x >= 0.08 && x <= 1)).toBe(true)
+  })
+  it('дозапрашивает неполные треки плейлиста', async () => {
+    const asked: string[] = []
+    const f: Fetch = async (url) => {
+      asked.push(url)
+      if (url.includes('/resolve')) return res(200, { kind: 'playlist', title: 'Night', user: { username: 'dj' }, tracks: [raw({ id: 1 }), { id: 2 }, { id: 3 }] })
+      if (url.includes('/tracks?')) return res(200, [raw({ id: 2, title: 'Two' }), raw({ id: 3, title: 'Three' })])
+      return res(404, {})
+    }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    const r = await sc.resolve('https://soundcloud.com/dj/sets/night')
+    expect(r.kind).toBe('playlist')
+    if (r.kind === 'playlist') expect(r.tracks.map((t) => t.title)).toEqual(['Night Drive', 'Two', 'Three'])
+    expect(asked.some((u) => u.includes('ids=2%2C3') || u.includes('ids=2,3'))).toBe(true)
+  })
+  it('комментарии сортируются по времени', async () => {
+    const f: Fetch = async () => res(200, { collection: [{ timestamp: 9000, body: 'b', user: { username: 'u2' } }, { timestamp: 3000, body: 'a', user: { username: 'u1' } }, { timestamp: null, body: 'x' }] })
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    expect((await sc.comments(mapScTrack(raw())!)).map((c) => c.at)).toEqual([3, 9])
+  })
+})

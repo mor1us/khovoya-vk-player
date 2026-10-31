@@ -10,7 +10,7 @@ export const IPC = {
   'win:min': true, 'win:max': true, 'win:close': true,
   'discord:update': true,
   'vk:captchaAnswer': true,
-  'sc:search': true, 'sc:related': true, 'sc:stream': true,
+  'sc:search': true, 'sc:related': true, 'sc:stream': true, 'sc:resolve': true, 'sc:suggest': true, 'sc:users': true, 'sc:waveform': true, 'sc:comments': true,
   'scl:get': true, 'scl:set': true, 'lpl:get': true, 'lpl:set': true,
   'upd:state': true, 'upd:check': true, 'upd:download': true, 'upd:install': true
 } as const
