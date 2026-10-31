@@ -1,7 +1,7 @@
 import type { Settings } from '../../shared/types'
 
 export const defaultSettings = (downloadDir: string): Settings => ({
-  downloadDir, closeToTray: true, animations: true, discordEnabled: true, discordAppId: '', crossfadeSec: 4
+  downloadDir, closeToTray: true, animations: true, discordEnabled: true, discordAppId: '', crossfadeSec: 3
 })
 
 /** Только известные поля правильного типа; кроссфейд 0..12. */
@@ -14,9 +14,10 @@ export function normalizeSettings(input: unknown, def: Settings): Settings {
   return { downloadDir: dir, closeToTray: bool('closeToTray'), animations: bool('animations'), discordEnabled: bool('discordEnabled'), discordAppId: appId, crossfadeSec: cf }
 }
 
-/** Разовые обновления сохранённых настроек: старый кроссфейд по умолчанию (6 с) → 4 с. */
+/** Разовые обновления сохранённых настроек: старые значения кроссфейда по умолчанию (6 с, 4 с) → 3 с. */
 export function migrateSettings(raw: any, done: Record<string, boolean>): { settings: any; migrations: Record<string, boolean> } {
   const settings = raw && typeof raw === 'object' ? { ...raw } : raw
   if (!done.cf4 && settings?.crossfadeSec === 6) settings.crossfadeSec = 4
-  return { settings, migrations: { ...done, cf4: true } }
+  if (!done.cf3 && settings?.crossfadeSec === 4) settings.crossfadeSec = 3
+  return { settings, migrations: { ...done, cf4: true, cf3: true } }
 }

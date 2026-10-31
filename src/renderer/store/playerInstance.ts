@@ -8,7 +8,7 @@ export const playerHooks = {
   trackChange: [] as ((prev: Track | null, next: Track | null, info: { listened: number; manual: boolean }) => void)[],
   queueLow: [] as ((remaining: number) => void)[],
   notice: [] as ((msg: string) => void)[],
-  crossfadeSec: 4
+  crossfadeSec: 3
 }
 
 const fullId = (t: Track) => (t.accessKey ? `${t.id}_${t.accessKey}` : t.id)
