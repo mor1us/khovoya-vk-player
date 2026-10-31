@@ -67,7 +67,12 @@ function CaptchaModal() {
 
 function Toasts() {
   const toasts = useUi((s) => s.toasts)
-  return <div className="toasts">{toasts.map((t) => <div key={t.id} className="toast">{t.text}</div>)}</div>
+  const close = (id: number) => useUi.setState({ toasts: useUi.getState().toasts.filter((x) => x.id !== id) })
+  return <div className="toasts">{toasts.map((t) => (
+    <div key={t.id} className={'toast' + (t.action ? ' act' : '')}>
+      <span>{t.text}</span>
+      {t.action && <button onClick={() => { t.action!.run(); close(t.id) }}>{t.action.label} →</button>}
+    </div>))}</div>
 }
 
 function Offline() {

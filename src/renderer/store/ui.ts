@@ -2,6 +2,7 @@ import { cleanQuery } from '../ui/searchTags'
 import { create } from 'zustand'
 import type { Playlist, Session } from '../../shared/types'
 
+export type ToastAction = { label: string; run: () => void }
 export type Tab = 'home' | 'mine' | 'playlists' | 'downloads' | 'search' | 'settings' | 'playlist' | 'history' | 'similar' | 'queue' | 'disliked' | 'soundcloud'
 
 type Ui = {
@@ -15,13 +16,14 @@ type Ui = {
   submitted: string
   background: boolean
   session: Session | null
-  toasts: { id: number; text: string }[]
+  toasts: { id: number; text: string; action?: ToastAction }[]
   go(t: Tab): void
   back(): void
   openPlaylist(p: Playlist): void
   setQuery(q: string): void
   submit(q?: string): void
-  toast(text: string): void
+  /** Подсказка внизу справа; action — кнопка (например, «Открыть»). */
+  toast(text: string, action?: ToastAction): void
   setSession(s: Session | null): void
 }
 
@@ -40,10 +42,10 @@ export const useUi = create<Ui>((set, get) => ({
     localStorage.setItem('searchHistory', JSON.stringify([s, ...hist.filter((x) => x !== s)].slice(0, 10)))
     set({ submitted: s, query: s }); get().go('search')
   },
-  toast(text) {
+  toast(text, action) {
     const id = ++tid
-    set({ toasts: [...get().toasts, { id, text }].slice(-3) })
-    setTimeout(() => set({ toasts: get().toasts.filter((t) => t.id !== id) }), 4000)
+    set({ toasts: [...get().toasts, { id, text, action }].slice(-3) })
+    setTimeout(() => set({ toasts: get().toasts.filter((t) => t.id !== id) }), action ? 6000 : 4000)
   },
   setSession(s) { set({ session: s }) }
 }))

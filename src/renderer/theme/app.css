@@ -485,3 +485,10 @@ html.no-anim *{animation:none!important;transition:none!important}
 .volhint svg{color:var(--g)}
 .volhint i{position:absolute;left:0;bottom:0;height:3px;background:var(--g);transition:width .1s}
 .minibar .volhint{top:auto;bottom:calc(100% + 10px);transform:translateX(-50%)}
+/* подсказка с кнопкой и «прыжок» сердечка */
+.toast{display:flex;align-items:center;gap:12px}
+.toast.act button{flex:none;font:700 12px var(--B);color:var(--k);background:var(--g);border-radius:8px;padding:6px 10px;white-space:nowrap}
+.toast.act button:hover{filter:brightness(1.1)}
+.ic.heart.pop svg{animation:heartpop .35s ease-out}
+@keyframes heartpop{0%{transform:scale(1)}35%{transform:scale(1.45)}70%{transform:scale(.9)}100%{transform:scale(1)}}
+.toast.act{max-width:420px}

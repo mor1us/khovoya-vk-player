@@ -25,9 +25,18 @@ function LikeBtn() {
   const inMine = useLibrary((s) => (cur && cur.src !== 'sc' ? s.mine.some((t) => t.id === cur.id) : false))
   const scLiked = useSc((s) => (cur?.src === 'sc' ? s.likes.some((t) => t.id === cur.id) || s.accLikes.some((t) => t.id === cur.id) : false))
   const liked = inMine || scLiked
+  const [pop, setPop] = useState(0)
+  const click = () => {
+    if (!cur) return
+    setPop(Date.now()) // сердечко подпрыгивает — видно, что нажал
+    const sc = cur.src === 'sc'
+    void useWave.getState().toggleLike(cur)
+      .then((m) => useUi.getState().toast(m, { label: 'Открыть', run: () => useUi.getState().go(sc ? 'soundcloud' : 'mine') }))
+      .catch((e) => useUi.getState().toast((e as Error).message))
+  }
   return (
-    <button className={'ic heart' + (liked ? ' on' : '')} disabled={!cur} title={liked ? 'Убрать лайк' : 'Нравится'}
-      onClick={() => cur && void useWave.getState().toggleLike(cur).then((m) => useUi.getState().toast(m)).catch((e) => useUi.getState().toast((e as Error).message))}>
+    <button key={pop} className={'ic heart' + (liked ? ' on' : '') + (pop ? ' pop' : '')} disabled={!cur}
+      title={liked ? 'Убрать лайк' : cur?.src === 'sc' ? 'Нравится — в «Лайки» SoundCloud' : 'Нравится — в «Моё» (твоя музыка ВК)'} onClick={click}>
       <I.IHeart size={20} on={liked} />
     </button>
   )
