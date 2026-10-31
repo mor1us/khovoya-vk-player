@@ -42,9 +42,9 @@ function DailyRow() {
     <div style={{ margin: '22px 0 18px' }}>
       <div className="h"><h3>Плейлисты дня</h3><span className="hr"><button className="link" disabled={busy} onClick={regen}>{busy ? 'Собираю…' : '↻ Сгенерировать заново'}</button><Arrows s={row} /></span></div>
       <div className="bigrow" ref={row.ref}>
-        {daily.map((p, i) => <DailyCard key={`${p.ownerId}_${p.id}`} p={p} i={i} />)}
         {mixes.filter((m) => m.key !== 'fav').map((m) => <BigCard key={m.key} title={m.title} sub={m.sub} seed={m.key} fill={m.key === 'fresh' ? '#39FF14' : '#1B1B1B'}
           onClick={() => void player.getState().playList(m.tracks, m.tracks[0]?.id, `mix:${m.title}`)} onPlay={() => void player.getState().playList(m.tracks, m.tracks[0]?.id, `mix:${m.title}`)} />)}
+        {daily.map((p, i) => <DailyCard key={`${p.ownerId}_${p.id}`} p={p} i={i} />)}
         {loading && [0, 1, 2, 3].map((i) => <div key={i} className="skeleton" style={{ flex: 'none', width: 184, height: 236, borderRadius: 18 }} />)}
       </div>
     </div>
