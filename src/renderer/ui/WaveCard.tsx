@@ -5,15 +5,31 @@ import { useUi } from '../store/ui'
 import { usePlayer, player } from '../store/playerInstance'
 import { plural } from './format'
 import * as I from './icons'
-import { EMPTY_TUNE, LANGS, MOODS, RECOGS, tuneSummary, type WaveTune } from '../wave/tune'
+import { EMPTY_TUNE, LANGS, MOODS, RECOGS, RECOG_HINT, modeFor, tuneSummary, type WaveTune } from '../wave/tune'
 
-function Chips<K extends string>({ title, items, value, onPick }: { title: string; items: [K, string][]; value: K | null; onPick: (k: K | null) => void }) {
+function Chips<K extends string>({ title, hint, items, value, onPick }: { title: string; hint?: string; items: [K, string][]; value: K[]; onPick: (k: K[]) => void }) {
   return (
     <div className="tgrp">
-      <div className="tlab">{title}</div>
-      <div className="tchips">{items.map(([k, l]) => <button type="button" key={k} className={value === k ? 'on' : ''} onClick={() => onPick(value === k ? null : k)}>{l}</button>)}</div>
+      <div className="tlab">{title}{hint && <span className="thint">{hint}</span>}</div>
+      <div className="tchips">{items.map(([k, l]) => <button type="button" key={k} className={value.includes(k) ? 'on' : ''} onClick={() => onPick(value.includes(k) ? value.filter((x) => x !== k) : [...value, k])}>{l}</button>)}</div>
     </div>
   )
+}
+
+/** Что получится — одной строкой, чтобы было понятно, как сочетаются выбранные варианты. */
+function explain(t: WaveTune): string {
+  const parts: string[] = []
+  const words = t.lang.filter((l) => l !== 'none')
+  const who = words.length === 2 ? 'русских и иностранных исполнителей' : words[0] === 'ru' ? 'русских исполнителей' : words[0] === 'foreign' ? 'иностранных исполнителей' : ''
+  if (t.lang.includes('none')) parts.push(who ? `инструменталы ${who}` : 'только инструменталы, без слов')
+  else if (who) parts.push(`треки ${who}`)
+  if (t.mood.length) parts.push(`настроение: ${t.mood.map((m) => MOODS.find(([k]) => k === m)![1].toLowerCase()).join(' или ')}`)
+  const mode = modeFor(t)
+  const isNew = t.recog.includes('new')
+  if (mode === 'fav') parts.push(isNew ? 'недавнее из твоей музыки' : 'только из твоей музыки')
+  else if (mode === 'new') parts.push(isNew ? 'свежие треки, которых нет в твоей музыке' : 'только то, чего нет в твоей музыке')
+  else if (isNew) parts.push('самое свежее за последний год')
+  return parts.length ? 'Будет: ' + parts.join(', ') + '.' : 'Ничего не выбрано — Волна подстраивается под твой вкус.'
 }
 
 function TuneDialog({ onClose }: { onClose: () => void }) {
@@ -31,9 +47,10 @@ function TuneDialog({ onClose }: { onClose: () => void }) {
         <button className="x" title="Закрыть" onClick={onClose}><I.IX size={16} /></button>
         <div className="tk">ВОЛНА / НАСТРОЙКА</div>
         <h3>Какой поток включить?</h3>
-        <Chips title="Настроение" items={MOODS} value={t.mood} onPick={(mood) => setT({ ...t, mood })} />
-        <Chips title="Узнаваемость" items={RECOGS} value={t.recog} onPick={(recog) => setT({ ...t, recog })} />
-        <Chips title="Язык" items={LANGS} value={t.lang} onPick={(lang) => setT({ ...t, lang })} />
+        <Chips title="Настроение" hint="можно несколько" items={MOODS} value={t.mood} onPick={(mood) => setT({ ...t, mood })} />
+        <Chips title="Узнаваемость" hint={RECOG_HINT} items={RECOGS} value={t.recog} onPick={(recog) => setT({ ...t, recog })} />
+        <Chips title="Язык" hint="«Без слов» сочетается с языком: «Русский» + «Без слов» — инструменталы русских исполнителей" items={LANGS} value={t.lang} onPick={(lang) => setT({ ...t, lang })} />
+        <div className="texplain">{explain(t)}</div>
         <div className="ta">
           <button className="btn-s" onClick={() => setT(EMPTY_TUNE)}>Сбросить</button>
           <button className="btn-s g" autoFocus onClick={apply}>Применить</button>

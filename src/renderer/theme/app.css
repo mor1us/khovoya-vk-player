@@ -329,7 +329,7 @@ html.no-anim *{animation:none!important;transition:none!important}
 .tune .x{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:var(--t2);background:var(--p2)}
 .tune .x:hover{color:var(--text)}
 .tune .tlab{font:700 12px var(--B);letter-spacing:.8px;text-transform:uppercase;color:var(--t2);margin-bottom:10px}
-.tune .tchips{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px}
+.tune .tchips{display:grid;grid-template-columns:repeat(auto-fill,minmax(122px,1fr));gap:8px}
 .tune .tchips button{font:600 14px var(--B);padding:10px 16px;border-radius:12px;background:var(--p2);color:var(--text);border:1px solid var(--ln)}
 .tune .tchips button:hover{border-color:#3a3a3a}
 .tune .tchips button.on{background:var(--g);color:var(--k);border-color:var(--g)}
@@ -502,3 +502,5 @@ html.no-anim *{animation:none!important;transition:none!important}
 .crash h1{font:800 32px var(--H);color:var(--g)}
 .crash p{color:var(--t2)}
 .crash code{font:12px var(--M);color:var(--t3);max-width:600px;word-break:break-word}
+.tune .thint{display:block;font:500 11.5px var(--B);letter-spacing:0;text-transform:none;color:var(--t3);margin-top:4px}
+.tune .texplain{font-size:13px;color:var(--g);background:rgba(57,255,20,.07);border:1px solid rgba(57,255,20,.25);border-radius:10px;padding:10px 12px;line-height:1.45}

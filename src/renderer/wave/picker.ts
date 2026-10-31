@@ -13,6 +13,8 @@ type Opts = {
   now: number
   rnd: () => number
   size?: number
+  /** Доп. очки кандидата (источник, свежесть, настроение) — прибавляются к весу артиста. */
+  boost?: (t: Track) => number
 }
 
 /** Отбор следующей пачки Волны. */
@@ -29,7 +31,7 @@ export function pickBatch(o: Opts): Track[] {
     if (until && until > o.now) return false
     return (o.profile.artists[artistKey(t.artist)] ?? 0) >= MIN_ARTIST_WEIGHT
   })
-  const score = (t: Track) => (o.profile.artists[artistKey(t.artist)] ?? 0) + o.rnd() * 4
+  const score = (t: Track) => (o.profile.artists[artistKey(t.artist)] ?? 0) + (o.boost?.(t) ?? 0) + o.rnd() * 4
   const rank = (xs: Track[]) => xs.map((t) => ({ t, s: score(t) })).sort((a, b) => b.s - a.s).map((x) => x.t)
 
   const fresh = rank(ok.filter((t) => !o.mine.has(t.id)))
