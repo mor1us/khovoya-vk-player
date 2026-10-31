@@ -20,9 +20,11 @@ export const player = createPlayer({
   crossfadeSec: () => playerHooks.crossfadeSec,
   async resolveUrl(t) {
     try { const local = await window.api.invoke<string | null>('dl:localPath', t.id); if (local) return local } catch { /* нет загрузок */ }
+    if (t.src === 'sc') return window.api.invoke<string>('sc:stream', t).catch(() => '')
     return t.url
   },
   async refreshUrl(t) {
+    if (t.src === 'sc') return window.api.invoke<string>('sc:stream', t).catch(() => '')
     const [fresh] = await window.api.invoke<Track[]>('vk:byId', [fullId(t)])
     return fresh?.available ? fresh.url : ''
   },

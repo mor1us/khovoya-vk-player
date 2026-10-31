@@ -25,7 +25,8 @@ export function Similar() {
     let alive = true
     const target = cur
     setList(null)
-    window.api.invoke<Track[]>('vk:recommendations', target?.id, 60)
+    const req = target?.src === 'sc' ? window.api.invoke<Track[]>('sc:related', target) : window.api.invoke<Track[]>('vk:recommendations', target?.id, 60)
+    req
       .then((r) => {
         if (!alive) return
         const own = new Set(mine.map((t) => t.id))
@@ -49,7 +50,7 @@ export function Similar() {
       </div>
       {list === null && <div className="rows">{Array.from({ length: 8 }, (_, i) => <div key={i} className="skeleton" style={{ height: 52, marginBottom: 6 }} />)}</div>}
       {list?.length === 0 && <div className="empty-state">Рекомендации пока недоступны</div>}
-      {!!list?.length && <div className="rows">{list.map((t, i) => <TrackRow key={t.id} track={t} why={why(t, base, own, weights)} index={i} onPlay={() => play(t.id)} />)}</div>}
+      {!!list?.length && <div className="rows">{list.map((t, i) => <TrackRow key={t.id} track={t} showSrc={base?.src === 'sc'} why={why(t, base, own, weights)} index={i} onPlay={() => play(t.id)} />)}</div>}
     </div>
   )
 }

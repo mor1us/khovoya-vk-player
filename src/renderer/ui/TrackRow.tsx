@@ -12,6 +12,8 @@ export type RowProps = {
   why?: string
   selected?: boolean
   compact?: boolean
+  /** Показать значок источника (ВК / SoundCloud) — в поиске. */
+  showSrc?: boolean
   ctxPlaylist?: Playlist
   selection?: Track[]
   draggable?: boolean
@@ -20,6 +22,13 @@ export type RowProps = {
   onDragStart?: (e: React.DragEvent) => void
   onDragOver?: (e: React.DragEvent) => void
   onDrop?: (e: React.DragEvent) => void
+}
+
+/** Значок источника: свой рисунок, не логотипы сервисов. */
+export function SrcBadge({ src }: { src: 'vk' | 'sc' }) {
+  return src === 'sc'
+    ? <span className="srcb sc" title="SoundCloud">SC</span>
+    : <span className="srcb vk" title="ВКонтакте">ВК</span>
 }
 
 export function TrackRow(p: RowProps) {
@@ -38,7 +47,7 @@ export function TrackRow(p: RowProps) {
       {!p.compact && <span className="n">{isCur ? '▶' : p.index != null ? String(p.index + 1).padStart(2, '0') : ''}</span>}
       <Cover className="cv" url={t.coverUrl} seed={t.id} onClick={() => t.available && p.onPlay()} />
       <div style={{ minWidth: 0 }}>
-        <div className="tt">{t.title}</div>
+        <div className="tt">{p.showSrc && <SrcBadge src={t.src === 'sc' ? 'sc' : 'vk'} />}{t.title}</div>
         <div className="ar">{t.artist}</div>
         {p.why && <div className="why">{p.why}</div>}
       </div>

@@ -12,6 +12,11 @@ export type Track = {
   available: boolean
   /** Основные исполнители из ВК (main_artists), если есть. */
   artists?: { id: string; name: string }[]
+  /** Откуда трек: нет — ВКонтакте, 'sc' — SoundCloud. */
+  src?: 'sc'
+  scAuth?: string
+  scStream?: string
+  link?: string
 }
 
 export type Playlist = {

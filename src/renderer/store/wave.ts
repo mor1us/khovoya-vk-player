@@ -26,7 +26,7 @@ const isWave = () => player.getState().source.startsWith('wave:')
 let fetching = false
 
 async function candidates(profile: WaveProfile): Promise<Track[]> {
-  const seeds = seedsFor(profile, cryptoRandom)
+  const seeds = seedsFor(profile, cryptoRandom).filter((id) => !id.startsWith('sc_')) // рекомендации ВК — только по трекам ВК
   const cur = player.getState().current
   if (cur && !seeds.includes(cur.id)) seeds.unshift(cur.id)
   const reqs = [window.api.invoke<Track[]>('vk:recommendations', undefined, 100), ...seeds.slice(0, 5).map((s) => window.api.invoke<Track[]>('vk:recommendations', s, 40))]
@@ -82,6 +82,7 @@ export const useWave = create<Wave>((set, get) => ({
   },
   async like(t) {
     get().react(t, 'like')
+    if (t.src === 'sc') throw new Error('Трек из SoundCloud нельзя добавить в ВК — но Волна запомнила, что он тебе нравится')
     if (!useLibrary.getState().isMine(t.id)) {
       await window.api.invoke('vk:add', t)
       useLibrary.getState().setMine([t, ...useLibrary.getState().mine])

@@ -26,6 +26,7 @@ export function TrackMenu() {
   const one = tracks.length === 1 ? tracks[0] : null
   const lib = useLibrary.getState()
   const inMine = one ? lib.isMine(one.id) : false
+  const vkOnly = tracks.every((t) => t.src !== 'sc') // в ВК можно добавить только треки ВК
   const toast = useUi.getState().toast
   const run = (f: () => Promise<unknown> | void) => { useMenu.getState().open(null); Promise.resolve(f()).catch((e) => toast((e as Error).message)) }
   const left = Math.min(m.x, window.innerWidth - 240), top = Math.min(m.y, window.innerHeight - 320)
@@ -33,11 +34,11 @@ export function TrackMenu() {
     <div className="menu" style={{ left, top, position: 'fixed' }} onClick={(e) => e.stopPropagation()}>
       {tracks.length > 1 && <div className="lbl">Выбрано: {tracks.length}</div>}
       <button onClick={() => run(() => player.getState().append(tracks.filter((t) => t.available)))}>В конец очереди</button>
-      {one && <button onClick={() => run(async () => {
+      {one && vkOnly && <button onClick={() => run(async () => {
         if (inMine) { await window.api.invoke('vk:remove', one); lib.setMine(lib.mine.filter((t) => t.id !== one.id)); toast('Убрано из твоей музыки') }
         else { await window.api.invoke('vk:add', one); lib.setMine([one, ...lib.mine]); toast('Добавлено в твою музыку') }
       })}>{inMine ? 'Убрать из моей музыки' : '♥ Добавить в мою музыку'}</button>}
-      <button onClick={() => setSub(!sub)}>Добавить в плейлист ›</button>
+      {vkOnly && <button onClick={() => setSub(!sub)}>Добавить в плейлист ›</button>}
       {sub && <div style={{ paddingLeft: 10, maxHeight: 200, overflow: 'auto' }}>
         <button onClick={() => run(async () => { const name = await ask('Новый плейлист', '', 'Создать'); if (name) await createPlaylistWith(name, tracks) })}>+ Новый плейлист</button>
         {playlists.map((p) => <button key={p.id} onClick={() => run(() => addToPlaylist(p, tracks))}>{p.title}</button>)}
@@ -47,6 +48,7 @@ export function TrackMenu() {
       })}>Убрать из этого плейлиста</button>}
       <div className="sep" />
       <button onClick={() => run(() => useDownloads.getState().start(tracks))}>Скачать{tracks.length > 1 ? ` (${tracks.length})` : ''}</button>
+      {one?.link && <button onClick={() => run(() => { window.open(one.link, '_blank') })}>Открыть на SoundCloud</button>}
       {one && <button onClick={() => run(() => useUi.getState().submit(one.artist))}>Найти ещё у «{one.artist}»</button>}
     </div>
   )

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, session, dialog } from 'electron'
+import { app, BrowserWindow, shell, session, dialog, net } from 'electron'
 import { createDownloads, registerMediaScheme, MEDIA_SCHEME } from './downloads/runtime'
 import type { Track, Settings } from '../shared/types'
 import { settings } from './system/settings'
@@ -18,6 +18,7 @@ import { fetchImageDataUrl } from './auth/captcha'
 import type { LoginStep } from '../shared/types'
 import { registerCore, handle } from './ipc/handlers'
 import { jsonFile } from './system/jsonFile'
+import { SoundCloud, type Fetch } from './sc/soundcloud'
 import type { Session } from '../shared/types'
 
 const MOCK = process.env.VK_MOCK === '1'
@@ -40,9 +41,9 @@ function createWindow(): BrowserWindow {
   return w
 }
 
-/** Аудио ВК идёт через Web Audio (кроссфейд), а ему нужен CORS. Добавляем заголовок к ответам аудио-серверов ВК. */
+/** Аудио ВК и SoundCloud идёт через Web Audio (кроссфейд), а ему нужен CORS. Добавляем заголовок к ответам их аудио-серверов. */
 function allowVkAudioCors() {
-  const filter = { urls: ['https://*.vkuseraudio.net/*', 'https://*.vkuseraudio.com/*', 'https://*.vk-cdn.net/*', 'https://*.userapi.com/*', 'https://*.vk.me/*', 'https://*.mycdn.me/*'] }
+  const filter = { urls: ['https://*.vkuseraudio.net/*', 'https://*.vkuseraudio.com/*', 'https://*.vk-cdn.net/*', 'https://*.userapi.com/*', 'https://*.vk.me/*', 'https://*.mycdn.me/*', 'https://*.sndcdn.com/*', 'https://*.soundcloud.cloud/*'] }
   session.defaultSession.webRequest.onHeadersReceived(filter, (d, cb) => {
     const h = { ...d.responseHeaders }
     for (const k of Object.keys(h)) if (k.toLowerCase() === 'access-control-allow-origin') delete h[k]
@@ -94,11 +95,23 @@ async function setup() {
       return { loggedIn: true, userName: me.name, avatar: me.avatar, userId: t.userId }
     }
   })
+  // SoundCloud: поиск и прослушивание без входа. В тестовом режиме — подделка поверх тестовых треков.
+  const scKey = jsonFile<{ clientId?: string }>('soundcloud.json', () => ({}))
+  const sc = new SoundCloud(net.fetch as unknown as Fetch, { get: () => scKey.read().clientId ?? null, set: (v) => scKey.write({ clientId: v }) }, log)
+  const scSearch = async (q: string): Promise<Track[]> => {
+    if (!MOCK) return sc.search(q)
+    const r = await api.search(q)
+    return r.tracks.slice(0, 8).map((t) => ({ ...t, title: t.title + ' (SC edit)', id: 'sc_' + t.vkId, ownerId: 0, src: 'sc' as const, scStream: t.url, url: '' }))
+  }
+  const scStream = (t: Track) => (MOCK ? Promise.resolve(t.scStream ?? '') : sc.streamUrl(t))
+  handle('sc:search', (q: string) => scSearch(q).catch((e) => { log('soundcloud: поиск — ' + (e as Error).message); throw e }))
+  handle('sc:related', (t: Track) => (MOCK ? scSearch(t.artist) : sc.related(t)))
+  handle('sc:stream', (t: Track) => scStream(t).catch((e) => { log('soundcloud: поток — ' + (e as Error).message); throw e }))
   let changeTimer: NodeJS.Timeout | null = null
   const dl = createDownloads(() => settings.get().downloadDir, () => {
     if (changeTimer) return
     changeTimer = setTimeout(() => { changeTimer = null; win?.webContents.send('dl:changed') }, 300)
-  })
+  }, async (t) => (t.src === 'sc' ? scStream(t) : t.url))
   handle('dl:start', (tracks: Track[]) => dl.enqueue(tracks))
   handle('dl:list', () => dl.list())
   handle('dl:cancel', (id: string) => dl.cancel(id))

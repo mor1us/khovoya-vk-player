@@ -24,6 +24,8 @@ type Deps = {
   saveIndex: (x: Record<string, string>) => void
   onChange: () => void
   sep?: string
+  /** Свежая ссылка на трек (SoundCloud отдаёт её только по запросу). */
+  resolveUrl?: (t: Track) => Promise<string>
 }
 
 type Job = DownloadJob & { track: Track; abort?: AbortController }
@@ -94,7 +96,8 @@ export class DownloadManager {
     this.d.onChange()
     try {
       const cover = j.track.coverUrl && /^https:/.test(j.track.coverUrl) ? await this.d.fetchCover(j.track.coverUrl).catch(() => undefined) : undefined
-      await this.d.runFfmpeg(ffmpegArgs({ url: j.track.url, cover, artist: j.artist, title: j.title, out }), (sec) => {
+      const url = this.d.resolveUrl ? await this.d.resolveUrl(j.track) : j.track.url
+      await this.d.runFfmpeg(ffmpegArgs({ url, cover, artist: j.artist, title: j.title, out }), (sec) => {
         j.progress = j.track.duration > 0 ? Math.max(0, Math.min(0.99, sec / j.track.duration)) : 0
         this.d.onChange()
       }, j.abort.signal)

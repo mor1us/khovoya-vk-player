@@ -349,3 +349,13 @@ html.no-anim *{animation:none!important;transition:none!important}
 .queue .qcur{border-radius:14px;box-shadow:inset 0 0 0 1.5px var(--g)}
 .qbtn.on{color:var(--g)}
 .queue .qh .sp{flex:1}
+
+/* значки источника: ВК — неон, SoundCloud — оранжевый */
+.srcb{display:inline-grid;place-items:center;height:16px;padding:0 5px;margin-right:7px;border-radius:5px;font:800 9.5px/1 var(--B);letter-spacing:.3px;vertical-align:1px}
+.srcb.vk{color:var(--g);box-shadow:inset 0 0 0 1.3px var(--g)}
+.srcb.sc{color:#0B0B0B;background:#FF7A1A}
+.seg{display:flex;gap:4px;padding:3px;border-radius:12px;background:var(--p1);border:1px solid var(--ln)}
+.seg button{display:flex;align-items:center;font:600 12.5px var(--B);color:var(--t2);padding:6px 11px;border-radius:9px}
+.seg button .srcb{margin-right:6px}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--p2);color:var(--text)}

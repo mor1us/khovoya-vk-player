@@ -4,13 +4,20 @@ import { useUi } from '../store/ui'
 import { player } from '../store/playerInstance'
 import { VirtualTrackList } from '../ui/VirtualTrackList'
 import { Crates } from '../ui/Crates'
+import { SrcBadge } from '../ui/TrackRow'
 import { KEYWORDS, TAGS, withKeyword, activeKeyword } from '../ui/searchTags'
+import { mergeSources } from '../ui/mergeSearch'
+
+type Where = 'all' | 'vk' | 'sc'
 
 export function Search() {
   const q = useUi((s) => s.submitted)
   const [res, setRes] = useState<{ tracks: Track[]; playlists: Playlist[] } | null>(null)
   const [err, setErr] = useState('')
   const [byDate, setByDate] = useState(false)
+  const [sc, setSc] = useState<Track[] | null>(null)
+  const [where, setWhere] = useState<Where>((localStorage.getItem('searchWhere') as Where) || 'all')
+  const pickWhere = (w: Where) => { localStorage.setItem('searchWhere', w); setWhere(w) }
   const kw = activeKeyword(q)
   useEffect(() => {
     if (!q) return
@@ -20,10 +27,26 @@ export function Search() {
       .then((r) => alive && setRes(r)).catch((e) => alive && setErr((e as Error).message))
     return () => { alive = false }
   }, [q, byDate])
-  const artists = res ? [...new Map(res.tracks.map((t) => [t.artist.toLowerCase(), t.artist])).values()].slice(0, 8) : []
+  useEffect(() => { // SoundCloud ищем параллельно; не ответил — просто показываем ВК
+    if (!q) return
+    let alive = true
+    setSc(null)
+    window.api.invoke<Track[]>('sc:search', q).then((r) => alive && setSc(byDate ? [...r].sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0)) : r)).catch(() => alive && setSc([]))
+    return () => { alive = false }
+  }, [q, byDate])
+  const vkTracks = res?.tracks ?? []
+  const scTracks = sc ?? []
+  const tracks = where === 'vk' ? vkTracks : where === 'sc' ? scTracks : mergeSources(vkTracks, scTracks)
+  const artists = res ? [...new Map(tracks.map((t) => [t.artist.toLowerCase(), t.artist])).values()].slice(0, 8) : []
   return (
     <div className="page fill">
-      <div className="ph"><h1>«{q}»</h1>{res && <span className="cnt">{res.tracks.length} треков</span>}</div>
+      <div className="ph"><h1>«{q}»</h1>{res && <span className="cnt">{tracks.length} треков</span>}<span className="sp" />
+        <div className="seg">
+          <button className={where === 'all' ? 'on' : ''} onClick={() => pickWhere('all')}>Везде</button>
+          <button className={where === 'vk' ? 'on' : ''} onClick={() => pickWhere('vk')}><SrcBadge src="vk" />{res ? vkTracks.length : '…'}</button>
+          <button className={where === 'sc' ? 'on' : ''} onClick={() => pickWhere('sc')}><SrcBadge src="sc" />{sc ? scTracks.length : '…'}</button>
+        </div>
+      </div>
       <div className="tags" style={{ marginBottom: 14 }}>
         <span className={'tag' + (!kw ? ' on' : '')} onClick={() => useUi.getState().submit(withKeyword(q, null))}>Все</span>
         {KEYWORDS.map((k) => <span key={k.q} className={'tag' + (kw === k.q ? ' on' : '')} onClick={() => useUi.getState().submit(withKeyword(q, kw === k.q ? null : k.q))}>{k.label}</span>)}
@@ -34,10 +57,10 @@ export function Search() {
       {!res && !err && [0, 1, 2, 3, 4].map((i) => <div key={i} className="skeleton" />)}
       {res && <>
         {artists.length > 1 && <div className="artists">{artists.map((a) => <button key={a} onClick={() => useUi.getState().submit(a)}>{a}</button>)}</div>}
-        {res.playlists.length > 0 && <><div className="h"><h3>Плейлисты</h3></div><Crates list={res.playlists} /><div style={{ height: 16 }} /></>}
+        {where !== 'sc' && res.playlists.length > 0 && <><div className="h"><h3>Плейлисты</h3></div><Crates list={res.playlists} /><div style={{ height: 16 }} /></>}
         <div className="h"><h3>Треки</h3></div>
-        {!res.tracks.length && <div className="tags" style={{ marginBottom: 12 }}>{TAGS.slice(0, 8).map((t) => <span key={t} className="tag" onClick={() => useUi.getState().submit(t)}>#{t}</span>)}</div>}
-        {res.tracks.length ? <VirtualTrackList tracks={res.tracks} onPlay={(t) => void player.getState().playList(res.tracks, t.id, `search:${q}`)} /> : <div className="empty-state">Ничего не нашлось</div>}
+        {!tracks.length && <div className="tags" style={{ marginBottom: 12 }}>{TAGS.slice(0, 8).map((t) => <span key={t} className="tag" onClick={() => useUi.getState().submit(t)}>#{t}</span>)}</div>}
+        {tracks.length ? <VirtualTrackList tracks={tracks} showSrc onPlay={(t) => void player.getState().playList(tracks, t.id, `search:${q}`)} /> : <div className="empty-state">{where === 'sc' && sc === null ? 'Ищу в SoundCloud…' : 'Ничего не нашлось'}</div>}
       </>}
     </div>
   )

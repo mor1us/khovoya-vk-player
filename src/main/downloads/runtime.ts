@@ -7,6 +7,7 @@ import ffmpegPath from 'ffmpeg-static'
 import { VK_UA } from '../vk/client'
 import { DownloadManager } from './manager'
 import { jsonFile } from '../system/jsonFile'
+import type { Track } from '../../shared/types'
 
 export const MEDIA_SCHEME = 'khvoya-media'
 
@@ -44,12 +45,12 @@ async function fetchCover(url: string): Promise<string | undefined> {
   return file
 }
 
-export function createDownloads(dir: () => string, onChange: () => void) {
+export function createDownloads(dir: () => string, onChange: () => void, resolveUrl?: (t: Track) => Promise<string>) {
   const idx = jsonFile<Record<string, string>>('downloads.json', () => ({}))
   const ensureDir = () => { const d = dir(); if (!existsSync(d)) mkdirSync(d, { recursive: true }); return d }
   const m = new DownloadManager({
     dir: ensureDir, runFfmpeg, fetchCover, exists: existsSync,
-    loadIndex: idx.read, saveIndex: idx.write, onChange, sep: process.platform === 'win32' ? '\\' : '/'
+    loadIndex: idx.read, saveIndex: idx.write, onChange, resolveUrl, sep: process.platform === 'win32' ? '\\' : '/'
   })
   // khvoya-media://local/<id> → скачанный файл (только из индекса загрузок)
   protocol.handle(MEDIA_SCHEME, (req) => {
