@@ -1,3 +1,4 @@
+import { rememberPlaylist } from '../store/sourceNav'
 import { ask, confirmAsk } from '../ui/Dialog'
 import { useEffect, useMemo, useState } from 'react'
 import type { Track } from '../../shared/types'
@@ -73,7 +74,7 @@ export function PlaylistPage() {
       {err && <div className="empty-state">{err}</div>}
       {loading && !tracks && [0, 1, 2, 3].map((i) => <div key={i} className="skeleton" />)}
       {tracks && (list.length
-        ? <VirtualTrackList tracks={list} ctxPlaylist={p} onPlay={(t) => void player.getState().playList(list, t.id, `pl:${p.title}`)} onReorder={canReorder ? (id, to) => void reorderInPlaylist(p, id, to) : undefined} />
+        ? <VirtualTrackList tracks={list} ctxPlaylist={p} onPlay={(t) => { rememberPlaylist(p); void player.getState().playList(list, t.id, `pl:${p.title}`) }} onReorder={canReorder ? (id, to) => void reorderInPlaylist(p, id, to) : undefined} />
         : <div className="empty-state">{q ? 'Ничего не нашлось' : 'В плейлисте пока пусто. Перетащи сюда треки или добавь через меню «…»'}</div>)}
     </div>
   )

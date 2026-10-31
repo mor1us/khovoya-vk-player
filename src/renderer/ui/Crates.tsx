@@ -7,6 +7,7 @@ import { player } from '../store/playerInstance'
 import { addToPlaylist, loadPlaylistTracks } from '../store/playlists'
 import { plural } from './format'
 import * as I from './icons'
+import { rememberPlaylist } from '../store/sourceNav'
 
 export async function playPlaylist(p: Playlist, shuffle = false) {
   try {
@@ -14,6 +15,7 @@ export async function playPlaylist(p: Playlist, shuffle = false) {
     if (!tracks.length) { useUi.getState().toast('Плейлист пустой'); return }
     if (shuffle !== player.getState().shuffle) player.getState().toggleShuffle()
     const first = shuffle ? tracks[Math.floor(Math.random() * tracks.length)] : tracks.find((t) => t.available)
+    rememberPlaylist(p)
     await player.getState().playList(tracks, first?.id, `pl:${p.title}`)
   } catch (e) { useUi.getState().toast((e as Error).message) }
 }
@@ -44,6 +46,6 @@ export function Crate({ p }: { p: Playlist }) {
   )
 }
 
-export function Crates({ list }: { list: Playlist[] }) {
-  return <div className="crates">{list.map((p) => <Crate key={`${p.ownerId}_${p.id}`} p={p} />)}</div>
+export function Crates({ list, lead }: { list: Playlist[]; lead?: React.ReactNode }) {
+  return <div className="crates">{lead}{list.map((p) => <Crate key={`${p.ownerId}_${p.id}`} p={p} />)}</div>
 }

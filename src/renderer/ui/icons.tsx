@@ -27,3 +27,4 @@ export const IFolder = (p: P) => <S {...p}><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2
 export const IClock = (p: P) => <S {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></S>
 export const ITune = (p: P) => <S {...p}><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></S>
 export const ISimilar = (p: P) => <S {...p}><circle cx="9" cy="12" r="5" /><circle cx="15" cy="12" r="5" /></S>
+export const IList = (p: P) => <S {...p}><path d="M9 6h11M9 12h11M9 18h11" /><circle cx="4.5" cy="6" r="1.3" fill="currentColor" stroke="none" /><circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none" /><circle cx="4.5" cy="18" r="1.3" fill="currentColor" stroke="none" /></S>

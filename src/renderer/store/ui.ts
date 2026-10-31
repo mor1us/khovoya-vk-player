@@ -2,7 +2,7 @@ import { cleanQuery } from '../ui/searchTags'
 import { create } from 'zustand'
 import type { Playlist, Session } from '../../shared/types'
 
-export type Tab = 'home' | 'mine' | 'playlists' | 'downloads' | 'search' | 'settings' | 'playlist' | 'history' | 'similar'
+export type Tab = 'home' | 'mine' | 'playlists' | 'downloads' | 'search' | 'settings' | 'playlist' | 'history' | 'similar' | 'queue'
 
 type Ui = {
   tab: Tab

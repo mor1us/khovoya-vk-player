@@ -11,3 +11,18 @@ export function sourceLabel(src: string): string {
   if (src.startsWith('artist:')) return 'Артист / ' + src.slice(7)
   return src
 }
+
+/** Для экрана очереди: «Сейчас играет из плейлиста» + крупное название. */
+export function sourceParts(src: string): { kind: string; name: string } {
+  const after = (p: string) => src.slice(p.length)
+  if (src.startsWith('wave:')) return { kind: 'Волны', name: 'Волна' }
+  if (src === 'mine') return { kind: 'раздела', name: 'Моя музыка' }
+  if (src.startsWith('pl:')) return { kind: 'плейлиста', name: after('pl:') }
+  if (src.startsWith('search:')) return { kind: 'поиска', name: after('search:') }
+  if (src === 'similar') return { kind: 'подборки', name: 'Похожее' }
+  if (src === 'downloads') return { kind: 'раздела', name: 'Загрузки' }
+  if (src === 'history') return { kind: 'раздела', name: 'История' }
+  if (src.startsWith('mix:')) return { kind: 'микса', name: after('mix:') }
+  if (src.startsWith('artist:')) return { kind: 'артиста', name: after('artist:') }
+  return { kind: '', name: src }
+}

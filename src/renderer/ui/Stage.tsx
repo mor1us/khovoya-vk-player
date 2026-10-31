@@ -42,6 +42,12 @@ export function Reactions() {
   )
 }
 
+/** Кнопка очереди: «Сейчас играет из …» и что дальше. Повторное нажатие — назад. */
+function QueueBtn() {
+  const on = useUi((s) => s.tab === 'queue')
+  return <button className={'ic qbtn' + (on ? ' on' : '')} title="Очередь" onClick={() => (on ? useUi.getState().back() : useUi.getState().go('queue'))}><I.IList size={19} /></button>
+}
+
 export function Stage() {
   const tab = useUi((s) => s.tab)
   const cur = usePlayer((s) => s.current)
@@ -73,6 +79,7 @@ export function Stage() {
           <div className="vol nodrag">
             <button className="ic" onClick={() => player.getState().setVolume(volume > 0 ? 0 : 0.8)} title="Звук">{volume > 0 ? <I.IVol size={18} /> : <I.IMute size={18} />}</button>
             <input type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => player.getState().setVolume(+e.target.value)} />
+            <QueueBtn />
           </div>
         </>
       )}
@@ -92,6 +99,7 @@ export function MiniBar() {
       <Controls />
       <div className="mright">
         {cur && <><span className="muted" style={{ font: '500 11px var(--M)' }}>{fmtTime(pos)}</span><Waveform id={cur.id} n={36} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} /></>}
+        <QueueBtn />
         <button className="ic" onClick={() => player.getState().setVolume(volume > 0 ? 0 : 0.8)} title={volume > 0 ? 'Выключить звук' : 'Включить звук'}>{volume > 0 ? <I.IVol size={18} /> : <I.IMute size={18} />}</button>
         <input className="mvol" type="range" min={0} max={1} step={0.01} value={volume} title={`Громкость ${Math.round(volume * 100)}%`} onChange={(e) => player.getState().setVolume(+e.target.value)} />
       </div>
