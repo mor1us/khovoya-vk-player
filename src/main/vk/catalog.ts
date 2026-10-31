@@ -33,7 +33,7 @@ export function parseCatalog(resp: any, myId: number): ForYouBlock[] {
     header = null
     if (!playlists.length) continue
     out.push({ title, big: /large/.test(String(b.layout?.name ?? '')), playlists })
-    if (out.length >= 3) break
+    if (out.length >= 8) break
   }
   return out
 }

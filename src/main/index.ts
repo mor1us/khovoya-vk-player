@@ -125,11 +125,21 @@ async function setup() {
   handle('upd:check', () => updates.check())
   handle('upd:download', () => updates.download())
   handle('upd:install', () => updates.install())
-  const discord = new DiscordPresence()
-  const applyDiscord = () => { const s = settings.get(); if (s.discordEnabled && s.discordAppId) discord.start(s.discordAppId); else discord.stop() }
+  const discord = new DiscordPresence(log)
+  // Последнее состояние плеера храним всегда: если статус включат посреди трека, он появится сразу.
+  let lastU: { u: DiscordUpdate; at: number } | null = null
+  const activityNow = () => {
+    if (!lastU) return null
+    const { u, at } = lastU
+    return buildActivity(u.track, u.playing, u.position + (u.playing ? (Date.now() - at) / 1000 : 0), Date.now())
+  }
+  const applyDiscord = () => {
+    const s = settings.get()
+    if (s.discordEnabled && s.discordAppId.trim()) { discord.start(s.discordAppId.trim()); discord.update(activityNow()) } else discord.stop()
+  }
   applyDiscord()
   settings.onChange(applyDiscord)
-  handle('discord:update', (u: DiscordUpdate) => { if (settings.get().discordEnabled) discord.update(buildActivity(u.track, u.playing, u.position, Date.now())) })
+  handle('discord:update', (u: DiscordUpdate) => { lastU = { u, at: Date.now() }; if (settings.get().discordEnabled) discord.update(activityNow()) })
   app.on('before-quit', () => discord.stop())
   const wave = jsonFile<unknown>('wave-profile.json', () => null)
   handle('wave:get', () => wave.read())

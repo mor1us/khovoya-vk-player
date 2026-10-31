@@ -270,3 +270,65 @@ html.no-anim *{animation:none!important;transition:none!important}
 .bigcard .bs{font:600 12.5px/1.35 var(--B);margin-top:8px;opacity:.9;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .bigcard .bp{position:absolute;right:12px;bottom:12px;width:44px;height:44px;border-radius:50%;background:var(--k);color:var(--g);display:grid;place-items:center;opacity:0;transform:translateY(4px);transition:.15s}
 .bigcard:hover .bp{opacity:1;transform:none}
+
+/* ── Волна: большая зелёная плашка с линиями и диском ── */
+.waveb{position:relative;overflow:hidden;border-radius:22px;background:var(--g);color:var(--k);min-height:250px;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px 30px 24px 28px}
+.waveb canvas{position:absolute;left:36%;right:0;bottom:0;width:64%;height:78%;pointer-events:none}
+.waveb>*:not(canvas){position:relative}
+.waveb .wl{display:flex;flex-direction:column;align-items:flex-start;min-width:0}
+.waveb .k{font:700 10.5px var(--M);letter-spacing:1.6px;display:flex;align-items:center;gap:7px}
+.waveb.live .k::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--k);animation:dot 1.2s infinite}
+.waveb h2{font:800 64px/1 var(--H);letter-spacing:-2.5px;margin-top:6px}
+.waveb .tags{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.waveb .tags span{font:700 12px var(--B);padding:5px 10px;border-radius:8px;background:var(--k);color:var(--g)}
+.waveb .tags span.soft{background:none;color:var(--k);box-shadow:inset 0 0 0 1.5px var(--k)}
+.waveb p{font-size:12.5px;color:#123d06;margin-top:10px;max-width:300px;line-height:1.45}
+.waveb .wtune{display:flex;align-items:center;gap:8px;margin-top:14px;font:700 13px var(--B);padding:9px 15px;border-radius:12px;background:var(--k);color:var(--text)}
+.waveb .wtune:hover{color:var(--g)}
+.waveb .disc{flex:none;width:176px;height:176px;border-radius:50%;background:var(--k);color:var(--g);display:grid;place-items:center;position:relative;transition:transform .15s}
+.waveb .disc:hover{transform:scale(1.03)}
+.waveb .disc:active{transform:scale(.97)}
+.waveb .disc .ring{position:absolute;inset:0;width:100%;height:100%;animation:spin 16s linear infinite;animation-play-state:paused}
+.waveb.live .disc .ring{animation-play-state:running}
+.waveb .disc text{font:700 13px var(--M);fill:var(--g)}
+.waveb .disc .hub{width:74px;height:74px;border-radius:50%;background:var(--g);color:var(--k);display:grid;place-items:center;box-shadow:0 0 0 6px var(--k),0 0 0 8px var(--g)}
+.waveb .disc .hub svg{margin-left:2px}
+.waveb.live .disc .hub svg{margin-left:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.waveb .dots{display:flex;gap:4px}
+.waveb .dots i{width:6px;height:6px;border-radius:50%;background:var(--k);animation:dot 1s infinite}
+.waveb .dots i:nth-child(2){animation-delay:.15s}.waveb .dots i:nth-child(3){animation-delay:.3s}
+@keyframes dot{0%,100%{opacity:.25}50%{opacity:1}}
+
+/* окно «Настроить Волну» */
+.modal .box.tune{width:540px;padding:30px 32px 26px;gap:22px}
+.tune .tk{font:700 10.5px var(--M);letter-spacing:1.6px;color:var(--g);margin-bottom:-14px}
+.tune h3{font:800 26px var(--H);letter-spacing:-.6px;display:block}
+.tune .x{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:var(--t2);background:var(--p2)}
+.tune .x:hover{color:var(--text)}
+.tune .tlab{font:700 12px var(--B);letter-spacing:.8px;text-transform:uppercase;color:var(--t2);margin-bottom:10px}
+.tune .tchips{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px}
+.tune .tchips button{font:600 14px var(--B);padding:10px 16px;border-radius:12px;background:var(--p2);color:var(--text);border:1px solid var(--ln)}
+.tune .tchips button:hover{border-color:#3a3a3a}
+.tune .tchips button.on{background:var(--g);color:var(--k);border-color:var(--g)}
+.tune .ta{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+
+/* «Похожее» наверху — другим цветом, чем «История» */
+.hist.sim{color:var(--g);border-color:rgba(57,255,20,.35)}
+.hist.sim:hover{border-color:var(--g);color:var(--g)}
+.hist.sim.on{color:var(--k);background:var(--g);border-color:var(--g)}
+
+.artrow{margin-top:22px}
+.artrow .artgrid{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
+
+/* «Плейлист дня» — свои плоские карточки */
+.bigcard.daily{display:flex;flex-direction:column;padding:16px}
+.bigcard.daily.line{box-shadow:inset 0 0 0 1.5px var(--g)}
+.bigcard.daily .dpat{position:absolute;right:-16px;top:-16px;width:100px;height:100px}
+.bigcard.daily .dk{font:700 10.5px var(--M);letter-spacing:1.6px;position:relative}
+.bigcard.daily .dn{font:800 64px/1 var(--H);letter-spacing:-3px;margin-top:2px;position:relative}
+.bigcard.daily .db{margin-top:auto;position:relative;padding-right:40px}
+.bigcard.daily .dt{font:800 19px/1.1 var(--H);letter-spacing:-.4px}
+.bigcard.daily .ds{font:600 12px/1.35 var(--B);margin-top:6px;opacity:.85;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.bigcard.daily .bp{right:12px;bottom:12px}
+.bigcard.daily.line .bp{background:var(--g);color:var(--k)}

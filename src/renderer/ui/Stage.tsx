@@ -56,6 +56,7 @@ export function Stage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div className="brand"><i />ХВОЯ</div>
           <button className={'hist nodrag' + (tab === 'history' ? ' on' : '')} title="История прослушивания" onClick={() => useUi.getState().go('history')}><I.IClock size={15} />История</button>
+          <button className={'hist sim nodrag' + (tab === 'similar' ? ' on' : '')} title="Похожее на то, что играет" onClick={() => useUi.getState().go('similar')}><I.ISimilar size={15} />Похожее</button>
         </div>
         {source && <div className="src">Играет из · <b>{sourceLabel(source)}</b></div>}
       </div>

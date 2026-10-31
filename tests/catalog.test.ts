@@ -28,9 +28,9 @@ describe('parseCatalog', () => {
     expect(parseCatalog(s, 7)).toEqual([expect.objectContaining({ title: 'Для вас' })])
   })
   it('garbage → empty list', () => { expect(parseCatalog(null, 1)).toEqual([]); expect(parseCatalog({}, 1)).toEqual([]) })
-  it('limits to 3 blocks', () => {
-    const blocks = Array.from({ length: 5 }, (_, i) => ({ data_type: 'music_playlists', layout: { title: 'B' + i }, playlists_ids: ['-2_5'] }))
-    expect(parseCatalog({ playlists: sample.playlists, blocks }, 7).length).toBe(3)
+  it('limits to 8 blocks', () => {
+    const blocks = Array.from({ length: 10 }, (_, i) => ({ data_type: 'music_playlists', layout: { title: 'B' + i }, playlists_ids: ['-2_5'] }))
+    expect(parseCatalog({ playlists: sample.playlists, blocks }, 7).length).toBe(8)
   })
 })
 

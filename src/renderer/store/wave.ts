@@ -4,10 +4,13 @@ import { applyReaction, emptyProfile, reactionFor, seedsFor, type Reaction } fro
 import { pickBatch } from '../wave/picker'
 import { cryptoRandom } from '../player/shuffle'
 import { useLibrary } from './library'
+import { applyTune, modeFor, normalizeTune, tuneQueries, type WaveTune } from '../wave/tune'
 import { player } from './playerInstance'
 
 type Wave = {
   mode: WaveMode
+  tune: WaveTune
+  setTune(t: WaveTune): void
   profile: WaveProfile
   loading: boolean
   setMode(m: WaveMode): void
@@ -37,22 +40,35 @@ async function candidates(profile: WaveProfile): Promise<Track[]> {
   return [...recs, ...(await useLibrary.getState().loadMine())]
 }
 
-async function batch(mode: WaveMode, profile: WaveProfile, size = 20): Promise<Track[]> {
+const readTune = (): WaveTune => { try { return normalizeTune(JSON.parse(localStorage.getItem('waveTune') ?? 'null')) } catch { return normalizeTune(null) } }
+
+/** Поиски ВК под настройки Волны (настроение/язык/новинки). Возвращает треки и их id как «подходящие». */
+async function tuneCandidates(tune: WaveTune, profile: WaveProfile): Promise<Track[]> {
+  const top = Object.entries(profile.artists).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([a]) => a)
+  const qs = tuneQueries(tune, top)
+  if (!qs.length) return []
+  const s = await Promise.allSettled(qs.map((x) => window.api.invoke<{ tracks: Track[] }>('vk:search', x.q, 0, x.byDate)))
+  return s.flatMap((r) => (r.status === 'fulfilled' ? r.value.tracks.slice(0, 40) : []))
+}
+
+async function batch(mode: WaveMode, profile: WaveProfile, size = 20, tune: WaveTune = useWave.getState().tune): Promise<Track[]> {
   const mine = new Set(useLibrary.getState().mine.map((t) => t.id))
-  const cand = await candidates(profile)
+  const [base, extra] = await Promise.all([candidates(profile), tuneCandidates(tune, profile).catch(() => [] as Track[])])
   const queued = new Set(player.getState().queue?.list().map((t) => t.id) ?? [])
-  return pickBatch({ candidates: cand.filter((t) => !queued.has(t.id)), mine, mode, profile, recent: recent(), now: Date.now(), rnd: cryptoRandom, size })
+  const cand = applyTune([...extra, ...base].filter((t) => !queued.has(t.id)), tune, new Set(extra.map((t) => t.id)), Date.now(), size)
+  return pickBatch({ candidates: cand, mine, mode, profile, recent: recent(), now: Date.now(), rnd: cryptoRandom, size })
 }
 
 export const useWave = create<Wave>((set, get) => ({
-  mode: (localStorage.getItem('waveMode') as WaveMode) || 'mix',
+  mode: modeFor(readTune()),
+  tune: readTune(),
+  setTune(t) { localStorage.setItem('waveTune', JSON.stringify(t)); set({ tune: t, mode: modeFor(t) }) },
   profile: emptyProfile(),
   loading: false,
   setMode(m) { localStorage.setItem('waveMode', m); set({ mode: m }) },
   async load() { try { set({ profile: (await window.api.invoke<WaveProfile | null>('wave:get')) ?? emptyProfile() }) } catch { /* пустой профиль */ } },
   async start(mode) {
     const m = mode ?? get().mode
-    if (mode) get().setMode(mode)
     set({ loading: true })
     try {
       const b = await batch(m, get().profile)
@@ -89,8 +105,7 @@ export function bindWave() {
       if (!isWave() || remaining > 5 || fetching) return
       fetching = true
       try {
-        const mode = player.getState().source.slice(5) as WaveMode
-        const b = await batch(mode, useWave.getState().profile)
+        const b = await batch(useWave.getState().mode, useWave.getState().profile)
         if (b.length) player.getState().append(b)
       } finally { fetching = false }
     }
@@ -98,4 +113,4 @@ export function bindWave() {
 }
 
 /** Подборка по вкусу Волны (для миксов «Для вас»). */
-export function waveBatch(mode: WaveMode, size: number): Promise<Track[]> { return batch(mode, useWave.getState().profile, size) }
+export function waveBatch(mode: WaveMode, size: number): Promise<Track[]> { return batch(mode, useWave.getState().profile, size, normalizeTune(null)) }

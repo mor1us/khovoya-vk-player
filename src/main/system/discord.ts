@@ -8,6 +8,7 @@ export class DiscordPresence {
   private ready = false
   private last: Activity | null = null
   private retry: NodeJS.Timeout | null = null
+  constructor(private log: (m: string) => void = () => {}) {}
 
   start(appId: string) {
     if (!appId) { this.stop(); return }
@@ -21,9 +22,9 @@ export class DiscordPresence {
     if (!this.appId) return
     const c = new Client({ clientId: this.appId, transport: { type: 'ipc' } })
     this.client = c
-    c.on('ready', () => { this.ready = true; void this.push() })
+    c.on('ready', () => { this.ready = true; this.log('discord: подключено'); void this.push() })
     c.on('disconnected', () => { this.ready = false; this.schedule() })
-    c.login().catch(() => { this.ready = false; this.schedule() })
+    c.login().catch((e) => { this.ready = false; this.log('discord: не подключился — ' + String((e as Error)?.message ?? e)); this.schedule() })
   }
 
   private schedule() {
@@ -38,7 +39,7 @@ export class DiscordPresence {
     try {
       if (this.last) await this.client.user.setActivity(this.last as any)
       else await this.client.user.clearActivity()
-    } catch { /* Discord закрыли — переподключимся */ }
+    } catch (e) { this.log('discord: статус не принят — ' + String((e as Error)?.message ?? e)) }
   }
 
   stop() {
