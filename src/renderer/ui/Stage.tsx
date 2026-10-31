@@ -30,8 +30,12 @@ function LikeBtn() {
     if (!cur) return
     setPop(Date.now()) // сердечко подпрыгивает — видно, что нажал
     const sc = cur.src === 'sc'
+    const was = useWave.getState().isLiked(cur)
+    const t = cur
     void useWave.getState().toggleLike(cur)
-      .then((m) => useUi.getState().toast(m, { label: 'Открыть', run: () => useUi.getState().go(sc ? 'soundcloud' : 'mine') }))
+      .then((m) => useUi.getState().toast(m, was
+        ? { label: 'Вернуть', run: () => void useWave.getState().toggleLike(t).then((x) => useUi.getState().toast(x)).catch(() => {}) }
+        : { label: 'Открыть', run: () => useUi.getState().go(sc ? 'soundcloud' : 'mine') }))
       .catch((e) => useUi.getState().toast((e as Error).message))
   }
   return (

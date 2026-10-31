@@ -492,3 +492,6 @@ html.no-anim *{animation:none!important;transition:none!important}
 .ic.heart.pop svg{animation:heartpop .35s ease-out}
 @keyframes heartpop{0%{transform:scale(1)}35%{transform:scale(1.45)}70%{transform:scale(.9)}100%{transform:scale(1)}}
 .toast.act{max-width:420px}
+/* в строке трека: без наведения видны только зелёное сердечко (лайк) и галочка (скачан) */
+.row:not(:hover) .acts.keep .ic:not(.on):not(.dl){opacity:0}
+.row .acts .ic.heart.on{color:var(--g)}
