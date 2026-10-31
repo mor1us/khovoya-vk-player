@@ -3,6 +3,7 @@ import { createDownloads, registerMediaScheme, MEDIA_SCHEME } from './downloads/
 import type { Track, Settings } from '../shared/types'
 import { settings } from './system/settings'
 import { setupTray, attachWindow } from './system/tray'
+import { setupUpdater, updates } from './system/updater'
 import { DiscordPresence } from './system/discord'
 import { buildActivity } from './system/discordActivity'
 import type { DiscordUpdate } from '../shared/types'
@@ -120,6 +121,10 @@ async function setup() {
     const me = await userInfo(t.token)
     return { kind: 'ok', userName: me.name, avatar: me.avatar }
   })
+  handle('upd:state', () => updates.state())
+  handle('upd:check', () => updates.check())
+  handle('upd:download', () => updates.download())
+  handle('upd:install', () => updates.install())
   const discord = new DiscordPresence()
   const applyDiscord = () => { const s = settings.get(); if (s.discordEnabled && s.discordAppId) discord.start(s.discordAppId); else discord.stop() }
   applyDiscord()
@@ -138,7 +143,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.on('second-instance', () => { if (!win) return; if (win.isMinimized()) win.restore(); win.show(); win.focus() })
-  app.whenReady().then(async () => { await setup(); win = createWindow(); attachWindow(win); setupTray(() => win) })
+  app.whenReady().then(async () => { await setup(); win = createWindow(); attachWindow(win); setupTray(() => win); setupUpdater(() => win, log) })
   app.on('window-all-closed', () => app.quit())
   app.on('activate', () => win?.show())
 }

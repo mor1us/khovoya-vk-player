@@ -13,6 +13,8 @@ import { DialogHost } from './ui/Dialog'
 import { applySettings } from './store/settings'
 import { bindDiscord } from './store/discord'
 import { useHistory } from './store/history'
+import { bindUpdates } from './store/updates'
+import { UpdateBanner } from './ui/UpdateBanner'
 import { bindDownloads } from './store/downloads'
 
 let booted = false
@@ -22,6 +24,7 @@ function boot() {
   player.getState().restore()
   bindDownloads()
   bindDiscord()
+  bindUpdates()
   bindMedia(player, () => searchRef.current?.focus())
   const w = bindWave()
   playerHooks.trackChange.push(w.onTrackChange)
@@ -110,7 +113,7 @@ export function App() {
       {wide && <Stage />}
       <main className="main"><TopBar onLogout={logout} /><Pages onLogout={logout} /></main>
       {!wide && hasTrack && <MiniBar />}
-      <Toasts /><Offline /><CaptchaModal /><DialogHost />
+      <Toasts /><Offline /><CaptchaModal /><DialogHost /><UpdateBanner />
     </div>
   )
 }

@@ -9,10 +9,11 @@ export const IPC = {
   'wave:get': true, 'wave:set': true,
   'win:min': true, 'win:max': true, 'win:close': true,
   'discord:update': true,
-  'vk:captchaAnswer': true
+  'vk:captchaAnswer': true,
+  'upd:state': true, 'upd:check': true, 'upd:download': true, 'upd:install': true
 } as const
 
-export const EVENTS = { 'sys:state': true, 'auth:lost': true, 'dl:changed': true, 'tray:cmd': true, 'vk:captcha': true } as const
+export const EVENTS = { 'sys:state': true, 'auth:lost': true, 'dl:changed': true, 'tray:cmd': true, 'vk:captcha': true, 'upd:changed': true } as const
 
 export type Channel = keyof typeof IPC
 export type EventName = keyof typeof EVENTS

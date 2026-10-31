@@ -2,9 +2,22 @@ import { useEffect, useState } from 'react'
 import type { Settings as S } from '../../shared/types'
 import { applySettings } from '../store/settings'
 import { useUi } from '../store/ui'
+import { useUpdates } from '../store/updates'
+import { updateText } from '../../shared/updates'
 
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return <button className={'tg' + (on ? ' on' : '')} role="switch" aria-checked={on} onClick={() => onChange(!on)} />
+}
+
+function UpdatesRow() {
+  const u = useUpdates((x) => x.s)
+  return (
+    <div className="item"><div className="l"><b>Обновления</b><span>{updateText(u) || `Версия ${u.current ?? ''}`}</span></div>
+      {u.status === 'ready' ? <button className="btn-s g" onClick={() => void window.api.invoke('upd:install')}>Перезапустить</button>
+        : u.status === 'available' ? <button className="btn-s g" onClick={() => void window.api.invoke('upd:download')}>Скачать</button>
+        : <button className="btn-s" disabled={u.status === 'checking' || u.status === 'downloading'} onClick={() => void window.api.invoke('upd:check')}>Проверить обновления</button>}
+    </div>
+  )
 }
 
 export function Settings({ onLogout }: { onLogout: () => void }) {
@@ -30,9 +43,10 @@ export function Settings({ onLogout }: { onLogout: () => void }) {
           <Toggle on={s.discordEnabled} onChange={(v) => void save({ discordEnabled: v })} /></div>
         {s.discordEnabled && <div className="item"><div className="l"><b>ID приложения Discord</b><span>Только цифры, например 1234567890123456789</span></div>
           <input className="filter" defaultValue={s.discordAppId} placeholder="Application ID" onBlur={(e) => void save({ discordAppId: e.target.value })} /></div>}
+        <UpdatesRow />
         <div className="item"><div className="l"><b>Аккаунт ВК</b><span>{useUi.getState().session?.userName}</span></div>
           <button className="btn-s" onClick={onLogout}>Выйти</button></div>
-        <div className="item" style={{ border: 0 }}><div className="l"><span>Хвоя 0.2.7 · без рекламы · музыка из ВКонтакте</span></div></div>
+        <div className="item" style={{ border: 0 }}><div className="l"><span>Хвоя 0.2.8 · без рекламы · музыка из ВКонтакте</span></div></div>
       </div>
     </div>
   )
