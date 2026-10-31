@@ -21,14 +21,13 @@ export function SoundCloud() {
   const local = all.filter((p) => p.local)
   const [part, setPart] = useState<Part>('likes')
   const [q, setQ] = useState('')
-  const [down, setDown] = useState('')
+  const [st, setSt] = useState<{ ok: boolean; message?: string; hasKey: boolean } | null>(null)
+  const check = () => { setSt(null); window.api.invoke<{ ok: boolean; message?: string; hasKey: boolean }>('sc:prepare').then(setSt).catch(() => {}) }
   useEffect(() => {
     void useSc.getState().load()
-    // проверяем связь с SoundCloud: в России без VPN он не открывается
-    window.api.invoke<string[]>('sc:suggest', 'a').catch(() => [])
-      .then(() => window.api.invoke<{ ok: boolean; message?: string }>('sc:status'))
-      .then((st) => setDown(st.ok ? '' : st.message ?? 'SoundCloud недоступен')).catch(() => {})
+    check() // берём/обновляем ключ, если сайт открывается, и проверяем связь
   }, [])
+  const down = st && !st.ok ? st.message ?? 'SoundCloud недоступен' : ''
   const list = q ? likes.filter((t) => `${t.artist} ${t.title}`.toLowerCase().includes(q.toLowerCase())) : likes
   const play = (shuffle: boolean) => {
     if (!list.length) return
@@ -50,7 +49,9 @@ export function SoundCloud() {
         <span className="sp" />
         <span className="hint">Ищи сразу везде — в поиске сверху треки SoundCloud помечены <b className="srcb sc">SC</b></span>
       </div>
-      {down && <div className="scdown big"><SrcBadge src="sc" /><span><b>{down}</b><br />ВК, «Моё · SoundCloud» и плейлисты Хвои работают и так. Треки SoundCloud, которые не грузятся, Хвоя попробует найти и сыграть из ВК.</span></div>}
+      {down && <div className="scdown big"><SrcBadge src="sc" /><span><b>{down}</b><br />ВК, «Моё · SoundCloud» и плейлисты Хвои работают и так. Треки SoundCloud, которые не грузятся, Хвоя попробует найти и сыграть из ВК.</span><button className="btn-s" onClick={check}>Проверить снова</button></div>}
+      {st?.ok && <div className="scok"><i />SoundCloud работает{st.hasKey ? ' · ключ сохранён на компе — можно без VPN, пока SoundCloud его не сменит' : ''}</div>}
+      {!st && <div className="scok wait"><i />Проверяю связь с SoundCloud…</div>}
       <div className="scwaves"><WaveCard only={['sc', 'both']} /></div>
       {part === 'likes' && <>
         <div className="ph" style={{ marginTop: 18 }}>

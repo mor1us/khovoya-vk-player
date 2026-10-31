@@ -134,3 +134,52 @@ describe('SoundCloud недоступен (Россия без VPN)', () => {
     expect(sc.status().ok).toBe(true)
   })
 })
+
+import { SC_NEED_KEY, SC_KEY_OLD } from '../src/main/sc/soundcloud'
+describe('VPN один раз — дальше без него', () => {
+  const siteBlocked: Fetch = async (url) => {
+    if (/^https:\/\/(m\.)?soundcloud\.com\//.test(url)) throw new Error('ERR_CONNECTION_RESET')
+    return res(200, { collection: [raw()] })
+  }
+  it('сайт закрыт, но с сохранённым ключом поиск работает', async () => {
+    const sc = new SoundCloud(siteBlocked, { get: () => CID, set: () => {} })
+    expect(await sc.search('x')).toHaveLength(1)
+    expect(sc.status()).toEqual({ ok: true, hasKey: true })
+  })
+  it('ключа нет и сайт закрыт — просим один раз включить VPN', async () => {
+    const sc = new SoundCloud(siteBlocked, { get: () => null, set: () => {} })
+    await expect(sc.search('x')).rejects.toThrow(SC_NEED_KEY)
+    expect(sc.status()).toMatchObject({ ok: false, message: SC_NEED_KEY, hasKey: false })
+  })
+  it('ключ устарел, а сайт закрыт — просим VPN на минуту', async () => {
+    const f: Fetch = async (url) => (/^https:\/\/(m\.)?soundcloud\.com\//.test(url) ? Promise.reject(new Error('reset')) : res(401, {}))
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    await expect(sc.search('x')).rejects.toThrow(SC_KEY_OLD)
+    expect(sc.status()).toMatchObject({ ok: false, message: SC_KEY_OLD, hasKey: true })
+  })
+  it('основной сайт закрыт — берём ключ с мобильного', async () => {
+    let saved = ''
+    const f: Fetch = async (url) => {
+      if (url === 'https://soundcloud.com/') throw new Error('reset')
+      if (url === 'https://m.soundcloud.com/') return res(200, '<script src="https://a-v2.sndcdn.com/assets/m-1.js"></script>')
+      if (url.endsWith('m-1.js')) return res(200, `client_id:"${CID}"`)
+      return res(200, { collection: [] })
+    }
+    const sc = new SoundCloud(f, { get: () => null, set: (v) => { saved = v } })
+    await sc.search('x')
+    expect(saved).toBe(CID)
+  })
+  it('ключ обновляется тихо, только если старый', async () => {
+    let site = 0
+    const f: Fetch = async (url) => {
+      if (url === 'https://soundcloud.com/') { site++; return res(200, '<script src="https://a-v2.sndcdn.com/assets/1-x.js"></script>') }
+      return res(200, `client_id:"${CID}"`)
+    }
+    const fresh = new SoundCloud(f, { get: () => CID, set: () => {}, at: () => 1000 }, () => {}, { now: () => 2000 })
+    await fresh.refreshKey()
+    expect(site).toBe(0)
+    const old = new SoundCloud(f, { get: () => CID, set: () => {}, at: () => 0 }, () => {}, { now: () => 13 * 3600_000 })
+    await old.refreshKey()
+    expect(site).toBe(1)
+  })
+})

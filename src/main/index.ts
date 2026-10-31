@@ -18,7 +18,7 @@ import { fetchImageDataUrl } from './auth/captcha'
 import type { LoginStep } from '../shared/types'
 import { registerCore, handle } from './ipc/handlers'
 import { jsonFile } from './system/jsonFile'
-import { SoundCloud, SC_DOWN, type Fetch } from './sc/soundcloud'
+import { SoundCloud, SC_DOWN, SC_NEED_KEY, type Fetch } from './sc/soundcloud'
 import type { Session } from '../shared/types'
 
 const MOCK = process.env.VK_MOCK === '1'
@@ -96,8 +96,13 @@ async function setup() {
     }
   })
   // SoundCloud: поиск и прослушивание без входа. В тестовом режиме — подделка поверх тестовых треков.
-  const scKey = jsonFile<{ clientId?: string }>('soundcloud.json', () => ({}))
-  const sc = new SoundCloud(net.fetch as unknown as Fetch, { get: () => scKey.read().clientId ?? null, set: (v) => scKey.write({ clientId: v }) }, log)
+  // Ключ SoundCloud хранится на компе: получив его один раз (с VPN), дальше можно без VPN
+  const scKey = jsonFile<{ clientId?: string; at?: number }>('soundcloud.json', () => ({}))
+  const sc = new SoundCloud(net.fetch as unknown as Fetch, { get: () => scKey.read().clientId ?? null, set: (v) => scKey.write({ clientId: v, at: Date.now() }), at: () => scKey.read().at ?? 0 }, log)
+  if (!MOCK) { // пока сайт открывается (например, включён VPN) — тихо держим ключ свежим
+    setTimeout(() => void sc.refreshKey(), 20_000)
+    setInterval(() => void sc.refreshKey(), 6 * 3600_000)
+  }
   const SC_DOWN_TEST = MOCK && process.env.SC_DOWN === '1' // тестовый режим «SoundCloud заблокирован»
   const scSearch = async (q: string): Promise<Track[]> => {
     if (SC_DOWN_TEST) throw new Error(SC_DOWN)
@@ -119,7 +124,8 @@ async function setup() {
     const r = await api.search(q)
     return [...new Set(r.tracks.flatMap((t) => [t.artist.toLowerCase(), `${t.artist} ${t.title}`.toLowerCase()]))].slice(0, 6)
   })
-  handle('sc:status', () => (SC_DOWN_TEST ? { ok: false, message: SC_DOWN } : MOCK ? { ok: true } : sc.status()))
+  handle('sc:status', () => (SC_DOWN_TEST ? { ok: false, message: SC_DOWN, hasKey: false } : MOCK ? { ok: true, hasKey: true } : sc.status()))
+  handle('sc:prepare', () => (SC_DOWN_TEST ? { ok: false, message: SC_NEED_KEY, hasKey: false } : MOCK ? { ok: true, hasKey: true } : sc.prepare()))
   handle('sc:users', async (q: string) => {
     if (SC_DOWN_TEST) return []
     if (!MOCK) return sc.users(q).catch(() => [])
