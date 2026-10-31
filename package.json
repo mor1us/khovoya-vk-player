@@ -97,12 +97,12 @@
     "publish": {
       "provider": "github",
       "owner": "mor1us",
-      "repo": "khvoya",
+      "repo": "khovoya-vk-player",
       "releaseType": "release"
     }
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mor1us/khvoya.git"
+    "url": "https://github.com/mor1us/khovoya-vk-player.git"
   }
 }

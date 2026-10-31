@@ -1,2 +1,2 @@
 /** Репозиторий GitHub с релизами Хвои. Пустой owner — автообновление выключено. */
-export const UPDATE_FEED = { owner: 'mor1us', repo: 'khvoya' }
+export const UPDATE_FEED = { owner: 'mor1us', repo: 'khovoya-vk-player' }
