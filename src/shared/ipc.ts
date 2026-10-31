@@ -7,6 +7,7 @@ export const IPC = {
   'dl:start': true, 'dl:list': true, 'dl:cancel': true, 'dl:localPath': true, 'dl:openFolder': true,
   'settings:get': true, 'settings:set': true, 'settings:pickDir': true,
   'wave:get': true, 'wave:set': true,
+  'app:log': true,
   'win:min': true, 'win:max': true, 'win:close': true,
   'discord:update': true,
   'vk:captchaAnswer': true,

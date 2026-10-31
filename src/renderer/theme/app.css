@@ -498,3 +498,7 @@ html.no-anim *{animation:none!important;transition:none!important}
 /* подписки SoundCloud в «Новое у твоих артистов» */
 .subh{display:flex;align-items:center;gap:8px;font:700 13px var(--H);color:var(--t2);margin-top:18px}
 .badge.sc{background:#FF5500}
+.crash{height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:40px}
+.crash h1{font:800 32px var(--H);color:var(--g)}
+.crash p{color:var(--t2)}
+.crash code{font:12px var(--M);color:var(--t3);max-width:600px;word-break:break-word}

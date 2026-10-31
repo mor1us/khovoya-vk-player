@@ -1,7 +1,7 @@
 {
   "name": "khvoya",
   "productName": "Хвоя",
-  "version": "0.4.15",
+  "version": "0.4.16",
   "description": "Свой плеер для музыки ВК без рекламы",
   "main": "out/main/index.js",
   "author": "Мориус",

@@ -18,7 +18,7 @@ import { fetchImageDataUrl } from './auth/captcha'
 import type { LoginStep } from '../shared/types'
 import { registerCore, handle } from './ipc/handlers'
 import { jsonFile } from './system/jsonFile'
-import { SoundCloud, SC_DOWN, SC_NEED_KEY, type Fetch } from './sc/soundcloud'
+import { SoundCloud, SC_DOWN, SC_NEED_KEY, ScUnavailable, type Fetch } from './sc/soundcloud'
 import { scLoginWindow, scLogout, scToken, scWrite } from './sc/scAuth'
 import type { Session } from '../shared/types'
 
@@ -112,10 +112,10 @@ async function setup() {
     return r.tracks.slice(0, 8).map((t) => ({ ...t, title: t.title + ' (SC edit)', id: 'sc_' + t.vkId, ownerId: 0, src: 'sc' as const, scStream: t.url, url: '' }))
   }
   const scStream = (t: Track) => (MOCK ? Promise.resolve(t.scStream ?? '') : sc.streamUrl(t))
-  handle('sc:search', (q: string) => scSearch(q).catch((e) => { log('soundcloud: поиск — ' + (e as Error).message); throw e }))
+  handle('sc:search', (q: string) => scSearch(q).catch(scLog('поиск')))
   handle('sc:related', (t: Track) => (MOCK ? scSearch(t.artist) : sc.related(t)))
   handle('sc:resolve', async (url: string) => {
-    if (!MOCK) return sc.resolve(url).catch((e) => { log('soundcloud: ссылка — ' + (e as Error).message); throw e })
+    if (!MOCK) return sc.resolve(url).catch(scLog('ссылка'))
     const tracks = await scSearch('Неон')
     return { kind: 'playlist', title: 'Тестовый плейлист SoundCloud', author: 'mock', tracks }
   })
@@ -125,6 +125,8 @@ async function setup() {
     const r = await api.search(q)
     return [...new Set(r.tracks.flatMap((t) => [t.artist.toLowerCase(), `${t.artist} ${t.title}`.toLowerCase()]))].slice(0, 6)
   })
+  /** Ошибку SoundCloud — в журнал, кроме «недоступен» (она уже записана один раз в минуту). */
+  const scLog = (what: string) => (e: unknown) => { if (!(e instanceof ScUnavailable)) log(`soundcloud: ${what} — ${(e as Error)?.message ?? e}`); throw e }
   // Аккаунт SoundCloud: вход через окно сайта, дальше — лайки, плейлисты, лента, лайк прямо на SoundCloud
   sc.setAuth(scToken)
   sc.setWriter(scWrite)
@@ -143,7 +145,14 @@ async function setup() {
   handle('scacc:playlists', async () => (MOCK ? (mockScUser ? [{ id: 1, title: 'Ночные поездки', count: 6, mine: true }, { id: 2, title: 'Phonk Drive', count: 8, mine: false }] : []) : sc.playlists()))
   handle('scacc:playlistTracks', async (id: number) => (MOCK ? scSearch(id === 1 ? 'Кислота' : 'Неон') : sc.playlistTracks(id)))
   handle('scacc:feed', async () => (MOCK ? (mockScUser ? scSearch('Пустой') : []) : sc.feed()))
-  handle('scacc:like', async (t: Track, on: boolean) => (MOCK ? null : sc.setLike(t, on).catch((e) => { log('soundcloud: лайк — ' + (e as Error).message); throw e })))
+  handle('scacc:like', async (t: Track, on: boolean) => (MOCK ? null : sc.setLike(t, on).catch(scLog('лайк'))))
+  // Ошибки окна (интерфейса) — тоже в журнал, не чаще 30 в минуту
+  let uiErrs = 0, uiErrsAt = 0
+  handle('app:log', (msg: string) => {
+    const now = Date.now()
+    if (now - uiErrsAt > 60_000) { uiErrs = 0; uiErrsAt = now }
+    if (++uiErrs <= 30) log('окно: ' + String(msg).slice(0, 500))
+  })
   handle('sc:status', () => (SC_DOWN_TEST ? { ok: false, message: SC_DOWN, hasKey: false } : MOCK ? { ok: true, hasKey: true } : sc.status()))
   handle('sc:prepare', () => (SC_DOWN_TEST ? { ok: false, message: SC_NEED_KEY, hasKey: false } : MOCK ? { ok: true, hasKey: true } : sc.prepare()))
   handle('sc:users', async (q: string) => {
@@ -156,7 +165,7 @@ async function setup() {
   handle('sc:comments', (t: Track) => (MOCK
     ? [{ at: 3, text: 'вот тут дроп 🔥', user: 'neon_fan' }, { at: 9, text: 'лучший момент', user: 'kid' }, { at: 20, text: 'на репите', user: 'synth' }]
     : sc.comments(t).catch(() => [])))
-  handle('sc:stream', (t: Track) => scStream(t).catch((e) => { log('soundcloud: поток — ' + (e as Error).message); throw e }))
+  handle('sc:stream', (t: Track) => scStream(t).catch(scLog('поток')))
   // Лайки SoundCloud и свои плейлисты Хвои (ВК + SoundCloud вперемешку) хранятся на компе.
   const scLikes = jsonFile<unknown[]>('sc-likes.json', () => [])
   handle('scl:get', () => scLikes.read())
