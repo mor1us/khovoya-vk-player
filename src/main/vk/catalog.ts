@@ -23,9 +23,9 @@ export function parseCatalog(resp: any, myId: number): ForYouBlock[] {
     const playlists = b.playlists_ids
       .map((id: string) => byKey.get(String(id).split('_').slice(0, 2).join('_')))
       .filter(Boolean)
-      .filter((raw: any) => raw.owner_id !== myId)
+      // «Плейлисты дня» ВК создаёт от имени самого пользователя — не выкидываем их, но и редактировать не даём
       .map((raw: any) => {
-        const p = mapPlaylist(raw, myId)
+        const p = { ...mapPlaylist(raw, myId), isMine: false }
         const sub = raw.description || raw.subtitle
         return typeof sub === 'string' && sub.trim() ? { ...p, subtitle: sub.trim() } : p
       })
@@ -36,4 +36,9 @@ export function parseCatalog(resp: any, myId: number): ForYouBlock[] {
     if (out.length >= 8) break
   }
   return out
+}
+
+/** Короткая сводка каталога для журнала: какие блоки и плейлисты прислал ВК. */
+export function catalogSummary(blocks: ForYouBlock[]): string {
+  return blocks.map((b) => `«${b.title}»${b.big ? ' (крупно)' : ''}: ${b.playlists.slice(0, 8).map((p) => p.title).join(' | ')}`).join(' ;; ')
 }

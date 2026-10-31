@@ -18,6 +18,8 @@ export type Track = {
   src?: 'sc'
   scAuth?: string
   scStream?: string
+  /** Все подходящие потоки по порядку — если первый не отдаётся, пробуем следующий. */
+  scStreams?: string[]
   link?: string
   /** Ссылка на рисунок громкости SoundCloud. */
   wave?: string

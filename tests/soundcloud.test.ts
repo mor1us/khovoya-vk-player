@@ -24,8 +24,9 @@ describe('SoundCloud', () => {
     expect(findClientId('nothing here')).toBeNull()
   })
 
-  it('выбирает HLS mp3, а не AAC и не зашифрованный', () => {
-    expect(pickTranscoding(raw())?.url).toBe('https://api-v2.soundcloud.com/media/hls-mp3')
+  it('порядок потоков: AAC, потом mp3; зашифрованный не берём', () => {
+    expect(pickTranscoding(raw())?.url).toBe('https://api-v2.soundcloud.com/media/hls-aac')
+    expect(mapScTrack(raw())!.scStreams).toEqual(['https://api-v2.soundcloud.com/media/hls-aac', 'https://api-v2.soundcloud.com/media/hls-mp3'])
     expect(pickTranscoding(raw({ media: { transcodings: [{ url: 'p', format: { protocol: 'progressive', mime_type: 'audio/mpeg' } }, { url: 'h', format: { protocol: 'hls', mime_type: 'audio/mpeg' } }] } }))?.url).toBe('p')
     expect(pickTranscoding(raw({ media: { transcodings: [{ url: 's', snipped: true, format: { protocol: 'hls', mime_type: 'audio/mpeg' } }] } }))).toBeNull()
   })
@@ -181,5 +182,19 @@ describe('VPN один раз — дальше без него', () => {
     const old = new SoundCloud(f, { get: () => CID, set: () => {}, at: () => 0 }, () => {}, { now: () => 13 * 3600_000 })
     await old.refreshKey()
     expect(site).toBe(1)
+  })
+})
+
+describe('поток SoundCloud: если формат убран (404), пробуем следующий', () => {
+  it('первый поток 404 — берём второй', async () => {
+    const f: Fetch = async (url) => (url.includes('hls-aac') ? res(404, {}) : url.includes('hls-mp3') ? res(200, { url: 'https://cdn/ok.m3u8' }) : res(404, {}))
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    expect(await sc.streamUrl(mapScTrack(raw())!)).toBe('https://cdn/ok.m3u8')
+  })
+  it('все сохранённые потоки 404 — запрашиваем трек заново', async () => {
+    const fresh = raw({ media: { transcodings: [{ url: 'https://api-v2.soundcloud.com/media/new-aac', format: { protocol: 'hls', mime_type: 'audio/mp4' } }] } })
+    const f: Fetch = async (url) => (url.includes('/tracks/42') ? res(200, fresh) : url.includes('new-aac') ? res(200, { url: 'https://cdn/new.m3u8' }) : res(404, {}))
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    expect(await sc.streamUrl(mapScTrack(raw())!)).toBe('https://cdn/new.m3u8')
   })
 })

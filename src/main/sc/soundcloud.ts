@@ -20,19 +20,22 @@ export function findClientId(js: string): string | null {
 
 type Transcoding = { url: string; snipped?: boolean; format?: { protocol?: string; mime_type?: string } }
 
-/** Лучший поток: обычный mp3, потом HLS mp3, потом HLS AAC. Зашифрованные и отрывки (30 с) не берём. */
-export function pickTranscoding(r: any): Transcoding | null {
+/**
+ * Потоки по порядку: обычный mp3, HLS AAC, HLS mp3. SoundCloud постепенно убирает mp3-потоки (отвечает 404),
+ * поэтому пробуем по очереди. Зашифрованные и отрывки (30 с) не берём.
+ */
+export function pickTranscodings(r: any): Transcoding[] {
   const ts: Transcoding[] = (r?.media?.transcodings ?? []).filter((t: Transcoding) => t?.url && !t.snipped)
   const rank = (t: Transcoding) => {
     const p = t.format?.protocol, m = t.format?.mime_type ?? ''
     if (p === 'progressive') return 0
-    if (p === 'hls' && /mpeg/.test(m)) return 1
-    if (p === 'hls' && /mp4|aac/.test(m)) return 2
+    if (p === 'hls' && /mp4|aac/.test(m)) return 1
+    if (p === 'hls' && /mpeg/.test(m)) return 2
     return 9
   }
-  const ok = ts.filter((t) => rank(t) < 9).sort((a, b) => rank(a) - rank(b))
-  return ok[0] ?? null
+  return ts.filter((t) => rank(t) < 9).sort((a, b) => rank(a) - rank(b))
 }
+export const pickTranscoding = (r: any): Transcoding | null => pickTranscodings(r)[0] ?? null
 
 export function artwork(r: any): string | undefined {
   const u: string | undefined = r?.artwork_url || r?.user?.avatar_url
@@ -41,7 +44,8 @@ export function artwork(r: any): string | undefined {
 
 export function mapScTrack(r: any): Track | null {
   if (!r || r.kind !== 'track' || !r.id) return null
-  const tr = pickTranscoding(r)
+  const trs = pickTranscodings(r)
+  const tr = trs[0]
   const blocked = r.policy === 'BLOCK' || r.policy === 'SNIP' || r.streamable === false
   return {
     id: `sc_${r.id}`,
@@ -57,6 +61,7 @@ export function mapScTrack(r: any): Track | null {
     src: 'sc',
     scAuth: r.track_authorization,
     scStream: tr?.url,
+    scStreams: trs.map((x) => x.url),
     link: r.permalink_url,
     wave: r.waveform_url
   }
@@ -267,14 +272,24 @@ export class SoundCloud {
 
   /** Ссылка на поток живёт недолго — получаем её прямо перед прослушиванием или скачиванием. */
   async streamUrl(t: Track): Promise<string> {
-    let stream = t.scStream, auth = t.scAuth
-    if (!stream) {
-      const full = mapScTrack(await this.api(`/tracks/${t.vkId}`))
-      stream = full?.scStream; auth = full?.scAuth
-      if (!stream) throw new Error('Этот трек SoundCloud не даёт слушать')
+    const tried = new Set<string>()
+    const attempt = async (list: string[], auth?: string) => {
+      for (const s of list) {
+        if (tried.has(s)) continue
+        tried.add(s)
+        try {
+          const j = await this.api(s, auth ? { track_authorization: auth } : {})
+          if (j?.url) return String(j.url)
+        } catch (e) { if (e instanceof ScUnavailable) throw e } // 404 у этого формата — пробуем следующий
+      }
+      return ''
     }
-    const j = await this.api(stream, auth ? { track_authorization: auth } : {})
-    if (!j?.url) throw new Error('SoundCloud не отдал ссылку на трек')
-    return j.url
+    const first = await attempt(t.scStreams?.length ? t.scStreams : t.scStream ? [t.scStream] : [], t.scAuth)
+    if (first) return first
+    // сохранённые ссылки устарели (или трек из старой версии) — берём свежие данные трека
+    const full = mapScTrack(await this.api(`/tracks/${t.vkId}`))
+    const again = full ? await attempt(full.scStreams ?? [], full.scAuth) : ''
+    if (again) return again
+    throw new Error('SoundCloud не отдал этот трек')
   }
 }

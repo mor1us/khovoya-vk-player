@@ -13,11 +13,15 @@ const sample = {
 }
 
 describe('parseCatalog', () => {
-  it('returns playlist blocks in order with titles, skipping my own playlists', () => {
+  it('returns playlist blocks in order with titles', () => {
     const r = parseCatalog(sample, 7)
-    expect(r.map((b) => b.title)).toEqual(['Собрано алгоритмами', 'Новинки'])
+    expect(r.map((b) => b.title).slice(0, 2)).toEqual(['Собрано алгоритмами', 'Новинки'])
     expect(r[0].playlists.map((p) => p.title)).toEqual(['Плейлист дня 1', 'Плейлист дня 2', 'Открытия недели'])
     expect(r[0].playlists[0]).toMatchObject({ id: 10, ownerId: -147845620, accessKey: 'k10', coverUrls: ['c10'], isMine: false })
+  })
+  it('«Плейлист дня» от имени самого пользователя не теряется и не считается его плейлистом', () => {
+    const s = { playlists: [pl(77, 7, 'Плейлист дня 3')], blocks: [{ data_type: 'music_playlists', layout: { title: 'Собрано алгоритмами' }, playlists_ids: ['7_77'] }] }
+    expect(parseCatalog(s, 7)[0].playlists[0]).toMatchObject({ title: 'Плейлист дня 3', isMine: false })
   })
   it('ids with access key suffix still match', () => {
     const s = { ...sample, catalog: { sections: [{ blocks: [{ data_type: 'music_playlists', layout: { title: 'Для вас' }, playlists_ids: ['-147845620_10_abc'] }] }] } }

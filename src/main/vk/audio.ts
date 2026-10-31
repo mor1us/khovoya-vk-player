@@ -1,6 +1,6 @@
 import type { Track, Playlist, ArtistRef } from '../../shared/types'
 import { mapTrack, mapPlaylist } from './models'
-import { parseCatalog, type ForYouBlock } from './catalog'
+import { catalogSummary, parseCatalog, type ForYouBlock } from './catalog'
 
 type Caller = { call<T = any>(method: string, params: Record<string, string | number | undefined>): Promise<T> }
 
@@ -54,6 +54,7 @@ export class VkAudioApi implements AudioApi {
       blocks = parseCatalog({ ...s, blocks: s?.section?.blocks ?? s?.blocks }, this.me())
     }
     if (!blocks.length) this.log(`каталог без подборок: ключи ${Object.keys(r ?? {}).join(',')}`)
+    else this.log('каталог ВК: ' + catalogSummary(blocks).slice(0, 1500))
     return blocks
   }
 
