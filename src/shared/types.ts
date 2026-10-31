@@ -23,6 +23,8 @@ export type Playlist = {
   coverUrls: string[]
   isMine: boolean
   updatedAt: number
+  /** Подпись ВК, например «Вы слушали: …». */
+  subtitle?: string
 }
 
 export type Settings = {

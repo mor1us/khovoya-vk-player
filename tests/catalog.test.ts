@@ -33,3 +33,31 @@ describe('parseCatalog', () => {
     expect(parseCatalog({ playlists: sample.playlists, blocks }, 7).length).toBe(3)
   })
 })
+
+describe('parseCatalog: headers, big cards, subtitles', () => {
+  const resp = {
+    playlists: [
+      { id: 1, owner_id: -147845620, title: 'Плейлист дня 1', description: 'Вы слушали: HELLBLADE, k3 mc', count: 50, photo: { photo_600: 'g1' } },
+      { id: 2, owner_id: -147845620, title: 'Открытия', subtitle: 'Новое для вас', count: 50 },
+      { id: 3, owner_id: -2, title: 'Рок', count: 10 }
+    ],
+    catalog: { sections: [{ blocks: [
+      { data_type: 'none', layout: { name: 'header', title: 'Собрано алгоритмами' } },
+      { data_type: 'music_playlists', layout: { name: 'large_slider' }, playlists_ids: ['-147845620_1', '-147845620_2'] },
+      { data_type: 'none', layout: { name: 'header_extended', title: 'Жанры' } },
+      { data_type: 'music_playlists', layout: { name: 'slider' }, playlists_ids: ['-2_3'] },
+      { data_type: 'music_playlists', layout: { name: 'large_slider' }, playlists_ids: ['-2_3'] }
+    ] }] }
+  }
+  it('takes the title from the preceding header block and marks large sliders big', () => {
+    const r = parseCatalog(resp, 7)
+    expect(r.map((b) => [b.title, b.big])).toEqual([['Собрано алгоритмами', true], ['Жанры', false], ['Для вас', true]])
+  })
+  it('keeps playlist subtitle from description/subtitle', () => {
+    const r = parseCatalog(resp, 7)
+    expect(r[0].playlists.map((p) => p.subtitle)).toEqual(['Вы слушали: HELLBLADE, k3 mc', 'Новое для вас'])
+  })
+  it('never shows layout names like large_slider as a title', () => {
+    expect(parseCatalog(resp, 7).some((b) => /_/.test(b.title))).toBe(false)
+  })
+})

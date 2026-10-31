@@ -10,6 +10,7 @@ import { Cover } from '../ui/Cover'
 import { openTrackMenu } from '../ui/TrackMenu'
 import { ArtistsBox } from '../ui/ArtistsBox'
 import { useMixes, type Mix } from '../store/mixes'
+import { BigCard, PlaylistBigCard } from '../ui/BigCard'
 import * as I from '../ui/icons'
 import { artistKey } from '../wave/profile'
 
@@ -88,16 +89,24 @@ function ForYouRows() {
     <>
       <div style={{ marginBottom: 18 }}>
         <div className="h"><h3>{first?.title ?? 'Для вас'}</h3><button className="link" disabled={busy} onClick={regen}>{busy ? 'Собираю…' : '↻ Сгенерировать заново'}</button></div>
-        <div className="crates">
-          {mixes.map((m) => <MixCrate key={m.key} m={m} />)}
-          {first?.playlists.slice(0, 12).map((p) => <Crate key={`${p.ownerId}_${p.id}`} p={p} />)}
-          {forYou === null && !mixes.length && [0, 1, 2, 3].map((i) => <div key={i} className="crate"><div className="skeleton" style={{ height: 118, width: 118 }} /></div>)}
-        </div>
+        {first?.big ? (
+          <div className="bigrow">
+            {mixes.map((m) => <BigCard key={m.key} title={m.title} sub={m.sub} seed={m.key} fill={m.key === 'fresh' ? '#39FF14' : '#1B1B1B'}
+              onClick={() => void player.getState().playList(m.tracks, m.tracks[0]?.id, `mix:${m.title}`)} onPlay={() => void player.getState().playList(m.tracks, m.tracks[0]?.id, `mix:${m.title}`)} />)}
+            {first.playlists.slice(0, 14).map((p) => <PlaylistBigCard key={`${p.ownerId}_${p.id}`} p={p} />)}
+          </div>
+        ) : (
+          <div className="crates">
+            {mixes.map((m) => <MixCrate key={m.key} m={m} />)}
+            {first?.playlists.slice(0, 12).map((p) => <Crate key={`${p.ownerId}_${p.id}`} p={p} />)}
+            {forYou === null && !mixes.length && [0, 1, 2, 3].map((i) => <div key={i} className="crate"><div className="skeleton" style={{ height: 118, width: 118 }} /></div>)}
+          </div>
+        )}
       </div>
       {blocks.slice(1).map((b) => (
         <div key={b.title} style={{ marginBottom: 18 }}>
           <div className="h"><h3>{b.title}</h3><span className="muted" style={{ font: '500 11px var(--M)' }}>ДЛЯ ВАС</span></div>
-          <Crates list={b.playlists.slice(0, 12)} />
+          {b.big ? <div className="bigrow">{b.playlists.slice(0, 14).map((p) => <PlaylistBigCard key={`${p.ownerId}_${p.id}`} p={p} />)}</div> : <Crates list={b.playlists.slice(0, 12)} />}
         </div>))}
     </>
   )

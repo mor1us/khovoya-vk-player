@@ -40,10 +40,13 @@ async function tokenViaNet(tld: 'ru' | 'com'): Promise<WebToken> {
 }
 
 /** Ключ от веб-версии ВК. Пробуем по очереди; сессия потеряна, только если отказали все способы. */
+let lastTld: 'ru' | 'com' = 'ru'
 export async function fetchWebToken(): Promise<WebToken> {
   let netError: unknown = null
-  for (const attempt of [() => tokenViaHiddenPage('com'), () => tokenViaHiddenPage('ru'), () => tokenViaNet('ru'), () => tokenViaNet('com')]) {
-    try { const t = await attempt(); log(`ключ получен, user ${t.userId}`); return t } catch (e) {
+  const other = lastTld === 'ru' ? 'com' : 'ru'
+  const attempts: [() => Promise<WebToken>, 'ru' | 'com'][] = [[() => tokenViaHiddenPage(lastTld), lastTld], [() => tokenViaHiddenPage(other), other], [() => tokenViaNet(lastTld), lastTld], [() => tokenViaNet(other), other]]
+  for (const [attempt, tld] of attempts) {
+    try { const t = await attempt(); lastTld = tld; return t } catch (e) {
       if (!(e instanceof SessionLostError)) { netError = e; log(`ошибка получения ключа: ${(e as Error).message}`) }
     }
   }

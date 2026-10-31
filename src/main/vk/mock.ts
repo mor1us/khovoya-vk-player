@@ -50,9 +50,13 @@ export class MockAudioApi implements AudioApi {
 
   async forYou() {
     const mk = (id: number, title: string, n: number): Playlist => ({ id, ownerId: -147845620, title, count: n, coverUrls: [coverSvg(id)], isMine: false, updatedAt: 0 })
-    for (const [id, title] of [[901, 'Плейлист дня 1'], [902, 'Плейлист дня 2'], [903, 'Плейлист дня 3'], [904, 'Открытия недели'], [905, 'Новинки для тебя']] as [number, string][])
-      if (!this.pls.some((x) => x.p.id === id)) this.pls.push({ p: mk(id, title, 30), ids: this.all.slice(200 + (id % 7) * 10, 230 + (id % 7) * 10).map((t) => t.id) })
-    return [{ title: 'Собрано алгоритмами', playlists: this.pls.filter((x) => x.p.id > 900).map((x) => ({ ...x.p })) }]
+    const subs: Record<number, string> = { 901: 'обновлён сегодня', 902: 'Новое для вас', 903: 'обновлён вчера', 904: 'Вы слушали: Дворы, Неон, Мира Лин', 905: 'Вы слушали: Северный ветер, Тихий берег' }
+    for (const [id, title] of [[901, 'Для вас'], [902, 'Открытия'], [903, 'Новинки'], [904, 'Плейлист дня 1'], [905, 'Плейлист дня 2']] as [number, string][])
+      if (!this.pls.some((x) => x.p.id === id)) this.pls.push({ p: { ...mk(id, title, 30), coverUrls: [], subtitle: subs[id] }, ids: this.all.slice(200 + (id % 7) * 10, 230 + (id % 7) * 10).map((t) => t.id) })
+    return [
+      { title: 'Собрано алгоритмами', big: true, playlists: this.pls.filter((x) => x.p.id > 900).map((x) => ({ ...x.p })) },
+      { title: 'Жанры', big: false, playlists: this.pls.slice(0, 3).map((x) => ({ ...x.p })) }
+    ]
   }
   async artistTracks(a: { name: string }) {
     const now = Date.now() / 1000

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { Track, Playlist } from '../../shared/types'
 
-export type ForYou = { title: string; playlists: Playlist[] }
+export type ForYou = { title: string; big?: boolean; playlists: Playlist[] }
 
 type Lib = {
   forYou: ForYou[] | null
