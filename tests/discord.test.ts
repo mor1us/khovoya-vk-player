@@ -13,7 +13,7 @@ describe('buildActivity', () => {
   it('listening activity with timestamps and cover', () => {
     expect(buildActivity(t, true, 84, NOW)).toEqual({
       type: 2, details: 'Холодный свет', state: 'Северный ветер',
-      largeImageKey: 'https://img/c.jpg', largeImageText: 'Хвоя — музыка из ВК без рекламы',
+      largeImageKey: 'https://img/c.jpg', largeImageText: 'ВКонтакте',
       startTimestamp: NOW - 84_000, endTimestamp: NOW - 84_000 + 221_000
     })
   })
@@ -27,5 +27,12 @@ describe('buildActivity', () => {
   })
   it('no duration → no end timestamp', () => {
     expect(buildActivity({ ...t, duration: 0 }, true, 5, NOW)!.endTimestamp).toBeUndefined()
+  })
+})
+
+describe('статус Discord: откуда трек', () => {
+  it('у треков SoundCloud подписано «SoundCloud»', () => {
+    const t = { id: 'sc_1', ownerId: 0, vkId: 1, title: 'Song', artist: 'Art', duration: 100, url: '', available: true, src: 'sc' as const }
+    expect(buildActivity(t, true, 0, 1000)?.largeImageText).toBe('SoundCloud')
   })
 })

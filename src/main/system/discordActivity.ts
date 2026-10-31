@@ -21,7 +21,7 @@ export function buildActivity(t: Track | null, playing: boolean, positionSec: nu
     details: fit(t.title),
     state: fit(t.artist),
     largeImageKey: t.coverUrl && /^https:\/\//.test(t.coverUrl) ? t.coverUrl : 'logo',
-    largeImageText: 'Хвоя — музыка из ВК без рекламы',
+    largeImageText: t.src === 'sc' ? 'SoundCloud' : 'ВКонтакте', // в статусе — откуда трек
     startTimestamp: start,
     ...(t.duration > 0 ? { endTimestamp: start + t.duration * 1000 } : {})
   }
