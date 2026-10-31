@@ -15,8 +15,12 @@ npm install
 node dev/make-fixtures.mjs   # тестовые треки для режима без ВК
 npm run dev:mock              # запуск с поддельным ВК
 npm test                      # тесты
-npm run dist                  # установщик для Windows (на Linux нужен wine)
+npm run dist                  # установщик локально (на Linux нужен wine и ffmpeg.exe в node_modules/ffmpeg-static/)
 ```
-Перед `npm run dist` на Linux положи `ffmpeg.exe` (win32-x64) в `node_modules/ffmpeg-static/`.
+
+## Выпуск обновлений
+Поднять `version` в `package.json` и запушить `master` — GitHub Actions соберёт установщик под Windows и опубликует выпуск. Установленная Хвоя сама предложит обновиться.
+
+Скачать: https://github.com/mor1us/khovoya-vk-player/releases/latest
 
 Документы: `docs/superpowers/specs` (спецификация), `docs/first-run-check.md`, `docs/discord-setup.md`.
