@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { Playlist, Track } from '../../shared/types'
 
 export type ScMe = { id: number; name: string; avatar?: string }
-type ScPlaylistRef = { id: number; title: string; count: number; cover?: string; link?: string; mine: boolean }
+export type ScPlaylistRef = { id: number; title: string; count: number; cover?: string; link?: string; mine: boolean; author?: string }
 
 /**
  * SoundCloud в Хвое: лайки (на компе + из аккаунта, если вошёл), плейлисты и лента аккаунта.
@@ -28,7 +28,7 @@ type Sc = {
 }
 
 const strip = (t: Track): Track => ({ ...t, url: '' }) // ссылки на поток живут недолго — не храним
-const asPlaylist = (p: ScPlaylistRef): Playlist => ({ id: p.id, ownerId: 0, title: p.title, count: p.count, coverUrls: p.cover ? [p.cover] : [], isMine: false, updatedAt: 0, sc: true, subtitle: p.mine ? 'твой плейлист SoundCloud' : 'лайкнутый плейлист SoundCloud' })
+export const asPlaylist = (p: ScPlaylistRef): Playlist => ({ id: p.id, ownerId: 0, title: p.title, count: p.count, coverUrls: p.cover ? [p.cover] : [], isMine: false, updatedAt: 0, sc: true, subtitle: p.mine ? 'твой плейлист SoundCloud' : p.author ? `SoundCloud · ${p.author}` : 'лайкнутый плейлист SoundCloud' })
 
 export const useSc = create<Sc>((set, get) => ({
   likes: [], accLikes: [], me: null, accPlaylists: [], feed: null, loaded: false, accError: '',

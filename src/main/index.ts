@@ -153,6 +153,7 @@ async function setup() {
     if (now - uiErrsAt > 60_000) { uiErrs = 0; uiErrsAt = now }
     if (++uiErrs <= 30) log('окно: ' + String(msg).slice(0, 500))
   })
+  handle('sc:searchPlaylists', async (q: string) => (SC_DOWN_TEST ? [] : MOCK ? [{ id: 11, title: `${q} — подборка SC`, count: 8, mine: false, author: 'synthboy' }, { id: 12, title: `Best of ${q}`, count: 5, mine: false, author: 'nightdj' }] : sc.searchPlaylists(q).catch(scLog('плейлисты'))))
   handle('sc:status', () => (SC_DOWN_TEST ? { ok: false, message: SC_DOWN, hasKey: false } : MOCK ? { ok: true, hasKey: true } : sc.status()))
   handle('sc:prepare', () => (SC_DOWN_TEST ? { ok: false, message: SC_NEED_KEY, hasKey: false } : MOCK ? { ok: true, hasKey: true } : sc.prepare()))
   handle('sc:users', async (q: string) => {

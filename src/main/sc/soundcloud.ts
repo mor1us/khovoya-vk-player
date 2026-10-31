@@ -98,7 +98,7 @@ export class ScUnavailable extends Error {}
 export class ScAuthLost extends Error {}
 
 export type ScMe = { id: number; name: string; avatar?: string }
-export type ScPlaylistRef = { id: number; title: string; count: number; cover?: string; link?: string; mine: boolean }
+export type ScPlaylistRef = { id: number; title: string; count: number; cover?: string; link?: string; mine: boolean; author?: string }
 
 /** Сайт, с которого берём ключ (в России закрыт), — в отличие от API и серверов с музыкой, которые могут работать. */
 const SITES = ['https://soundcloud.com/', 'https://m.soundcloud.com/']
@@ -231,6 +231,13 @@ export class SoundCloud {
   async related(t: Track, limit = 30): Promise<Track[]> {
     const j = await this.api(`/tracks/${t.vkId}/related`, { limit })
     return (j?.collection ?? []).map(mapScTrack).filter((x: Track | null): x is Track => !!x)
+  }
+
+  /** Плейлисты SoundCloud по запросу (для поиска). */
+  async searchPlaylists(q: string, limit = 20): Promise<ScPlaylistRef[]> {
+    const j = await this.api('/search/playlists_without_albums', { q, limit })
+    return (j?.collection ?? []).filter((p: any) => p?.id && Number(p.track_count) > 0)
+      .map((p: any) => ({ id: Number(p.id), title: String(p.title ?? 'Плейлист'), count: Number(p.track_count) || 0, cover: artwork(p) ?? artwork(p.tracks?.[0]), link: p.permalink_url, mine: false, author: String(p.user?.username ?? '') }))
   }
 
   /** Варианты запроса, пока человек печатает. */

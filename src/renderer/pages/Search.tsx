@@ -8,6 +8,7 @@ import { SrcBadge } from '../ui/TrackRow'
 import { Cover } from '../ui/Cover'
 import { KEYWORDS, TAGS, withKeyword, activeKeyword } from '../ui/searchTags'
 import { mergeSources } from '../ui/mergeSearch'
+import { asPlaylist, type ScPlaylistRef } from '../store/sc'
 import { ScLink, isScUrl } from './ScLink'
 
 type Where = 'all' | 'vk' | 'sc'
@@ -24,6 +25,7 @@ function SearchResults({ q }: { q: string }) {
   const [byDate, setByDate] = useState(false)
   const [sc, setSc] = useState<Track[] | null>(null)
   const [scErr, setScErr] = useState('')
+  const [scPl, setScPl] = useState<Playlist[]>([])
   const where = useUi((s) => s.searchWhere)
   const [noMixes, setNoMixes] = useState(localStorage.getItem('noMixes') === '1')
   const toggleNoMixes = () => { localStorage.setItem('noMixes', noMixes ? '0' : '1'); setNoMixes(!noMixes) }
@@ -44,6 +46,13 @@ function SearchResults({ q }: { q: string }) {
     window.api.invoke<Track[]>('sc:search', q).then((r) => alive && setSc(byDate ? [...r].sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0)) : r)).catch((e) => { if (alive) { setSc([]); setScErr((e as Error).message) } })
     return () => { alive = false }
   }, [q, byDate])
+  useEffect(() => { // плейлисты SoundCloud — отдельным рядом
+    if (!q) return
+    let alive = true
+    setScPl([])
+    window.api.invoke<ScPlaylistRef[]>('sc:searchPlaylists', q).then((r) => alive && setScPl(r.map(asPlaylist))).catch(() => {})
+    return () => { alive = false }
+  }, [q])
   const vkTracks = res?.tracks ?? []
   const scTracks = sc ?? []
   const merged = where === 'vk' ? vkTracks : where === 'sc' ? scTracks : mergeSources(vkTracks, scTracks)
@@ -75,7 +84,8 @@ function SearchResults({ q }: { q: string }) {
             onClick={() => { if (a.src === 'sc') useUi.getState().setSearchWhere('sc'); useUi.getState().submit(a.name) }}>
             <Cover className="av" url={a.cover} seed={a.id} /><SrcBadge src={a.src} />{a.name}
           </button>))}</div>}
-        {where !== 'sc' && res.playlists.length > 0 && <><div className="h"><h3>Плейлисты</h3></div><Crates list={res.playlists} /><div style={{ height: 16 }} /></>}
+        {where !== 'sc' && res.playlists.length > 0 && <><div className="h"><h3><SrcBadge src="vk" />Плейлисты ВК</h3></div><Crates list={res.playlists} /><div style={{ height: 16 }} /></>}
+        {where !== 'vk' && scPl.length > 0 && <><div className="h"><h3><SrcBadge src="sc" />Плейлисты SoundCloud</h3></div><Crates list={scPl} /><div style={{ height: 16 }} /></>}
         <div className="h"><h3>Треки</h3></div>
         {!tracks.length && <div className="tags" style={{ marginBottom: 12 }}>{TAGS.slice(0, 8).map((t) => <span key={t} className="tag" onClick={() => useUi.getState().submit(t)}>#{t}</span>)}</div>}
         {tracks.length ? <VirtualTrackList tracks={tracks} showSrc onPlay={(t) => void player.getState().playList(tracks, t.id, `search:${q}`)} /> : <div className="empty-state">{where === 'sc' && sc === null ? 'Ищу в SoundCloud…' : where === 'sc' && scErr ? 'В SoundCloud сейчас не поискать — нужен VPN' : 'Ничего не нашлось'}</div>}
