@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Track, Playlist } from '../../shared/types'
+import { loadLocal, localPlaylists } from './localPlaylists'
 
 export type ForYou = { title: string; big?: boolean; playlists: Playlist[] }
 
@@ -31,8 +32,9 @@ export const useLibrary = create<Lib>((set, get) => ({
   },
   async loadPlaylists(force) {
     if (get().playlists.length && !force) return get().playlists
-    try { const p = await window.api.invoke<Playlist[]>('vk:playlists'); set({ playlists: p }); return p }
-    catch (e) { set({ error: (e as Error).message }); return get().playlists }
+    await loadLocal()
+    try { const p = [...localPlaylists(), ...(await window.api.invoke<Playlist[]>('vk:playlists'))]; set({ playlists: p }); return p }
+    catch (e) { set({ error: (e as Error).message, playlists: [...localPlaylists(), ...get().playlists.filter((x) => !x.local)] }); return get().playlists }
   },
   isMine(id) { return get().mine.some((t) => t.id === id) },
   setMine(mine) { set({ mine }) },

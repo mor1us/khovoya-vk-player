@@ -12,6 +12,7 @@ import { Pages } from './pages/Pages'
 import { DialogHost } from './ui/Dialog'
 import { applySettings } from './store/settings'
 import { bindDiscord } from './store/discord'
+import { useSc } from './store/sc'
 import { useHistory } from './store/history'
 import { bindUpdates } from './store/updates'
 import { UpdateBanner } from './ui/UpdateBanner'
@@ -96,6 +97,7 @@ export function App() {
     void useLibrary.getState().loadMine()
     void useLibrary.getState().loadPlaylists()
     void useWave.getState().load()
+    void useSc.getState().load()
   }, [session?.loggedIn])
 
   async function logout() {

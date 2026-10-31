@@ -37,7 +37,7 @@
 /* правая часть */
 .main{display:flex;flex-direction:column;min-width:0;min-height:0}
 .bar{display:flex;align-items:center;gap:10px;padding:20px 14px 0 36px;height:72px;flex:none}
-.tabs{display:flex;gap:16px;font:800 24px var(--H);letter-spacing:-.8px;white-space:nowrap}
+.tabs{display:flex;gap:13px;font:800 19px var(--H);letter-spacing:-.6px;white-space:nowrap;min-width:0}
 .tabs button{color:#474747}
 .tabs button:hover{color:#777}
 .tabs button.on{color:var(--g)}
@@ -271,34 +271,56 @@ html.no-anim *{animation:none!important;transition:none!important}
 .bigcard .bp{position:absolute;right:12px;bottom:12px;width:44px;height:44px;border-radius:50%;background:var(--k);color:var(--g);display:grid;place-items:center;opacity:0;transform:translateY(4px);transition:.15s}
 .bigcard:hover .bp{opacity:1;transform:none}
 
-/* ── Волна: большая зелёная плашка с линиями и диском ── */
-.waveb{position:relative;overflow:hidden;border-radius:22px;background:var(--g);color:var(--k);min-height:250px;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px 30px 24px 28px}
-.waveb canvas{position:absolute;left:36%;right:0;bottom:0;width:64%;height:78%;pointer-events:none}
-.waveb>*:not(canvas){position:relative}
-.waveb .wl{display:flex;flex-direction:column;align-items:flex-start;min-width:0}
-.waveb .k{font:700 10.5px var(--M);letter-spacing:1.6px;display:flex;align-items:center;gap:7px}
-.waveb.live .k::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--k);animation:dot 1.2s infinite}
-.waveb h2{font:800 64px/1 var(--H);letter-spacing:-2.5px;margin-top:6px}
-.waveb .tags{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
-.waveb .tags span{font:700 12px var(--B);padding:5px 10px;border-radius:8px;background:var(--k);color:var(--g)}
-.waveb .tags span.soft{background:none;color:var(--k);box-shadow:inset 0 0 0 1.5px var(--k)}
-.waveb p{font-size:12.5px;color:#123d06;margin-top:10px;max-width:300px;line-height:1.45}
-.waveb .wtune{display:flex;align-items:center;gap:8px;margin-top:14px;font:700 13px var(--B);padding:9px 15px;border-radius:12px;background:var(--k);color:var(--text)}
-.waveb .wtune:hover{color:var(--g)}
-.waveb .disc{flex:none;width:176px;height:176px;border-radius:50%;background:var(--k);color:var(--g);display:grid;place-items:center;position:relative;transition:transform .15s}
-.waveb .disc:hover{transform:scale(1.03)}
-.waveb .disc:active{transform:scale(.97)}
-.waveb .disc .ring{position:absolute;inset:0;width:100%;height:100%;animation:spin 16s linear infinite;animation-play-state:paused}
-.waveb.live .disc .ring{animation-play-state:running}
-.waveb .disc text{font:700 13px var(--M);fill:var(--g)}
-.waveb .disc .hub{width:74px;height:74px;border-radius:50%;background:var(--g);color:var(--k);display:grid;place-items:center;box-shadow:0 0 0 6px var(--k),0 0 0 8px var(--g)}
-.waveb .disc .hub svg{margin-left:2px}
-.waveb.live .disc .hub svg{margin-left:0}
+/* ── Три Волны колонками ── */
+.waves{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.wcol{position:relative;overflow:hidden;border-radius:22px;min-height:300px;padding:20px 20px 18px;display:flex;flex-direction:column;align-items:flex-start}
+.wcol canvas{position:absolute;left:0;right:0;bottom:0;width:100%;height:62%;pointer-events:none}
+.wcol>*:not(canvas){position:relative}
+.wcol .k{font:700 10px var(--M);letter-spacing:1.5px;display:flex;align-items:center;gap:7px}
+.wcol.live .k::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;animation:dot 1.2s infinite}
+.wcol h2{font:800 40px/1 var(--H);letter-spacing:-1.6px;margin-top:8px}
+.wcol .tags{display:flex;gap:5px;margin-top:10px;flex-wrap:wrap}
+.wcol .tags span{font:700 11px var(--B);padding:4px 8px;border-radius:7px}
+.wcol .wtune{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:10px;display:grid;place-items:center}
+.wcol .disc{margin-top:auto;align-self:flex-end;flex:none;width:128px;height:128px;border-radius:50%;display:grid;place-items:center;position:relative;transition:transform .15s}
+.wcol .disc:hover{transform:scale(1.04)}
+.wcol .disc:active{transform:scale(.97)}
+.wcol .disc .ring{position:absolute;inset:0;width:100%;height:100%;animation:spin 16s linear infinite;animation-play-state:paused}
+.wcol.live .disc .ring{animation-play-state:running}
+.wcol .disc text{font:700 13px var(--M)}
+.wcol .disc .hub{width:56px;height:56px;border-radius:50%;display:grid;place-items:center}
+.wcol .disc .hub svg{margin-left:2px}
+.wcol.live .disc .hub svg{margin-left:0}
 @keyframes spin{to{transform:rotate(360deg)}}
-.waveb .dots{display:flex;gap:4px}
-.waveb .dots i{width:6px;height:6px;border-radius:50%;background:var(--k);animation:dot 1s infinite}
-.waveb .dots i:nth-child(2){animation-delay:.15s}.waveb .dots i:nth-child(3){animation-delay:.3s}
+.wcol .dots{display:flex;gap:4px}
+.wcol .dots i{width:5px;height:5px;border-radius:50%;background:currentColor;animation:dot 1s infinite}
+.wcol .dots i:nth-child(2){animation-delay:.15s}.wcol .dots i:nth-child(3){animation-delay:.3s}
 @keyframes dot{0%,100%{opacity:.25}50%{opacity:1}}
+/* ВК: неон + чёрный */
+.wcol.vk{background:var(--g);color:var(--k)}
+.wcol.vk .tags span{background:var(--k);color:var(--g)}
+.wcol.vk .tags span.soft{background:none;color:var(--k);box-shadow:inset 0 0 0 1.5px var(--k)}
+.wcol.vk .wtune{background:var(--k);color:var(--g)}
+.wcol.vk .disc{background:var(--k)}.wcol.vk .disc text{fill:var(--g)}
+.wcol.vk .disc .hub{background:var(--g);color:var(--k);box-shadow:0 0 0 5px var(--k),0 0 0 7px var(--g)}
+/* SoundCloud: чёрный + оранжевый */
+.wcol.sc{background:#0B0B0B;color:#F5F5F5;box-shadow:inset 0 0 0 1.5px #FF5500}
+.wcol.sc .k{color:#FF5500}
+.wcol.sc .tags span{background:#FF5500;color:#0B0B0B}
+.wcol.sc .tags span.soft{background:none;color:#FF5500;box-shadow:inset 0 0 0 1.5px #FF5500}
+.wcol.sc .wtune{background:#FF5500;color:#0B0B0B}
+.wcol.sc .disc{background:#FF5500}.wcol.sc .disc text{fill:#0B0B0B}
+.wcol.sc .disc .hub{background:#0B0B0B;color:#FF5500;box-shadow:0 0 0 5px #FF5500,0 0 0 7px #0B0B0B}
+/* Вперемешку: чёрный, неон и оранжевый */
+.wcol.both{background:#141414;color:#F5F5F5;box-shadow:inset 0 0 0 1px #262626}
+.wcol.both .k{color:var(--t2)}
+.wcol.both h2{background:none}
+.wcol.both .tags span{background:#F5F5F5;color:#0B0B0B}
+.wcol.both .tags span.soft{background:none;color:#F5F5F5;box-shadow:inset 0 0 0 1.5px #F5F5F5}
+.wcol.both .wtune{background:#262626;color:#F5F5F5}
+.wcol.both .disc{background:#0B0B0B;box-shadow:inset 0 0 0 2px #262626}.wcol.both .disc text{fill:#F5F5F5}
+.wcol.both .disc .hub{background:linear-gradient(90deg,#39FF14 0 50%,#FF5500 50% 100%);color:#0B0B0B;box-shadow:0 0 0 5px #0B0B0B,0 0 0 7px #F5F5F5}
+.wavehint{font-size:12px;color:var(--t3);margin-top:8px}
 
 /* окно «Настроить Волну» */
 .modal .box.tune{width:540px;padding:30px 32px 26px;gap:22px}
@@ -354,11 +376,33 @@ html.no-anim *{animation:none!important;transition:none!important}
 .srcb{display:inline-grid;place-items:center;height:16px;padding:0 5px;margin-right:7px;border-radius:5px;font:800 9.5px/1 var(--B);letter-spacing:.3px;vertical-align:1px}
 .srcb.vk{color:var(--g);box-shadow:inset 0 0 0 1.3px var(--g)}
 .srcb.sc{color:#0B0B0B;background:#FF7A1A}
-.seg{display:flex;gap:4px;padding:3px;border-radius:12px;background:var(--p1);border:1px solid var(--ln)}
-.seg button{display:flex;align-items:center;font:600 12.5px var(--B);color:var(--t2);padding:6px 11px;border-radius:9px}
-.seg button .srcb{margin-right:6px}
+.seg.src{gap:4px}
+.seg.src button{display:flex;align-items:center}
+.seg.src button .srcb{margin-right:6px}
 .seg button:hover{color:var(--text)}
-.seg button.on{background:var(--p2);color:var(--text)}
+.seg.src button.on{background:var(--p2);color:var(--text)}
 .ctl{justify-content:center}
 .ic.heart.on{color:var(--g)}
 .ic:disabled{opacity:.35;cursor:default}
+.khb{font:800 9px var(--B);letter-spacing:.6px;color:var(--k);background:var(--g);border-radius:4px;padding:1px 4px;margin-right:6px;vertical-align:1px}
+.disrow{display:flex;align-items:center;gap:10px}
+.disrow>.row{flex:1;min-width:0}
+.tabs button.sc:hover{color:#b8541f}
+.tabs button.sc.on{color:#FF5500}
+/* вкладка SoundCloud */
+.scpage .sch{color:#FF5500}
+.scpage h2.sub{font:800 20px var(--H);letter-spacing:-.4px}
+.seg.sc button.on{background:#FF5500;color:#0B0B0B}
+.btn-s.sco{background:#FF5500;border-color:#FF5500;color:#0B0B0B}
+.scwaves .waves{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.scwaves .wcol{min-height:220px}
+.scwaves .wcol .disc{width:104px;height:104px}
+.scwaves .wcol .disc .hub{width:46px;height:46px}
+.scwaves .wavehint{display:none}
+/* место под вкладку SoundCloud: поиск узкий, раскрывается при вводе */
+.search{width:116px;flex:none}
+.search kbd{display:none}
+.search:focus-within,.search:has(input:not(:placeholder-shown)){width:230px}
+.tabs{overflow:hidden;flex:0 1 auto}
+.tabs{gap:11px;font-size:18px}
+.bar{padding-left:28px}

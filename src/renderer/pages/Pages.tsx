@@ -9,6 +9,8 @@ import { Settings } from './Settings'
 import { History } from './History'
 import { Similar } from './Similar'
 import { Queue } from './Queue'
+import { Disliked } from './Disliked'
+import { SoundCloud } from './SoundCloud'
 import { TrackMenu } from '../ui/TrackMenu'
 
 export function Pages({ onLogout }: { onLogout: () => void }) {
@@ -25,6 +27,8 @@ export function Pages({ onLogout }: { onLogout: () => void }) {
       {tab === 'history' && <History />}
       {tab === 'similar' && <Similar />}
       {tab === 'queue' && <Queue />}
+      {tab === 'disliked' && <Disliked />}
+      {tab === 'soundcloud' && <SoundCloud />}
       <TrackMenu />
     </>
   )

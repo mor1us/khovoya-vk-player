@@ -52,7 +52,7 @@ export function PlaylistPage() {
       <div className="plhead">
         <Cover className="big" url={p.coverUrls[0]} seed={'pl' + p.id} />
         <div className="info">
-          <span className="k">{p.isMine ? 'Твой плейлист' : 'Плейлист'}</span>
+          <span className="k">{p.local ? 'Плейлист Хвои · ВК + SoundCloud' : p.isMine ? 'Твой плейлист' : 'Плейлист'}</span>
           <h1 title={p.title}>{p.title}</h1>
           <span className="meta">{p.count} {plural(p.count, 'трек', 'трека', 'треков')}{total ? ` · ${fmtTotal(total)}` : ''}</span>
           <div className="btns">
@@ -69,12 +69,12 @@ export function PlaylistPage() {
         <select className="filter" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
           <option value="default">Как в ВК</option><option value="added">По дате добавления</option><option value="title">По названию</option><option value="artist">По артисту</option>
         </select>
-        {p.isMine && <span className="hint">{canReorder ? 'Перетаскивай треки, чтобы поменять порядок' : 'Порядок меняется только при сортировке «Как в ВК»'}</span>}
+        {p.isMine && <span className="hint">{canReorder ? 'Перетаскивай треки, чтобы поменять порядок' : 'Порядок меняется только при сортировке по умолчанию'}</span>}
       </div>
       {err && <div className="empty-state">{err}</div>}
       {loading && !tracks && [0, 1, 2, 3].map((i) => <div key={i} className="skeleton" />)}
       {tracks && (list.length
-        ? <VirtualTrackList tracks={list} ctxPlaylist={p} onPlay={(t) => { rememberPlaylist(p); void player.getState().playList(list, t.id, `pl:${p.title}`) }} onReorder={canReorder ? (id, to) => void reorderInPlaylist(p, id, to) : undefined} />
+        ? <VirtualTrackList tracks={list} ctxPlaylist={p} showSrc={p.local} onPlay={(t) => { rememberPlaylist(p); void player.getState().playList(list, t.id, `pl:${p.title}`) }} onReorder={canReorder ? (id, to) => void reorderInPlaylist(p, id, to) : undefined} />
         : <div className="empty-state">{q ? 'Ничего не нашлось' : 'В плейлисте пока пусто. Перетащи сюда треки или добавь через меню «…»'}</div>)}
     </div>
   )

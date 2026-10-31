@@ -12,9 +12,9 @@ export function Playlists() {
   const hasQueue = usePlayer((s) => (s.queue?.list().length ?? 0) > 0)
   const [which, setWhich] = useState<'mine' | 'followed'>('mine')
   const list = all.filter((p) => (which === 'mine' ? p.isMine : !p.isMine))
-  async function create() {
-    const name = await ask('Новый плейлист', '', 'Создать')
-    if (name?.trim()) { const p = await createPlaylistWith(name.trim(), []); if (p) useUi.getState().openPlaylist(p) }
+  async function create(local = false) {
+    const name = await ask(local ? 'Новый плейлист Хвои (ВК + SoundCloud)' : 'Новый плейлист ВК', '', 'Создать')
+    if (name?.trim()) { const p = await createPlaylistWith(name.trim(), [], local); if (p) useUi.getState().openPlaylist(p) }
   }
   async function saveQueue() {
     const q = player.getState().queue?.list().filter((t) => t.available) ?? []
@@ -28,7 +28,8 @@ export function Playlists() {
         <div className="seg"><button className={which === 'mine' ? 'on' : ''} onClick={() => setWhich('mine')}>Мои</button><button className={which === 'followed' ? 'on' : ''} onClick={() => setWhich('followed')}>Добавленные</button></div>
         <span className="sp" />
         {hasQueue && <button className="btn-s" onClick={() => void saveQueue()}>Сохранить очередь как плейлист</button>}
-        <button className="btn-s g" onClick={() => void create()}><I.IPlus size={14} />Новый</button>
+        <button className="btn-s" title="Хранится на компе, можно смешивать ВК и SoundCloud" onClick={() => void create(true)}><I.IPlus size={14} />Плейлист Хвои</button>
+        <button className="btn-s g" onClick={() => void create()}><I.IPlus size={14} />Новый в ВК</button>
       </div>
       {list.length ? <div className="grid">{list.map((p) => <Crate key={`${p.ownerId}_${p.id}`} p={p} />)}</div>
         : <div className="empty-state">{which === 'mine' ? 'Создай первый плейлист кнопкой «Новый»' : 'Добавленных плейлистов нет'}</div>}

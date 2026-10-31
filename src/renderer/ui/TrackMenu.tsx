@@ -7,6 +7,8 @@ import { useUi } from '../store/ui'
 import { useDownloads } from '../store/downloads'
 import { player } from '../store/playerInstance'
 import { addToPlaylist, createPlaylistWith } from '../store/playlists'
+import { canOpenSource, openSource } from '../store/sourceNav'
+import { sourceParts } from './source'
 
 type M = { tracks: Track[]; x: number; y: number; ctxPlaylist?: Playlist } | null
 export const useMenu = create<{ m: M; open(m: M): void }>((set) => ({ m: null, open: (m) => set({ m }) }))
@@ -26,6 +28,8 @@ export function TrackMenu() {
   const one = tracks.length === 1 ? tracks[0] : null
   const lib = useLibrary.getState()
   const inMine = one ? lib.isMine(one.id) : false
+  const source = player.getState().source
+  const isCurrent = !!one && player.getState().current?.id === one.id
   const vkOnly = tracks.every((t) => t.src !== 'sc') // в ВК можно добавить только треки ВК
   const toast = useUi.getState().toast
   const run = (f: () => Promise<unknown> | void) => { useMenu.getState().open(null); Promise.resolve(f()).catch((e) => toast((e as Error).message)) }
@@ -38,17 +42,21 @@ export function TrackMenu() {
         if (inMine) { await window.api.invoke('vk:remove', one); lib.setMine(lib.mine.filter((t) => t.id !== one.id)); toast('Убрано из твоей музыки') }
         else { await window.api.invoke('vk:add', one); lib.setMine([one, ...lib.mine]); toast('Добавлено в твою музыку') }
       })}>{inMine ? 'Убрать из моей музыки' : '♥ Добавить в мою музыку'}</button>}
-      {vkOnly && <button onClick={() => setSub(!sub)}>Добавить в плейлист ›</button>}
+      <button onClick={() => setSub(!sub)}>Добавить в плейлист ›</button>
       {sub && <div style={{ paddingLeft: 10, maxHeight: 200, overflow: 'auto' }}>
-        <button onClick={() => run(async () => { const name = await ask('Новый плейлист', '', 'Создать'); if (name) await createPlaylistWith(name, tracks) })}>+ Новый плейлист</button>
-        {playlists.map((p) => <button key={p.id} onClick={() => run(() => addToPlaylist(p, tracks))}>{p.title}</button>)}
+        {vkOnly && <button onClick={() => run(async () => { const name = await ask('Новый плейлист ВК', '', 'Создать'); if (name) await createPlaylistWith(name, tracks) })}>+ Новый плейлист ВК</button>}
+        <button onClick={() => run(async () => { const name = await ask('Новый плейлист Хвои (ВК + SoundCloud)', '', 'Создать'); if (name) await createPlaylistWith(name, tracks, true) })}>+ Новый плейлист Хвои</button>
+        {playlists.filter((p) => vkOnly || p.local).map((p) => <button key={p.id} onClick={() => run(() => addToPlaylist(p, tracks))}>{p.local ? '◆ ' : ''}{p.title}</button>)}
       </div>}
       {m.ctxPlaylist?.isMine && <button onClick={() => run(async () => {
         const { removeFromPlaylist } = await import('../store/playlists'); await removeFromPlaylist(m.ctxPlaylist!, tracks)
       })}>Убрать из этого плейлиста</button>}
       <div className="sep" />
       <button onClick={() => run(() => useDownloads.getState().start(tracks))}>Скачать{tracks.length > 1 ? ` (${tracks.length})` : ''}</button>
+      {one && <button onClick={() => run(() => { useUi.getState().setSearchWhere('sc'); useUi.getState().submit(`${one.artist.split(/,|&| feat/i)[0].trim()} ${one.title.replace(/\(.*?\)|\[.*?\]/g, '').trim()} remix`) })}>Найти ремиксы на SoundCloud</button>}
       {one?.link && <button onClick={() => run(() => { window.open(one.link, '_blank') })}>Открыть на SoundCloud</button>}
+      {one?.album && <button onClick={() => run(() => useUi.getState().openPlaylist({ id: one.album!.id, ownerId: one.album!.ownerId, accessKey: one.album!.accessKey, title: one.album!.title, count: 0, coverUrls: one.coverUrl ? [one.coverUrl] : [], isMine: false, updatedAt: 0 }))}>Перейти к альбому «{one.album.title}»</button>}
+      {one && isCurrent && canOpenSource(source) && <button onClick={() => run(() => openSource(source))}>Перейти туда, откуда играет: {sourceParts(source).name}</button>}
       {one && <button onClick={() => run(() => useUi.getState().submit(one.artist))}>Найти ещё у «{one.artist}»</button>}
     </div>
   )

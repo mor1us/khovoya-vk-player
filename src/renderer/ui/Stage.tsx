@@ -2,12 +2,14 @@ import { usePlayer, player } from '../store/playerInstance'
 import { useUi } from '../store/ui'
 import { useLibrary } from '../store/library'
 import { useWave } from '../store/wave'
+import { useSc } from '../store/sc'
 import { Cover } from './Cover'
 import { Waveform } from './Waveform'
 import { fmtTime } from './format'
 import { sourceLabel } from './source'
 import { playerHooks } from '../store/playerInstance'
 import * as I from './icons'
+import { openTrackMenu } from './TrackMenu'
 
 export function usePosition(): number {
   const bg = useUi((s) => s.background)
@@ -18,7 +20,7 @@ export function usePosition(): number {
 function LikeBtn() {
   const cur = usePlayer((s) => s.current)
   const inMine = useLibrary((s) => (cur && cur.src !== 'sc' ? s.mine.some((t) => t.id === cur.id) : false))
-  const scLiked = useWave((s) => (cur?.src === 'sc' ? s.profile.seeds.includes(cur.id) : false))
+  const scLiked = useSc((s) => (cur?.src === 'sc' ? s.likes.some((t) => t.id === cur.id) : false))
   const liked = inMine || scLiked
   return (
     <button className={'ic heart' + (liked ? ' on' : '')} disabled={!cur} title={liked ? 'Убрать лайк' : 'Нравится'}
@@ -31,7 +33,9 @@ function LikeBtn() {
 function DislikeBtn() {
   const cur = usePlayer((s) => s.current)
   return (
-    <button className="ic" disabled={!cur} title="Не нравится — больше не предлагать и включить следующий" onClick={() => cur && void useWave.getState().dislike(cur)}>
+    <button className="ic" title={'Не нравится — больше не предлагать и включить следующий\nПравая кнопка — список «Не нравится»'}
+      onClick={() => cur && void useWave.getState().dislike(cur).then(() => useUi.getState().toast('Больше не предложу. Список — правой кнопкой по сердцу'))}
+      onContextMenu={(e) => { e.preventDefault(); useUi.getState().go('disliked') }}>
       <I.IHeartOff size={20} />
     </button>
   )
@@ -83,9 +87,11 @@ export function Stage() {
         <div className="empty">Ничего не играет.<br />Включи Волну или любой трек справа.</div>
       ) : (
         <>
+          <div className="nodrag" style={{ display: 'contents' }} onContextMenu={(e) => openTrackMenu(e, [cur])}>
           <Cover className="cover nodrag" url={cur.coverUrl} seed={cur.id} />
-          <div className="title" title={cur.title}>{cur.title}</div>
-          <div className="artist"><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{cur.artist}</span><span className="chip">{fmtTime(cur.duration)}</span></div>
+          <div className="title nodrag" title={cur.title}>{cur.title}</div>
+          <div className="artist nodrag"><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{cur.artist}</span><span className="chip">{fmtTime(cur.duration)}</span></div>
+          </div>
           <Waveform id={cur.id} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} className="wf nodrag" />
           <div className="times"><span>{fmtTime(pos)}</span><b>{playerHooks.crossfadeSec ? `⤨ кроссфейд ${playerHooks.crossfadeSec} с` : 'без кроссфейда'}</b><span>{fmtTime(dur)}</span></div>
           <div className="ctl nodrag"><Controls reactions /></div>
@@ -108,7 +114,7 @@ export function MiniBar() {
   const dur = duration || cur?.duration || 0
   return (
     <div className="minibar">
-      <div className="now">{cur && <><Cover className="cv" url={cur.coverUrl} seed={cur.id} /><div style={{ minWidth: 0 }}><div className="tt">{cur.title}</div><div className="ar">{cur.artist}</div></div></>}</div>
+      <div className="now nodrag" onContextMenu={(e) => cur && openTrackMenu(e, [cur])}>{cur && <><Cover className="cv" url={cur.coverUrl} seed={cur.id} /><div style={{ minWidth: 0 }}><div className="tt">{cur.title}</div><div className="ar">{cur.artist}</div></div></>}</div>
       <Controls reactions />
       <div className="mright">
         {cur && <><span className="muted" style={{ font: '500 11px var(--M)' }}>{fmtTime(pos)}</span><Waveform id={cur.id} n={36} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} /></>}

@@ -1,6 +1,6 @@
 export function sourceLabel(src: string): string {
   if (!src) return ''
-  if (src.startsWith('wave:')) return 'Волна / ' + ({ mix: 'Микс', new: 'Новое', fav: 'Любимое' } as Record<string, string>)[src.slice(5)]
+  if (src.startsWith('wave:')) return 'Волна / ' + (({ mix: 'Микс', new: 'Новое', fav: 'Любимое', sc: 'SoundCloud', both: 'ВК + SoundCloud' } as Record<string, string>)[src.slice(5)] ?? 'Микс')
   if (src === 'mine') return 'Моя музыка'
   if (src.startsWith('pl:')) return 'Плейлист / ' + src.slice(3)
   if (src.startsWith('search:')) return 'Поиск / ' + src.slice(7)
@@ -15,6 +15,8 @@ export function sourceLabel(src: string): string {
 /** Для экрана очереди: «Сейчас играет из плейлиста» + крупное название. */
 export function sourceParts(src: string): { kind: string; name: string } {
   const after = (p: string) => src.slice(p.length)
+  if (src === 'wave:sc') return { kind: 'Волны', name: 'Волна SoundCloud' }
+  if (src === 'wave:both') return { kind: 'Волны', name: 'Волна ВК + SoundCloud' }
   if (src.startsWith('wave:')) return { kind: 'Волны', name: 'Волна' }
   if (src === 'mine') return { kind: 'раздела', name: 'Моя музыка' }
   if (src.startsWith('pl:')) return { kind: 'плейлиста', name: after('pl:') }

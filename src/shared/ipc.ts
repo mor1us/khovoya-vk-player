@@ -11,6 +11,7 @@ export const IPC = {
   'discord:update': true,
   'vk:captchaAnswer': true,
   'sc:search': true, 'sc:related': true, 'sc:stream': true,
+  'scl:get': true, 'scl:set': true, 'lpl:get': true, 'lpl:set': true,
   'upd:state': true, 'upd:check': true, 'upd:download': true, 'upd:install': true
 } as const
 

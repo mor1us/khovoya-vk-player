@@ -3,7 +3,7 @@ import { useUi, type Tab } from '../store/ui'
 import * as I from './icons'
 import { TAGS } from './searchTags'
 
-const TABS: [Tab, string][] = [['home', 'Главная'], ['mine', 'Моё'], ['playlists', 'Плейлисты'], ['downloads', 'Загрузки']]
+const TABS: [Tab, string][] = [['home', 'Главная'], ['mine', 'Моё'], ['playlists', 'Плейлисты'], ['downloads', 'Загрузки'], ['soundcloud', 'SoundCloud']]
 export const searchRef: { current: HTMLInputElement | null } = { current: null }
 
 export function TopBar({ onLogout }: { onLogout: () => void }) {
@@ -18,7 +18,7 @@ export function TopBar({ onLogout }: { onLogout: () => void }) {
   const active = (t: Tab) => tab === t || (t === 'playlists' && tab === 'playlist')
   return (
     <div className="bar drag">
-      <nav className="tabs nodrag">{TABS.map(([t, l]) => <button key={t} className={active(t) ? 'on' : ''} onClick={() => useUi.getState().go(t)}>{l}</button>)}</nav>
+      <nav className="tabs nodrag">{TABS.map(([t, l]) => <button key={t} className={(active(t) ? 'on' : '') + (t === 'soundcloud' ? ' sc' : '')} onClick={() => useUi.getState().go(t)}>{l}</button>)}</nav>
       <div className="search nodrag" style={{ position: 'relative' }}>
         <I.ISearch size={15} />
         <input ref={input} placeholder="Найти…" value={query}

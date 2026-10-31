@@ -12,6 +12,8 @@ export type Track = {
   available: boolean
   /** Основные исполнители из ВК (main_artists), если есть. */
   artists?: { id: string; name: string }[]
+  /** Альбом ВК, если трек из альбома. */
+  album?: { id: number; ownerId: number; accessKey?: string; title: string }
   /** Откуда трек: нет — ВКонтакте, 'sc' — SoundCloud. */
   src?: 'sc'
   scAuth?: string
@@ -30,6 +32,8 @@ export type Playlist = {
   updatedAt: number
   /** Подпись ВК, например «Вы слушали: …». */
   subtitle?: string
+  /** Плейлист Хвои: хранится на компе, в нём могут быть треки ВК и SoundCloud. */
+  local?: boolean
 }
 
 export type Settings = {
@@ -67,6 +71,8 @@ export type WaveProfile = {
   banned: string[]
   snoozed: Record<string, number>
   reactions: number
+  /** Треки с «не нравится» — чтобы можно было посмотреть и вернуть. */
+  disliked?: Track[]
 }
 
 export type SysState = { background: boolean }

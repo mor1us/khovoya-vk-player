@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { applyReaction, emptyProfile, seedsFor, DAY } from '../src/renderer/wave/profile'
+import { applyReaction, emptyProfile, seedsFor, undoDislike, DAY } from '../src/renderer/wave/profile'
 import { pickBatch } from '../src/renderer/wave/picker'
 import type { Track } from '../src/shared/types'
 
@@ -97,4 +97,18 @@ describe('reactionFor', () => {
   it('auto switch → finished', () => { expect(reactionFor(t, { listened: 194, manual: false })).toBe('finished') })
   it('manual near the end → finished', () => { expect(reactionFor(t, { listened: 190, manual: true })).toBe('finished') })
   it('manual in the middle → nothing', () => { expect(reactionFor(t, { listened: 90, manual: true })).toBeNull() })
+})
+
+describe('«Не нравится» можно вернуть', () => {
+  const tr = { id: '1_1', ownerId: 1, vkId: 1, title: 'T', artist: 'Band', duration: 100, url: 'x', available: true }
+  it('дизлайк кладёт трек в список, возврат убирает бан и вес', () => {
+    const p = applyReaction(emptyProfile(), tr, 'dislike', 0)
+    expect(p.banned).toEqual(['1_1'])
+    expect(p.disliked?.map((t) => t.id)).toEqual(['1_1'])
+    expect(p.disliked?.[0].url).toBe('')
+    const q = undoDislike(p, tr)
+    expect(q.banned).toEqual([])
+    expect(q.disliked).toEqual([])
+    expect(q.artists['band']).toBe(0)
+  })
 })

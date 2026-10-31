@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useWave } from '../store/wave'
+import { useWave, kindOf, type WaveKind } from '../store/wave'
 import { useUi } from '../store/ui'
 import { usePlayer, player } from '../store/playerInstance'
 import { plural } from './format'
@@ -23,7 +23,7 @@ function TuneDialog({ onClose }: { onClose: () => void }) {
     useWave.getState().setTune(t)
     onClose()
     // Волна уже играет — сразу перезапускаем её под новые настройки
-    if (changed && player.getState().source.startsWith('wave:')) void useWave.getState().start().catch((e) => useUi.getState().toast((e as Error).message))
+    if (changed && player.getState().source.startsWith('wave:')) void useWave.getState().startKind(kindOf(player.getState().source)).catch((e) => useUi.getState().toast((e as Error).message))
   }
   return createPortal(
     <div className="modal" style={{ position: 'fixed' }} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }} onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}>
@@ -44,8 +44,14 @@ function TuneDialog({ onClose }: { onClose: () => void }) {
   )
 }
 
-/** Чёрные линии на зелёной плашке. Двигаются, только пока играет Волна и окно не свёрнуто. */
-function useLines(ref: React.RefObject<HTMLCanvasElement>, live: boolean) {
+const LOOK: Record<WaveKind, { lines: string[]; k: string; title: string; ring: string }> = {
+  vk: { lines: ['#0B0B0B'], k: 'ПОТОК БЕЗ КОНЦА', title: 'Волна', ring: 'ВОЛНА · ПОТОК БЕЗ КОНЦА · ВОЛНА · ПОТОК БЕЗ КОНЦА · ' },
+  sc: { lines: ['#FF5500'], k: 'ТОЛЬКО SOUNDCLOUD', title: 'Волна SC', ring: 'SOUNDCLOUD · ВОЛНА · SOUNDCLOUD · ВОЛНА · ' },
+  both: { lines: ['#39FF14', '#FF5500'], k: 'ВК + SOUNDCLOUD', title: 'Вместе', ring: 'ВК · SOUNDCLOUD · ВК · SOUNDCLOUD · ВК · SOUNDCLOUD · ' }
+}
+
+/** Линии на карточке. Двигаются, только пока играет эта Волна и окно не свёрнуто. */
+function useLines(ref: React.RefObject<HTMLCanvasElement>, live: boolean, colors: string[]) {
   const bg = useUi((s) => s.background)
   useEffect(() => {
     const c = ref.current; if (!c || bg) return
@@ -53,55 +59,64 @@ function useLines(ref: React.RefObject<HTMLCanvasElement>, live: boolean) {
     let raf = 0
     const draw = (t: number) => {
       const w = (c.width = c.clientWidth * 2), h = (c.height = c.clientHeight * 2)
-      x.clearRect(0, 0, w, h); x.strokeStyle = '#0B0B0B'
+      x.clearRect(0, 0, w, h)
       for (let k = 0; k < 5; k++) {
-        x.beginPath(); x.lineWidth = 2 + k * 0.6
-        for (let i = 0; i <= w; i += 8) { const y = h * 0.62 + Math.sin(i / (170 + k * 30) + t / 1500 + k) * (20 + k * 8) + Math.sin(i / 60 + t / 900) * 4 - k * 12; i ? x.lineTo(i, y) : x.moveTo(i, y) }
+        x.strokeStyle = colors[k % colors.length]
+        x.beginPath(); x.lineWidth = 2 + k * 0.5
+        for (let i = 0; i <= w; i += 8) { const y = h * 0.62 + Math.sin(i / (120 + k * 26) + t / 1500 + k) * (16 + k * 7) + Math.sin(i / 50 + t / 900) * 3 - k * 10; i ? x.lineTo(i, y) : x.moveTo(i, y) }
         x.stroke()
       }
       if (live) raf = requestAnimationFrame(draw)
     }
     raf = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(raf)
-  }, [ref, bg, live])
+  }, [ref, bg, live, colors])
 }
 
-/** Большая плашка Волны: зелёная, с линиями, кнопка — крутящийся диск с надписью по кругу. */
-export function WaveCard() {
-  const [tuning, setTuning] = useState(false)
+/** Одна Волна-колонка: ВК (зелёная), SoundCloud (чёрно-оранжевая) или обе вперемешку. */
+function WaveColumn({ kind, onTune }: { kind: WaveKind; onTune: () => void }) {
   const cv = useRef<HTMLCanvasElement>(null)
-  const loading = useWave((s) => s.loading)
+  const look = LOOK[kind]
+  const loading = useWave((s) => s.loadingKind === kind)
   const tune = useWave((s) => s.tune)
-  const reactions = useWave((s) => s.profile.reactions)
-  const inWave = usePlayer((s) => s.source.startsWith('wave:'))
+  const inThis = usePlayer((s) => s.source.startsWith('wave:') && kindOf(s.source) === kind)
   const playing = usePlayer((s) => s.playing)
-  const live = inWave && playing
-  useLines(cv, live)
+  const live = inThis && playing
+  useLines(cv, live, look.lines)
   const summary = tuneSummary(tune)
   const go = () => {
-    if (inWave) { void player.getState().toggle(); return }
-    void useWave.getState().start().catch((e) => useUi.getState().toast((e as Error).message))
+    if (inThis) { void player.getState().toggle(); return }
+    void useWave.getState().startKind(kind).catch((e) => useUi.getState().toast((e as Error).message))
   }
   return (
-    <div className={'waveb' + (live ? ' live' : '')}>
+    <div className={`wcol ${kind}` + (live ? ' live' : '')}>
       <canvas ref={cv} />
-      <div className="wl">
-        <div className="k">{live ? 'В ЭФИРЕ' : inWave ? 'НА ПАУЗЕ' : 'ПОТОК БЕЗ КОНЦА'}</div>
-        <h2>Волна</h2>
-        <div className="tags">
-          {summary ? summary.split(' · ').map((s) => <span key={s}>{s}</span>) : <span className="soft">под твой вкус</span>}
-        </div>
-        <p>{reactions ? `Учится на твоих ♥ и пропусках · ${reactions} ${plural(reactions, 'реакция', 'реакции', 'реакций')}` : 'Лайкай, что зашло, пропускай, что нет — поток подстроится.'}</p>
-        <button className="wtune" onClick={() => setTuning(true)}><I.ITune size={16} />Настроить</button>
-      </div>
-      <button className="disc" title={live ? 'Пауза' : 'Слушать Волну'} disabled={loading} onClick={go}>
+      <div className="k">{live ? 'В ЭФИРЕ' : inThis ? 'НА ПАУЗЕ' : look.k}</div>
+      <h2>{look.title}</h2>
+      <div className="tags">{summary ? summary.split(' · ').map((x) => <span key={x}>{x}</span>) : <span className="soft">под твой вкус</span>}</div>
+      <button className="wtune" onClick={onTune} title="Настроить Волну"><I.ITune size={15} /></button>
+      <button className="disc" title={live ? 'Пауза' : 'Слушать'} disabled={loading} onClick={go}>
         <svg className="ring" viewBox="0 0 200 200" aria-hidden>
-          <defs><path id="wring" d="M100,100 m-78,0 a78,78 0 1,1 156,0 a78,78 0 1,1 -156,0" /></defs>
-          <text><textPath href="#wring" textLength="486" lengthAdjust="spacing">ВОЛНА · ПОТОК БЕЗ КОНЦА · ВОЛНА · ПОТОК БЕЗ КОНЦА · </textPath></text>
+          <defs><path id={`wr-${kind}`} d="M100,100 m-76,0 a76,76 0 1,1 152,0 a76,76 0 1,1 -152,0" /></defs>
+          <text><textPath href={`#wr-${kind}`} textLength="474" lengthAdjust="spacing">{look.ring}</textPath></text>
         </svg>
-        <span className="hub">{loading ? <span className="dots"><i /><i /><i /></span> : live ? <I.IPause size={26} /> : <I.IPlay size={28} />}</span>
+        <span className="hub">{loading ? <span className="dots"><i /><i /><i /></span> : live ? <I.IPause size={22} /> : <I.IPlay size={24} />}</span>
       </button>
-      {tuning && <TuneDialog onClose={() => setTuning(false)} />}
     </div>
+  )
+}
+
+/** Три Волны колонками. Настройки (настроение, узнаваемость, язык) общие. */
+export function WaveCard({ only }: { only?: WaveKind[] } = {}) {
+  const [tuning, setTuning] = useState(false)
+  const reactions = useWave((s) => s.profile.reactions)
+  return (
+    <>
+      <div className="waves">
+        {(only ?? (['vk', 'sc', 'both'] as WaveKind[])).map((k) => <WaveColumn key={k} kind={k} onTune={() => setTuning(true)} />)}
+      </div>
+      {reactions > 0 && <div className="wavehint">Волны учатся на твоих ♥ и пропусках · {reactions} {plural(reactions, 'реакция', 'реакции', 'реакций')}</div>}
+      {tuning && <TuneDialog onClose={() => setTuning(false)} />}
+    </>
   )
 }

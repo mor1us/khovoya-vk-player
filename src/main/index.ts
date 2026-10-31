@@ -107,6 +107,13 @@ async function setup() {
   handle('sc:search', (q: string) => scSearch(q).catch((e) => { log('soundcloud: поиск — ' + (e as Error).message); throw e }))
   handle('sc:related', (t: Track) => (MOCK ? scSearch(t.artist) : sc.related(t)))
   handle('sc:stream', (t: Track) => scStream(t).catch((e) => { log('soundcloud: поток — ' + (e as Error).message); throw e }))
+  // Лайки SoundCloud и свои плейлисты Хвои (ВК + SoundCloud вперемешку) хранятся на компе.
+  const scLikes = jsonFile<unknown[]>('sc-likes.json', () => [])
+  handle('scl:get', () => scLikes.read())
+  handle('scl:set', (v: unknown[]) => scLikes.write(v))
+  const localPl = jsonFile<unknown[]>('khvoya-playlists.json', () => [])
+  handle('lpl:get', () => localPl.read())
+  handle('lpl:set', (v: unknown[]) => localPl.write(v))
   let changeTimer: NodeJS.Timeout | null = null
   const dl = createDownloads(() => settings.get().downloadDir, () => {
     if (changeTimer) return

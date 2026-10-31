@@ -16,8 +16,10 @@ export function Search() {
   const [err, setErr] = useState('')
   const [byDate, setByDate] = useState(false)
   const [sc, setSc] = useState<Track[] | null>(null)
-  const [where, setWhere] = useState<Where>((localStorage.getItem('searchWhere') as Where) || 'all')
-  const pickWhere = (w: Where) => { localStorage.setItem('searchWhere', w); setWhere(w) }
+  const where = useUi((s) => s.searchWhere)
+  const [noMixes, setNoMixes] = useState(localStorage.getItem('noMixes') === '1')
+  const toggleNoMixes = () => { localStorage.setItem('noMixes', noMixes ? '0' : '1'); setNoMixes(!noMixes) }
+  const pickWhere = (w: Where) => useUi.getState().setSearchWhere(w)
   const kw = activeKeyword(q)
   useEffect(() => {
     if (!q) return
@@ -36,12 +38,13 @@ export function Search() {
   }, [q, byDate])
   const vkTracks = res?.tracks ?? []
   const scTracks = sc ?? []
-  const tracks = where === 'vk' ? vkTracks : where === 'sc' ? scTracks : mergeSources(vkTracks, scTracks)
+  const merged = where === 'vk' ? vkTracks : where === 'sc' ? scTracks : mergeSources(vkTracks, scTracks)
+  const tracks = noMixes ? merged.filter((t) => !t.duration || t.duration <= 15 * 60) : merged // без часовых диджей-сетов
   const artists = res ? [...new Map(tracks.map((t) => [t.artist.toLowerCase(), t.artist])).values()].slice(0, 8) : []
   return (
     <div className="page fill">
       <div className="ph"><h1>«{q}»</h1>{res && <span className="cnt">{tracks.length} треков</span>}<span className="sp" />
-        <div className="seg">
+        <div className="seg src">
           <button className={where === 'all' ? 'on' : ''} onClick={() => pickWhere('all')}>Везде</button>
           <button className={where === 'vk' ? 'on' : ''} onClick={() => pickWhere('vk')}><SrcBadge src="vk" />{res ? vkTracks.length : '…'}</button>
           <button className={where === 'sc' ? 'on' : ''} onClick={() => pickWhere('sc')}><SrcBadge src="sc" />{sc ? scTracks.length : '…'}</button>
@@ -52,6 +55,7 @@ export function Search() {
         {KEYWORDS.map((k) => <span key={k.q} className={'tag' + (kw === k.q ? ' on' : '')} onClick={() => useUi.getState().submit(withKeyword(q, kw === k.q ? null : k.q))}>{k.label}</span>)}
         <span className="tag-sep" />
         <span className={'tag' + (byDate ? ' on' : '')} onClick={() => setByDate(!byDate)}>Сначала новые</span>
+        <span className={'tag' + (noMixes ? ' on' : '')} title="Убрать треки длиннее 15 минут (диджей-сеты, миксы)" onClick={toggleNoMixes}>Без миксов</span>
       </div>
       {err && <div className="empty-state">{err}</div>}
       {!res && !err && [0, 1, 2, 3, 4].map((i) => <div key={i} className="skeleton" />)}
