@@ -495,3 +495,6 @@ html.no-anim *{animation:none!important;transition:none!important}
 /* в строке трека: без наведения видны только зелёное сердечко (лайк) и галочка (скачан) */
 .row:not(:hover) .acts.keep .ic:not(.on):not(.dl){opacity:0}
 .row .acts .ic.heart.on{color:var(--g)}
+/* подписки SoundCloud в «Новое у твоих артистов» */
+.subh{display:flex;align-items:center;gap:8px;font:700 13px var(--H);color:var(--t2);margin-top:18px}
+.badge.sc{background:#FF5500}
