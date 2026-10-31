@@ -17,6 +17,7 @@ export function Search() {
   const [err, setErr] = useState('')
   const [byDate, setByDate] = useState(false)
   const [sc, setSc] = useState<Track[] | null>(null)
+  const [scErr, setScErr] = useState('')
   const where = useUi((s) => s.searchWhere)
   const [noMixes, setNoMixes] = useState(localStorage.getItem('noMixes') === '1')
   const toggleNoMixes = () => { localStorage.setItem('noMixes', noMixes ? '0' : '1'); setNoMixes(!noMixes) }
@@ -33,8 +34,8 @@ export function Search() {
   useEffect(() => { // SoundCloud ищем параллельно; не ответил — просто показываем ВК
     if (!q) return
     let alive = true
-    setSc(null)
-    window.api.invoke<Track[]>('sc:search', q).then((r) => alive && setSc(byDate ? [...r].sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0)) : r)).catch(() => alive && setSc([]))
+    setSc(null); setScErr('')
+    window.api.invoke<Track[]>('sc:search', q).then((r) => alive && setSc(byDate ? [...r].sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0)) : r)).catch((e) => { if (alive) { setSc([]); setScErr((e as Error).message) } })
     return () => { alive = false }
   }, [q, byDate])
   const vkTracks = res?.tracks ?? []
@@ -49,7 +50,7 @@ export function Search() {
         <div className="seg src">
           <button className={where === 'all' ? 'on' : ''} onClick={() => pickWhere('all')}>Везде</button>
           <button className={where === 'vk' ? 'on' : ''} onClick={() => pickWhere('vk')}><SrcBadge src="vk" />{res ? vkTracks.length : '…'}</button>
-          <button className={where === 'sc' ? 'on' : ''} onClick={() => pickWhere('sc')}><SrcBadge src="sc" />{sc ? scTracks.length : '…'}</button>
+          <button className={where === 'sc' ? 'on' : ''} onClick={() => pickWhere('sc')}><SrcBadge src="sc" />{scErr ? '—' : sc ? scTracks.length : '…'}</button>
         </div>
       </div>
       <div className="tags" style={{ marginBottom: 14 }}>
@@ -60,6 +61,7 @@ export function Search() {
         <span className={'tag' + (noMixes ? ' on' : '')} title="Убрать треки длиннее 15 минут (диджей-сеты, миксы)" onClick={toggleNoMixes}>Без миксов</span>
       </div>
       {err && <div className="empty-state">{err}</div>}
+      {scErr && where !== 'vk' && <div className="scdown"><SrcBadge src="sc" />{scErr}</div>}
       {!res && !err && [0, 1, 2, 3, 4].map((i) => <div key={i} className="skeleton" />)}
       {res && <>
         {artists.length > 1 && <div className="artists">{artists.map((a) => (
@@ -70,7 +72,7 @@ export function Search() {
         {where !== 'sc' && res.playlists.length > 0 && <><div className="h"><h3>Плейлисты</h3></div><Crates list={res.playlists} /><div style={{ height: 16 }} /></>}
         <div className="h"><h3>Треки</h3></div>
         {!tracks.length && <div className="tags" style={{ marginBottom: 12 }}>{TAGS.slice(0, 8).map((t) => <span key={t} className="tag" onClick={() => useUi.getState().submit(t)}>#{t}</span>)}</div>}
-        {tracks.length ? <VirtualTrackList tracks={tracks} showSrc onPlay={(t) => void player.getState().playList(tracks, t.id, `search:${q}`)} /> : <div className="empty-state">{where === 'sc' && sc === null ? 'Ищу в SoundCloud…' : 'Ничего не нашлось'}</div>}
+        {tracks.length ? <VirtualTrackList tracks={tracks} showSrc onPlay={(t) => void player.getState().playList(tracks, t.id, `search:${q}`)} /> : <div className="empty-state">{where === 'sc' && sc === null ? 'Ищу в SoundCloud…' : where === 'sc' && scErr ? 'В SoundCloud сейчас не поискать — нужен VPN' : 'Ничего не нашлось'}</div>}
       </>}
     </div>
   )

@@ -18,7 +18,7 @@ import { fetchImageDataUrl } from './auth/captcha'
 import type { LoginStep } from '../shared/types'
 import { registerCore, handle } from './ipc/handlers'
 import { jsonFile } from './system/jsonFile'
-import { SoundCloud, type Fetch } from './sc/soundcloud'
+import { SoundCloud, SC_DOWN, type Fetch } from './sc/soundcloud'
 import type { Session } from '../shared/types'
 
 const MOCK = process.env.VK_MOCK === '1'
@@ -98,7 +98,9 @@ async function setup() {
   // SoundCloud: поиск и прослушивание без входа. В тестовом режиме — подделка поверх тестовых треков.
   const scKey = jsonFile<{ clientId?: string }>('soundcloud.json', () => ({}))
   const sc = new SoundCloud(net.fetch as unknown as Fetch, { get: () => scKey.read().clientId ?? null, set: (v) => scKey.write({ clientId: v }) }, log)
+  const SC_DOWN_TEST = MOCK && process.env.SC_DOWN === '1' // тестовый режим «SoundCloud заблокирован»
   const scSearch = async (q: string): Promise<Track[]> => {
+    if (SC_DOWN_TEST) throw new Error(SC_DOWN)
     if (!MOCK) return sc.search(q)
     const r = await api.search(q)
     return r.tracks.slice(0, 8).map((t) => ({ ...t, title: t.title + ' (SC edit)', id: 'sc_' + t.vkId, ownerId: 0, src: 'sc' as const, scStream: t.url, url: '' }))
@@ -112,11 +114,14 @@ async function setup() {
     return { kind: 'playlist', title: 'Тестовый плейлист SoundCloud', author: 'mock', tracks }
   })
   handle('sc:suggest', async (q: string) => {
+    if (SC_DOWN_TEST) return []
     if (!MOCK) return sc.suggest(q).catch(() => [])
     const r = await api.search(q)
     return [...new Set(r.tracks.flatMap((t) => [t.artist.toLowerCase(), `${t.artist} ${t.title}`.toLowerCase()]))].slice(0, 6)
   })
+  handle('sc:status', () => (SC_DOWN_TEST ? { ok: false, message: SC_DOWN } : MOCK ? { ok: true } : sc.status()))
   handle('sc:users', async (q: string) => {
+    if (SC_DOWN_TEST) return []
     if (!MOCK) return sc.users(q).catch(() => [])
     const r = await scSearch(q)
     return [...new Set(r.map((t) => t.artist))].slice(0, 2).map((name) => ({ name: name + ' (SC)', followers: 1200 }))

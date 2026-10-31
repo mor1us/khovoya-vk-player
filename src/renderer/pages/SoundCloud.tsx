@@ -10,6 +10,7 @@ import { createPlaylistWith } from '../store/playlists'
 import { ask } from '../ui/Dialog'
 import { plural } from '../ui/format'
 import * as I from '../ui/icons'
+import { SrcBadge } from '../ui/TrackRow'
 
 type Part = 'likes' | 'playlists'
 
@@ -20,7 +21,14 @@ export function SoundCloud() {
   const local = all.filter((p) => p.local)
   const [part, setPart] = useState<Part>('likes')
   const [q, setQ] = useState('')
-  useEffect(() => { void useSc.getState().load() }, [])
+  const [down, setDown] = useState('')
+  useEffect(() => {
+    void useSc.getState().load()
+    // проверяем связь с SoundCloud: в России без VPN он не открывается
+    window.api.invoke<string[]>('sc:suggest', 'a').catch(() => [])
+      .then(() => window.api.invoke<{ ok: boolean; message?: string }>('sc:status'))
+      .then((st) => setDown(st.ok ? '' : st.message ?? 'SoundCloud недоступен')).catch(() => {})
+  }, [])
   const list = q ? likes.filter((t) => `${t.artist} ${t.title}`.toLowerCase().includes(q.toLowerCase())) : likes
   const play = (shuffle: boolean) => {
     if (!list.length) return
@@ -42,6 +50,7 @@ export function SoundCloud() {
         <span className="sp" />
         <span className="hint">Ищи сразу везде — в поиске сверху треки SoundCloud помечены <b className="srcb sc">SC</b></span>
       </div>
+      {down && <div className="scdown big"><SrcBadge src="sc" /><span><b>{down}</b><br />ВК, «Моё · SoundCloud» и плейлисты Хвои работают и так. Треки SoundCloud, которые не грузятся, Хвоя попробует найти и сыграть из ВК.</span></div>}
       <div className="scwaves"><WaveCard only={['sc', 'both']} /></div>
       {part === 'likes' && <>
         <div className="ph" style={{ marginTop: 18 }}>

@@ -132,7 +132,10 @@ export const useWave = create<Wave>((set, get) => ({
     set({ loadingKind: kind })
     try {
       const b = await batchFor(kind)
-      if (!b.length) throw new Error(kind === 'sc' ? 'SoundCloud сейчас ничего не отдал. Попробуй ещё раз чуть позже' : 'Не получилось собрать Волну')
+      if (!b.length) {
+        const st = await window.api.invoke<{ ok: boolean; message?: string }>('sc:status').catch(() => ({ ok: true } as { ok: boolean; message?: string }))
+        throw new Error(!st.ok && st.message ? st.message : kind === 'sc' ? 'SoundCloud сейчас ничего не отдал. Попробуй ещё раз чуть позже' : 'Не получилось собрать Волну')
+      }
       await player.getState().playList(b, b[0].id, `wave:${kind}`)
     } finally { set({ loadingKind: null }) }
   },

@@ -98,3 +98,39 @@ describe('SoundCloud: ссылки, волна звука, комментари�
     expect((await sc.comments(mapScTrack(raw())!)).map((c) => c.at)).toEqual([3, 9])
   })
 })
+
+import { SC_DOWN } from '../src/main/sc/soundcloud'
+describe('SoundCloud недоступен (Россия без VPN)', () => {
+  it('нет связи — понятная ошибка про VPN и минуту не стучимся', async () => {
+    let calls = 0, t = 1000
+    const f: Fetch = async () => { calls++; throw new Error('net::ERR_CONNECTION_RESET') }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} }, () => {}, { now: () => t })
+    await expect(sc.search('x')).rejects.toThrow(SC_DOWN)
+    expect(sc.status().ok).toBe(false)
+    await expect(sc.search('y')).rejects.toThrow(SC_DOWN)
+    expect(calls).toBe(1) // второй раз даже не пытались
+    t += 61_000
+    await expect(sc.search('z')).rejects.toThrow(SC_DOWN)
+    expect(calls).toBe(2)
+  })
+  it('сайт молчит — обрываем по таймауту', async () => {
+    const f: Fetch = (_u, init) => new Promise((_, rej) => init?.signal?.addEventListener('abort', () => rej(new Error('aborted'))))
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} }, () => {}, { timeoutMs: 30 })
+    await expect(sc.search('x')).rejects.toThrow(SC_DOWN)
+  })
+  it('стабильный 403 после обновления ключа — тоже «включи VPN»', async () => {
+    const f: Fetch = async (url) => (url === 'https://soundcloud.com/' ? res(200, '<script src="https://a-v2.sndcdn.com/assets/1-x.js"></script>') : url.endsWith('1-x.js') ? res(200, `client_id:"${CID}"`) : res(403, {}))
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    await expect(sc.search('x')).rejects.toThrow(SC_DOWN)
+    expect(sc.status().ok).toBe(false)
+  })
+  it('связь вернулась — снова работает', async () => {
+    let up = false, t = 0
+    const f: Fetch = async () => { if (!up) throw new Error('reset'); return res(200, { collection: [raw()] }) }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} }, () => {}, { now: () => t })
+    await expect(sc.search('x')).rejects.toThrow()
+    up = true; t += 61_000
+    expect(await sc.search('x')).toHaveLength(1)
+    expect(sc.status().ok).toBe(true)
+  })
+})

@@ -35,16 +35,21 @@ export function useSuggest(q: string, open: boolean): Suggest[] {
   useEffect(() => {
     const text = q.trim()
     if (!open || !text || /^https?:\/\//i.test(text)) { setItems(text ? [{ kind: 'search', q: text }] : []); return }
-    setItems((prev) => (prev.length ? prev : [{ kind: 'search', q: text }]))
+    // строка «Искать …» всегда с тем, что сейчас в поле; остальное обновится после паузы
+    setItems((prev) => [{ kind: 'search', q: text }, ...prev.filter((x) => x.kind !== 'search')])
     let alive = true
     const tm = setTimeout(async () => {
       const hist = JSON.parse(localStorage.getItem('searchHistory') ?? '[]') as string[]
-      const [vk, sc, users] = await Promise.all([
-        window.api.invoke<{ tracks: Track[] }>('vk:search', text).then((r) => r.tracks).catch(() => [] as Track[]),
+      // ВК показываем сразу, SoundCloud догружаем — без VPN в России он может не ответить
+      const scP = Promise.all([
         window.api.invoke<string[]>('sc:suggest', text).catch(() => [] as string[]),
         window.api.invoke<ScArtist[]>('sc:users', text).catch(() => [] as ScArtist[])
       ])
-      if (alive) setItems(buildSuggest(text, vk, sc, hist, users))
+      const vk = await window.api.invoke<{ tracks: Track[] }>('vk:search', text).then((r) => r.tracks).catch(() => [] as Track[])
+      if (!alive) return
+      setItems(buildSuggest(text, vk, [], hist, []))
+      const [sc, users] = await scP
+      if (alive && (sc.length || users.length)) setItems(buildSuggest(text, vk, sc, hist, users))
     }, 300)
     return () => { alive = false; clearTimeout(tm) }
   }, [q, open])

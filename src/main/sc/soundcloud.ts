@@ -4,7 +4,7 @@ import type { Track } from '../../shared/types'
  * SoundCloud без входа: публичный поиск и прослушивание через тот же API, что у сайта soundcloud.com.
  * client_id берём из скриптов сайта (как yt-dlp) и обновляем, если SoundCloud его сменил.
  */
-export type Fetch = (url: string, init?: { headers?: Record<string, string> }) => Promise<{ ok: boolean; status: number; text(): Promise<string>; json(): Promise<any> }>
+export type Fetch = (url: string, init?: { headers?: Record<string, string>; signal?: AbortSignal }) => Promise<{ ok: boolean; status: number; text(): Promise<string>; json(): Promise<any> }>
 
 export const SC_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
 const API = 'https://api-v2.soundcloud.com'
@@ -85,15 +85,47 @@ export function bars(samples: number[], n: number, height = 140): number[] {
 
 export type ScComment = { at: number; text: string; user: string; avatar?: string }
 
+/** В России SoundCloud открывается только через VPN — говорим об этом прямо. */
+export const SC_DOWN = 'SoundCloud недоступен. В России он открывается только через VPN — включи VPN и попробуй снова'
+export class ScUnavailable extends Error {}
+
 export class SoundCloud {
   private cid: string | null
   private cidJob: Promise<string> | null = null
-  constructor(private fetch: Fetch, private store: { get(): string | null; set(v: string): void }, private log: (m: string) => void = () => {}) {
+  /** Нет связи — минуту не стучимся, чтобы поиск и Волна ВК не ждали SoundCloud. */
+  private downUntil = 0
+  private now: () => number
+  private timeoutMs: number
+  constructor(private fetch: Fetch, private store: { get(): string | null; set(v: string): void }, private log: (m: string) => void = () => {}, opts: { now?: () => number; timeoutMs?: number } = {}) {
     this.cid = store.get()
+    this.now = opts.now ?? Date.now
+    this.timeoutMs = opts.timeoutMs ?? 7000
+  }
+
+  status(): { ok: boolean; message?: string } { return this.now() < this.downUntil ? { ok: false, message: SC_DOWN } : { ok: true } }
+
+  private markDown(why: string) {
+    if (this.now() >= this.downUntil) this.log('soundcloud: недоступен — ' + why)
+    this.downUntil = this.now() + 60_000
+  }
+
+  /** Запрос с ограничением по времени: заблокированный сайт часто просто молчит. */
+  private async get(url: string, headers: Record<string, string>) {
+    if (this.now() < this.downUntil) throw new ScUnavailable(SC_DOWN)
+    const ac = new AbortController()
+    const tm = setTimeout(() => ac.abort(), this.timeoutMs)
+    try {
+      const r = await this.fetch(url, { headers, signal: ac.signal })
+      this.downUntil = 0
+      return r
+    } catch (e) {
+      this.markDown(ac.signal.aborted ? `нет ответа за ${this.timeoutMs / 1000} с` : String((e as Error)?.message ?? e))
+      throw new ScUnavailable(SC_DOWN)
+    } finally { clearTimeout(tm) }
   }
 
   private async text(url: string): Promise<string> {
-    const r = await this.fetch(url, { headers: { 'User-Agent': SC_UA } })
+    const r = await this.get(url, { 'User-Agent': SC_UA })
     if (!r.ok) throw new Error(`SoundCloud ответил ${r.status}`)
     return r.text()
   }
@@ -103,7 +135,7 @@ export class SoundCloud {
     this.cidJob ??= (async () => {
       const scripts = findScriptUrls(await this.text('https://soundcloud.com/')).reverse()
       for (const s of scripts) {
-        const id = findClientId(await this.text(s).catch(() => ''))
+        const id = findClientId(await this.text(s).catch((e) => { if (e instanceof ScUnavailable) throw e; return '' }))
         if (id) { this.cid = id; this.store.set(id); this.log('soundcloud: получен client_id'); return id }
       }
       throw new Error('SoundCloud недоступен: не нашёл ключ на сайте')
@@ -116,8 +148,9 @@ export class SoundCloud {
     const u = new URL(path.startsWith('http') ? path : API + path)
     for (const [k, v] of Object.entries(params)) u.searchParams.set(k, String(v))
     u.searchParams.set('client_id', cid)
-    const r = await this.fetch(u.toString(), { headers: { 'User-Agent': SC_UA, Accept: 'application/json' } })
+    const r = await this.get(u.toString(), { 'User-Agent': SC_UA, Accept: 'application/json' })
     if ((r.status === 401 || r.status === 403) && !retried) { await this.clientId(true); return this.api(path, params, true) }
+    if ((r.status === 403 || r.status === 451) && retried) { this.markDown(`ответ ${r.status} — похоже, доступ из этой страны закрыт`); throw new ScUnavailable(SC_DOWN) }
     if (!r.ok) { this.log(`soundcloud: ${u.pathname} → ${r.status}`); throw new Error(`SoundCloud ответил ${r.status}`) }
     return r.json()
   }
@@ -168,7 +201,7 @@ export class SoundCloud {
   async waveform(t: Track, n = 70): Promise<number[]> {
     if (!t.wave) return []
     const url = t.wave.replace(/\.png(\?.*)?$/, '.json')
-    const r = await this.fetch(url, { headers: { 'User-Agent': SC_UA } })
+    const r = await this.get(url, { 'User-Agent': SC_UA })
     if (!r.ok) return []
     const j = await r.json()
     return bars(Array.isArray(j?.samples) ? j.samples : [], n, Number(j?.height) || 140)

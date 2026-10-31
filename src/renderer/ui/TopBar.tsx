@@ -33,7 +33,7 @@ export function TopBar({ onLogout }: { onLogout: () => void }) {
   const [act, setAct] = useState(0)
   useEffect(() => { setAct(0) }, [query])
   const pick = (it: Suggest) => {
-    if (it.kind === 'search') useUi.getState().submit(it.q)
+    if (it.kind === 'search') useUi.getState().submit(query)
     else if (it.kind === 'artist') { if (it.src === 'sc') useUi.getState().setSearchWhere('sc'); useUi.getState().submit(it.name) }
     else if (it.kind === 'query') useUi.getState().submit(it.q)
     else void player.getState().playList([it.track], it.track.id, `search:${query.trim()}`)
