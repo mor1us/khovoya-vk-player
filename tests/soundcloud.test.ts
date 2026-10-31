@@ -198,3 +198,34 @@ describe('поток SoundCloud: если формат убран (404), про�
     expect(await sc.streamUrl(mapScTrack(raw())!)).toBe('https://cdn/new.m3u8')
   })
 })
+
+describe('аккаунт SoundCloud', () => {
+  it('лайки постранично, с ключом входа в заголовке', async () => {
+    const seen: { url: string; auth?: string; method?: string }[] = []
+    const f: Fetch = async (url, init) => {
+      seen.push({ url, auth: init?.headers?.Authorization, method: init?.method })
+      if (url.includes('/me?')) return res(200, { id: 9, username: 'mor' })
+      if (url.includes('/track_likes') && !url.includes('page2')) return res(200, { collection: [{ track: raw({ id: 1 }) }], next_href: 'https://api-v2.soundcloud.com/users/9/track_likes?page2=1' })
+      if (url.includes('page2')) return res(200, { collection: [{ track: raw({ id: 2 }) }] })
+      return res(200, {})
+    }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    sc.setAuth(async () => 'TOKEN')
+    expect((await sc.likes()).map((t) => t.id)).toEqual(['sc_1', 'sc_2'])
+    expect(seen.every((x) => x.auth === 'OAuth TOKEN')).toBe(true)
+  })
+  it('лайк ставится методом PUT, снимается DELETE', async () => {
+    const calls: string[] = []
+    const f: Fetch = async (url, init) => { if (url.includes('/me?')) return res(200, { id: 9 }); calls.push(`${init?.method} ${new URL(url).pathname}`); return res(200, {}) }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    sc.setAuth(async () => 'T')
+    await sc.setLike(mapScTrack(raw())!, true)
+    await sc.setLike(mapScTrack(raw())!, false)
+    expect(calls).toEqual(['PUT /users/9/track_likes/42', 'DELETE /users/9/track_likes/42'])
+  })
+  it('без входа — пусто, а не ошибка', async () => {
+    const sc = new SoundCloud(async () => res(200, {}), { get: () => CID, set: () => {} })
+    expect(await sc.me()).toBeNull()
+    expect(await sc.likes()).toEqual([])
+  })
+})

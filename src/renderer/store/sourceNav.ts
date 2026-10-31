@@ -11,12 +11,12 @@ export function rememberPlaylist(p: Playlist) {
 
 /** Переход к тому, откуда играет музыка. false — переходить некуда. */
 export function canOpenSource(src: string): boolean {
-  return !!src && (src === 'pl:Моё · SoundCloud' || !(src.startsWith('pl:') && (!lastPl || src.slice(3) !== lastPl.title)))
+  return !!src && (src === 'pl:Моё · SoundCloud' || src === 'pl:Лента SoundCloud' || !(src.startsWith('pl:') && (!lastPl || src.slice(3) !== lastPl.title)))
 }
 
 export function openSource(src: string) {
   const ui = useUi.getState()
-  if (src === 'pl:Моё · SoundCloud') return ui.go('soundcloud')
+  if (src === 'pl:Моё · SoundCloud' || src === 'pl:Лента SoundCloud' || src === 'pl:Лента SoundCloud') return ui.go('soundcloud')
   if (src.startsWith('pl:')) { if (lastPl && src.slice(3) === lastPl.title) ui.openPlaylist(lastPl); return }
   if (src === 'mine') return ui.go('mine')
   if (src === 'similar') return ui.go('similar')

@@ -52,7 +52,7 @@ export function PlaylistPage() {
       <div className="plhead">
         <Cover className="big" url={p.coverUrls[0]} seed={'pl' + p.id} />
         <div className="info">
-          <span className="k">{p.local ? 'Плейлист Хвои · ВК + SoundCloud' : p.isMine ? 'Твой плейлист' : 'Плейлист'}</span>
+          <span className="k">{p.sc ? 'Плейлист SoundCloud' : p.local ? 'Плейлист Хвои · ВК + SoundCloud' : p.isMine ? 'Твой плейлист' : 'Плейлист'}</span>
           <h1 title={p.title}>{p.title}</h1>
           <span className="meta">{p.count} {plural(p.count, 'трек', 'трека', 'треков')}{total ? ` · ${fmtTotal(total)}` : ''}</span>
           <div className="btns">
@@ -74,7 +74,7 @@ export function PlaylistPage() {
       {err && <div className="empty-state">{err}</div>}
       {loading && !tracks && [0, 1, 2, 3].map((i) => <div key={i} className="skeleton" />)}
       {tracks && (list.length
-        ? <VirtualTrackList tracks={list} ctxPlaylist={p} showSrc={p.local} onPlay={(t) => { rememberPlaylist(p); void player.getState().playList(list, t.id, `pl:${p.title}`) }} onReorder={canReorder ? (id, to) => void reorderInPlaylist(p, id, to) : undefined} />
+        ? <VirtualTrackList tracks={list} ctxPlaylist={p} showSrc={p.local || p.sc} onPlay={(t) => { rememberPlaylist(p); void player.getState().playList(list, t.id, `pl:${p.title}`) }} onReorder={canReorder ? (id, to) => void reorderInPlaylist(p, id, to) : undefined} />
         : <div className="empty-state">{q ? 'Ничего не нашлось' : 'В плейлисте пока пусто. Перетащи сюда треки или добавь через меню «…»'}</div>)}
     </div>
   )

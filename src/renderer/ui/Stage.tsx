@@ -20,7 +20,7 @@ export function usePosition(): number {
 function LikeBtn() {
   const cur = usePlayer((s) => s.current)
   const inMine = useLibrary((s) => (cur && cur.src !== 'sc' ? s.mine.some((t) => t.id === cur.id) : false))
-  const scLiked = useSc((s) => (cur?.src === 'sc' ? s.likes.some((t) => t.id === cur.id) : false))
+  const scLiked = useSc((s) => (cur?.src === 'sc' ? s.likes.some((t) => t.id === cur.id) || s.accLikes.some((t) => t.id === cur.id) : false))
   const liked = inMine || scLiked
   return (
     <button className={'ic heart' + (liked ? ' on' : '')} disabled={!cur} title={liked ? 'Убрать лайк' : 'Нравится'}

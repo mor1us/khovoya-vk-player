@@ -10,7 +10,8 @@ export const IPC = {
   'win:min': true, 'win:max': true, 'win:close': true,
   'discord:update': true,
   'vk:captchaAnswer': true,
-  'sc:search': true, 'sc:related': true, 'sc:stream': true, 'sc:resolve': true, 'sc:suggest': true, 'sc:users': true, 'sc:status': true, 'sc:prepare': true, 'sc:waveform': true, 'sc:comments': true,
+  'sc:search': true, 'sc:related': true, 'sc:stream': true, 'sc:resolve': true, 'sc:suggest': true, 'sc:users': true, 'sc:status': true, 'sc:prepare': true,
+  'scacc:me': true, 'scacc:login': true, 'scacc:logout': true, 'scacc:likes': true, 'scacc:playlists': true, 'scacc:playlistTracks': true, 'scacc:feed': true, 'scacc:like': true, 'sc:waveform': true, 'sc:comments': true,
   'scl:get': true, 'scl:set': true, 'lpl:get': true, 'lpl:set': true,
   'upd:state': true, 'upd:check': true, 'upd:download': true, 'upd:install': true
 } as const

@@ -18,6 +18,12 @@ export const usePlTracks = create<{ byId: Record<number, Track[]>; loading: Reco
 
 export async function loadPlaylistTracks(p: Playlist, force = false): Promise<Track[]> {
   const s = usePlTracks.getState()
+  if (p.sc) {
+    if (s.byId[p.id] && !force) return s.byId[p.id]
+    const t = await window.api.invoke<Track[]>('scacc:playlistTracks', p.id)
+    usePlTracks.setState((x) => ({ byId: { ...x.byId, [p.id]: t } }))
+    return t
+  }
   if (p.local) { const t = localTracks(p.id); usePlTracks.setState((x) => ({ byId: { ...x.byId, [p.id]: t } })); return t }
   if (s.byId[p.id] && !force) return s.byId[p.id]
   usePlTracks.setState({ loading: { ...s.loading, [p.id]: true } })

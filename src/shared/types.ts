@@ -38,6 +38,8 @@ export type Playlist = {
   subtitle?: string
   /** Плейлист Хвои: хранится на компе, в нём могут быть треки ВК и SoundCloud. */
   local?: boolean
+  /** Плейлист из аккаунта SoundCloud. */
+  sc?: boolean
 }
 
 export type Settings = {

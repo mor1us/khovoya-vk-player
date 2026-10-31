@@ -32,7 +32,7 @@ export function Crate({ p }: { p: Playlist }) {
         setDrop(false)
         const ids = JSON.parse(e.dataTransfer.getData('text/track-ids') || '[]') as string[]
         const lib = useLibrary.getState().mine, q = player.getState().queue?.list() ?? []
-        const pool = new Map<string, Track>([...q, ...lib, ...useSc.getState().likes].map((t) => [t.id, t]))
+        const pool = new Map<string, Track>([...q, ...lib, ...useSc.getState().allLikes()].map((t) => [t.id, t]))
         const tracks = ids.map((id) => pool.get(id)).filter(Boolean) as Track[]
         if (tracks.length) void addToPlaylist(p, tracks)
       }}>
@@ -42,7 +42,7 @@ export function Crate({ p }: { p: Playlist }) {
         <button className="hp" title="Играть" onClick={(e) => { e.stopPropagation(); void playPlaylist(p) }}><I.IPlay size={16} /></button>
       </div>
       <div className="t">{p.title}</div>
-      <div className="s">{p.local && <span className="khb">ХВОЯ</span>}{p.count} {plural(p.count, 'трек', 'трека', 'треков')}</div>
+      <div className="s">{p.local && <span className="khb">ХВОЯ</span>}{p.sc && <span className="khb sc">SC</span>}{p.count} {plural(p.count, 'трек', 'трека', 'треков')}</div>
     </div>
   )
 }

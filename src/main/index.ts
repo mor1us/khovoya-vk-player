@@ -19,6 +19,7 @@ import type { LoginStep } from '../shared/types'
 import { registerCore, handle } from './ipc/handlers'
 import { jsonFile } from './system/jsonFile'
 import { SoundCloud, SC_DOWN, SC_NEED_KEY, type Fetch } from './sc/soundcloud'
+import { scLoginWindow, scLogout, scToken } from './sc/scAuth'
 import type { Session } from '../shared/types'
 
 const MOCK = process.env.VK_MOCK === '1'
@@ -124,6 +125,24 @@ async function setup() {
     const r = await api.search(q)
     return [...new Set(r.tracks.flatMap((t) => [t.artist.toLowerCase(), `${t.artist} ${t.title}`.toLowerCase()]))].slice(0, 6)
   })
+  // Аккаунт SoundCloud: вход через окно сайта, дальше — лайки, плейлисты, лента, лайк прямо на SoundCloud
+  sc.setAuth(scToken)
+  let mockScUser = false
+  const mockMe = () => (mockScUser ? { id: 1, name: 'mor1us', avatar: undefined } : null)
+  handle('scacc:me', () => (MOCK ? mockMe() : sc.me().catch(() => null)))
+  handle('scacc:login', async () => {
+    if (MOCK) { mockScUser = true; return mockMe() }
+    const r = await scLoginWindow(win, log)
+    if ('error' in r) throw new Error(r.error)
+    sc.forgetMe()
+    return sc.me(true)
+  })
+  handle('scacc:logout', async () => { mockScUser = false; await scLogout(); sc.forgetMe(); log('soundcloud: выход из аккаунта') })
+  handle('scacc:likes', async () => (MOCK ? (mockScUser ? (await scSearch('Неон')).slice(0, 5) : []) : sc.likes()))
+  handle('scacc:playlists', async () => (MOCK ? (mockScUser ? [{ id: 1, title: 'Ночные поездки', count: 6, mine: true }, { id: 2, title: 'Phonk Drive', count: 8, mine: false }] : []) : sc.playlists()))
+  handle('scacc:playlistTracks', async (id: number) => (MOCK ? scSearch(id === 1 ? 'Кислота' : 'Неон') : sc.playlistTracks(id)))
+  handle('scacc:feed', async () => (MOCK ? (mockScUser ? scSearch('Пустой') : []) : sc.feed()))
+  handle('scacc:like', async (t: Track, on: boolean) => (MOCK ? null : sc.setLike(t, on)))
   handle('sc:status', () => (SC_DOWN_TEST ? { ok: false, message: SC_DOWN, hasKey: false } : MOCK ? { ok: true, hasKey: true } : sc.status()))
   handle('sc:prepare', () => (SC_DOWN_TEST ? { ok: false, message: SC_NEED_KEY, hasKey: false } : MOCK ? { ok: true, hasKey: true } : sc.prepare()))
   handle('sc:users', async (q: string) => {

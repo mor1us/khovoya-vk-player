@@ -4,7 +4,7 @@ import type { Track } from '../../shared/types'
  * SoundCloud без входа: публичный поиск и прослушивание через тот же API, что у сайта soundcloud.com.
  * client_id берём из скриптов сайта (как yt-dlp) и обновляем, если SoundCloud его сменил.
  */
-export type Fetch = (url: string, init?: { headers?: Record<string, string>; signal?: AbortSignal }) => Promise<{ ok: boolean; status: number; text(): Promise<string>; json(): Promise<any> }>
+export type Fetch = (url: string, init?: { headers?: Record<string, string>; signal?: AbortSignal; method?: string }) => Promise<{ ok: boolean; status: number; text(): Promise<string>; json(): Promise<any> }>
 
 export const SC_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
 const API = 'https://api-v2.soundcloud.com'
@@ -95,6 +95,10 @@ export const SC_DOWN = 'SoundCloud недоступен. В России он о
 export const SC_NEED_KEY = 'Чтобы SoundCloud заработал без VPN, один раз включи VPN и открой вкладку SoundCloud — Хвоя запомнит ключ, дальше можно без VPN'
 export const SC_KEY_OLD = 'Ключ SoundCloud устарел. Включи VPN на минуту и открой вкладку SoundCloud — Хвоя обновит ключ, потом снова можно без VPN'
 export class ScUnavailable extends Error {}
+export class ScAuthLost extends Error {}
+
+export type ScMe = { id: number; name: string; avatar?: string }
+export type ScPlaylistRef = { id: number; title: string; count: number; cover?: string; link?: string; mine: boolean }
 
 /** Сайт, с которого берём ключ (в России закрыт), — в отличие от API и серверов с музыкой, которые могут работать. */
 const SITES = ['https://soundcloud.com/', 'https://m.soundcloud.com/']
@@ -136,13 +140,17 @@ export class SoundCloud {
   }
 
   /** Запрос с ограничением по времени: заблокированный адрес часто просто молчит. */
-  private async get(url: string, headers: Record<string, string>) {
+  /** Ключ входа в аккаунт (cookie oauth_token с сайта). Нет входа — null. */
+  private auth: () => Promise<string | null> = async () => null
+  setAuth(f: () => Promise<string | null>) { this.auth = f }
+
+  private async get(url: string, headers: Record<string, string>, method = 'GET') {
     const host = new URL(url).host
     if (this.isDown(host)) throw new ScUnavailable(SC_DOWN)
     const ac = new AbortController()
     const tm = setTimeout(() => ac.abort(), this.timeoutMs)
     try {
-      const r = await this.fetch(url, { headers, signal: ac.signal })
+      const r = await this.fetch(url, { headers, signal: ac.signal, method })
       this.down.delete(host)
       return r
     } catch (e) {
@@ -196,16 +204,22 @@ export class SoundCloud {
     await this.fetchKey().catch(() => {})
   }
 
-  private async api(path: string, params: Record<string, string | number> = {}, retried = false): Promise<any> {
+  private async api(path: string, params: Record<string, string | number> = {}, retried = false, method = 'GET', needAuth = false): Promise<any> {
     const cid = await this.clientId()
     const u = new URL(path.startsWith('http') ? path : API + path)
     for (const [k, v] of Object.entries(params)) u.searchParams.set(k, String(v))
     u.searchParams.set('client_id', cid)
-    const r = await this.get(u.toString(), { 'User-Agent': SC_UA, Accept: 'application/json' })
-    if ((r.status === 401 || r.status === 403) && !retried) { await this.clientId(true); return this.api(path, params, true) }
+    const token = await this.auth()
+    if (needAuth && !token) throw new Error('Войди в SoundCloud во вкладке SoundCloud')
+    const headers: Record<string, string> = { 'User-Agent': SC_UA, Accept: 'application/json' }
+    if (token) headers.Authorization = `OAuth ${token}`
+    const r = await this.get(u.toString(), headers, method)
+    if (needAuth && r.status === 401) throw new ScAuthLost('Вход в SoundCloud устарел — войди заново во вкладке SoundCloud')
+    if ((r.status === 401 || r.status === 403) && !retried) { await this.clientId(true); return this.api(path, params, true, method, needAuth) }
     if ((r.status === 403 || r.status === 451) && retried) { this.markDown(new URL(API).host, `ответ ${r.status} — похоже, доступ из этой страны закрыт`); throw new ScUnavailable(SC_DOWN) }
     if (!r.ok) { this.log(`soundcloud: ${u.pathname} → ${r.status}`); throw new Error(`SoundCloud ответил ${r.status}`) }
     this.keyProblem = null
+    if (method !== 'GET') return null
     return r.json()
   }
 
@@ -238,14 +252,7 @@ export class SoundCloud {
     const r = await this.api('/resolve', { url: url.trim() })
     if (r?.kind === 'track') { const t = mapScTrack(r); if (!t) throw new Error('Не получилось открыть трек'); return { kind: 'track', track: t } }
     if (r?.kind === 'playlist' || r?.kind === 'system-playlist') {
-      const raw: any[] = r.tracks ?? []
-      const full = new Map<number, any>(raw.filter((x) => x?.title).map((x) => [x.id, x]))
-      const missing = raw.filter((x) => !x?.title).map((x) => x.id)
-      for (let i = 0; i < missing.length; i += 50) { // SoundCloud отдаёт плейлист не целиком — дозапрашиваем треки пачками
-        const part = await this.api('/tracks', { ids: missing.slice(i, i + 50).join(',') }).catch(() => [])
-        for (const x of Array.isArray(part) ? part : []) full.set(x.id, x)
-      }
-      const tracks = raw.map((x) => mapScTrack(full.get(x.id) ?? x)).filter((t): t is Track => !!t)
+      const tracks = await this.hydrate(r.tracks ?? []) // SoundCloud отдаёт плейлист не целиком — дозапрашиваем
       return { kind: 'playlist', title: String(r.title ?? 'Плейлист SoundCloud'), author: String(r.user?.username ?? ''), cover: artwork(r) ?? tracks[0]?.coverUrl, link: r.permalink_url, tracks }
     }
     throw new Error('По этой ссылке нет ни трека, ни плейлиста')
@@ -268,6 +275,75 @@ export class SoundCloud {
       .filter((c: any) => typeof c?.timestamp === 'number' && c?.body)
       .map((c: any) => ({ at: c.timestamp / 1000, text: String(c.body).slice(0, 140), user: String(c.user?.username ?? ''), avatar: c.user?.avatar_url }))
       .sort((a: ScComment, b: ScComment) => a.at - b.at)
+  }
+
+  // ── Аккаунт (после входа) ──
+  private meCache: ScMe | null = null
+  async me(force = false): Promise<ScMe | null> {
+    if (!(await this.auth())) { this.meCache = null; return null }
+    if (this.meCache && !force) return this.meCache
+    const j = await this.api('/me', {}, false, 'GET', true)
+    this.meCache = { id: Number(j.id), name: String(j.username ?? j.full_name ?? 'SoundCloud'), avatar: j.avatar_url ? String(j.avatar_url).replace('-large.', '-t200x200.') : undefined }
+    return this.meCache
+  }
+  forgetMe() { this.meCache = null }
+
+  /** Страницы SoundCloud (next_href) — до max записей. */
+  private async pages(path: string, params: Record<string, string | number>, max: number): Promise<any[]> {
+    const out: any[] = []
+    let j = await this.api(path, { ...params, linked_partitioning: 1 }, false, 'GET', true)
+    for (;;) {
+      out.push(...(j?.collection ?? []))
+      if (!j?.next_href || out.length >= max) break
+      j = await this.api(String(j.next_href), {}, false, 'GET', true)
+    }
+    return out.slice(0, max)
+  }
+
+  async likes(max = 1000): Promise<Track[]> {
+    const me = await this.me(); if (!me) return []
+    const items = await this.pages(`/users/${me.id}/track_likes`, { limit: 200 }, max)
+    return items.map((x) => mapScTrack(x?.track)).filter((t): t is Track => !!t)
+  }
+
+  async playlists(): Promise<ScPlaylistRef[]> {
+    const me = await this.me(); if (!me) return []
+    const ref = (p: any, mine: boolean): ScPlaylistRef => ({ id: Number(p.id), title: String(p.title ?? 'Плейлист'), count: Number(p.track_count) || 0, cover: artwork(p), link: p.permalink_url, mine })
+    const [own, liked] = await Promise.all([
+      this.pages(`/users/${me.id}/playlists_without_albums`, { limit: 50 }, 200).catch(() => []),
+      this.pages(`/users/${me.id}/likes`, { limit: 100 }, 300).catch(() => [])
+    ])
+    const seen = new Set<number>()
+    return [...own.map((p) => ref(p, true)), ...liked.filter((x) => x?.playlist).map((x) => ref(x.playlist, false))].filter((p) => !seen.has(p.id) && !!seen.add(p.id))
+  }
+
+  /** Треки плейлиста SoundCloud (SoundCloud отдаёт их не целиком — дозапрашиваем). */
+  async playlistTracks(id: number): Promise<Track[]> {
+    const r = await this.api(`/playlists/${id}`, { representation: 'full' })
+    return this.hydrate(r?.tracks ?? [])
+  }
+
+  private async hydrate(raw: any[]): Promise<Track[]> {
+    const full = new Map<number, any>(raw.filter((x) => x?.title).map((x) => [x.id, x]))
+    const missing = raw.filter((x) => !x?.title).map((x) => x.id)
+    for (let i = 0; i < missing.length; i += 50) {
+      const part = await this.api('/tracks', { ids: missing.slice(i, i + 50).join(',') }).catch(() => [])
+      for (const x of Array.isArray(part) ? part : []) full.set(x.id, x)
+    }
+    return raw.map((x) => mapScTrack(full.get(x.id) ?? x)).filter((t): t is Track => !!t)
+  }
+
+  /** Лента подписок: новые треки и репосты тех, на кого подписан. */
+  async feed(limit = 50): Promise<Track[]> {
+    const items = await this.pages('/stream', { limit: 50 }, limit)
+    const seen = new Set<string>()
+    return items.map((x) => mapScTrack(x?.track)).filter((t): t is Track => !!t && !seen.has(t.id) && !!seen.add(t.id))
+  }
+
+  /** Лайк прямо на SoundCloud. */
+  async setLike(t: Track, on: boolean): Promise<void> {
+    const me = await this.me(); if (!me) return
+    await this.api(`/users/${me.id}/track_likes/${t.vkId}`, {}, false, on ? 'PUT' : 'DELETE', true)
   }
 
   /** Ссылка на поток живёт недолго — получаем её прямо перед прослушиванием или скачиванием. */
