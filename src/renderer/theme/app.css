@@ -359,3 +359,6 @@ html.no-anim *{animation:none!important;transition:none!important}
 .seg button .srcb{margin-right:6px}
 .seg button:hover{color:var(--text)}
 .seg button.on{background:var(--p2);color:var(--text)}
+.ctl{justify-content:center}
+.ic.heart.on{color:var(--g)}
+.ic:disabled{opacity:.35;cursor:default}

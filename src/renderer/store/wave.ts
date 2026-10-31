@@ -18,6 +18,9 @@ type Wave = {
   start(mode?: WaveMode): Promise<void>
   react(t: Track, r: Reaction): void
   like(t: Track): Promise<void>
+  /** Сердечко в плеере: лайк ↔ снять лайк. */
+  toggleLike(t: Track): Promise<string>
+  isLiked(t: Track): boolean
   dislike(t: Track): Promise<void>
 }
 
@@ -87,6 +90,26 @@ export const useWave = create<Wave>((set, get) => ({
       await window.api.invoke('vk:add', t)
       useLibrary.getState().setMine([t, ...useLibrary.getState().mine])
     }
+  },
+  isLiked(t) { return t.src === 'sc' ? get().profile.seeds.includes(t.id) : useLibrary.getState().isMine(t.id) },
+  async toggleLike(t) {
+    const lib = useLibrary.getState()
+    if (t.src === 'sc') { // в ВК не добавить — лайк живёт только в Волне
+      if (get().isLiked(t)) {
+        const profile = { ...get().profile, seeds: get().profile.seeds.filter((s) => s !== t.id) }
+        set({ profile }); void window.api.invoke('wave:set', profile).catch(() => {})
+        return 'Лайк снят'
+      }
+      get().react(t, 'like')
+      return 'Волна запомнила, что тебе нравится'
+    }
+    if (lib.isMine(t.id)) {
+      await window.api.invoke('vk:remove', t)
+      lib.setMine(lib.mine.filter((x) => x.id !== t.id))
+      return 'Убрано из твоей музыки'
+    }
+    await get().like(t)
+    return 'Добавлено в твою музыку'
   },
   async dislike(t) {
     get().react(t, 'dislike')

@@ -14,30 +14,43 @@ export function usePosition(): number {
   return usePlayer((s) => (bg ? 0 : Math.floor(s.position * 2) / 2))
 }
 
-export function Controls({ compact = false }: { compact?: boolean }) {
+/** Сердечко и «не то» по краям кнопок, как в Яндекс Музыке. */
+function LikeBtn() {
+  const cur = usePlayer((s) => s.current)
+  const inMine = useLibrary((s) => (cur && cur.src !== 'sc' ? s.mine.some((t) => t.id === cur.id) : false))
+  const scLiked = useWave((s) => (cur?.src === 'sc' ? s.profile.seeds.includes(cur.id) : false))
+  const liked = inMine || scLiked
+  return (
+    <button className={'ic heart' + (liked ? ' on' : '')} disabled={!cur} title={liked ? 'Убрать лайк' : 'Нравится'}
+      onClick={() => cur && void useWave.getState().toggleLike(cur).then((m) => useUi.getState().toast(m)).catch((e) => useUi.getState().toast((e as Error).message))}>
+      <I.IHeart size={20} on={liked} />
+    </button>
+  )
+}
+
+function DislikeBtn() {
+  const cur = usePlayer((s) => s.current)
+  return (
+    <button className="ic" disabled={!cur} title="Не нравится — больше не предлагать и включить следующий" onClick={() => cur && void useWave.getState().dislike(cur)}>
+      <I.IHeartOff size={20} />
+    </button>
+  )
+}
+
+export function Controls({ compact = false, reactions = false }: { compact?: boolean; reactions?: boolean }) {
   const playing = usePlayer((s) => s.playing)
   const shuffle = usePlayer((s) => s.shuffle)
   const repeat = usePlayer((s) => s.repeat)
   const p = player.getState()
   return (
     <div className="mid">
+      {reactions && <DislikeBtn />}
       {!compact && <button className={'ic' + (shuffle ? ' on' : '')} title="Перемешать" onClick={() => player.getState().toggleShuffle()}><I.IShuffle size={18} /></button>}
       <button className="ic" title="Назад" onClick={() => void p.prev()}><I.IPrev size={22} /></button>
       <button className="play" title={playing ? 'Пауза' : 'Играть'} onClick={() => void player.getState().toggle()}>{playing ? <I.IPause size={24} /> : <I.IPlay size={24} />}</button>
       <button className="ic" title="Вперёд" onClick={() => void p.next()}><I.INext size={22} /></button>
       {!compact && <button className={'ic' + (repeat !== 'off' ? ' on' : '')} title={repeat === 'one' ? 'Повтор трека' : repeat === 'all' ? 'Повтор списка' : 'Повтор выключен'} onClick={() => player.getState().cycleRepeat()}>{repeat === 'one' ? <I.IRepeatOne size={18} /> : <I.IRepeat size={18} />}</button>}
-    </div>
-  )
-}
-
-export function Reactions() {
-  const cur = usePlayer((s) => s.current)
-  const mine = useLibrary((s) => (cur ? s.mine.some((t) => t.id === cur.id) : false))
-  if (!cur) return <div className="react" />
-  return (
-    <div className="react">
-      <button className={'pill' + (mine ? ' on' : '')} onClick={() => void useWave.getState().like(cur).catch((e) => useUi.getState().toast(e.message))}>{mine ? '♥ В моей' : '♥ В мою'}</button>
-      <button className="pill" title="Не то — больше не предлагать" onClick={() => void useWave.getState().dislike(cur)}>👎 Не то</button>
+      {reactions && <LikeBtn />}
     </div>
   )
 }
@@ -75,7 +88,7 @@ export function Stage() {
           <div className="artist"><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{cur.artist}</span><span className="chip">{fmtTime(cur.duration)}</span></div>
           <Waveform id={cur.id} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} className="wf nodrag" />
           <div className="times"><span>{fmtTime(pos)}</span><b>{playerHooks.crossfadeSec ? `⤨ кроссфейд ${playerHooks.crossfadeSec} с` : 'без кроссфейда'}</b><span>{fmtTime(dur)}</span></div>
-          <div className="ctl nodrag"><Reactions /><Controls /></div>
+          <div className="ctl nodrag"><Controls reactions /></div>
           <div className="vol nodrag">
             <button className="ic" onClick={() => player.getState().setVolume(volume > 0 ? 0 : 0.8)} title="Звук">{volume > 0 ? <I.IVol size={18} /> : <I.IMute size={18} />}</button>
             <input type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => player.getState().setVolume(+e.target.value)} />
@@ -96,7 +109,7 @@ export function MiniBar() {
   return (
     <div className="minibar">
       <div className="now">{cur && <><Cover className="cv" url={cur.coverUrl} seed={cur.id} /><div style={{ minWidth: 0 }}><div className="tt">{cur.title}</div><div className="ar">{cur.artist}</div></div></>}</div>
-      <Controls />
+      <Controls reactions />
       <div className="mright">
         {cur && <><span className="muted" style={{ font: '500 11px var(--M)' }}>{fmtTime(pos)}</span><Waveform id={cur.id} n={36} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} /></>}
         <QueueBtn />
