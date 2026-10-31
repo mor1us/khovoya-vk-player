@@ -43,3 +43,16 @@ export function scLoginWindow(parent: BrowserWindow | null, log: (m: string) => 
 export async function scLogout() {
   await scSession().clearStorageData().catch(() => {})
 }
+
+/**
+ * Изменения (лайк, снятие лайка) SoundCloud принимает только от своего сайта.
+ * Поэтому шлём их из невидимой страницы soundcloud.com — с теми же cookie, что после входа. Возвращает HTTP-статус (0 — нет связи).
+ */
+export async function scWrite(method: 'PUT' | 'DELETE', url: string, token: string): Promise<number> {
+  const w = new BrowserWindow({ show: false, width: 400, height: 300, webPreferences: { session: scSession(), contextIsolation: true, sandbox: true, backgroundThrottling: false } })
+  try {
+    await w.loadURL('https://soundcloud.com/robots.txt', { userAgent: UA })
+    const js = `fetch(${JSON.stringify(url)}, { method: ${JSON.stringify(method)}, credentials: 'include', headers: { Authorization: ${JSON.stringify('OAuth ' + token)}, Accept: 'application/json' } }).then((r) => r.status).catch(() => 0)`
+    return Number(await w.webContents.executeJavaScript(js, true)) || 0
+  } catch { return 0 } finally { if (!w.isDestroyed()) w.destroy() }
+}

@@ -19,7 +19,7 @@ import type { LoginStep } from '../shared/types'
 import { registerCore, handle } from './ipc/handlers'
 import { jsonFile } from './system/jsonFile'
 import { SoundCloud, SC_DOWN, SC_NEED_KEY, type Fetch } from './sc/soundcloud'
-import { scLoginWindow, scLogout, scToken } from './sc/scAuth'
+import { scLoginWindow, scLogout, scToken, scWrite } from './sc/scAuth'
 import type { Session } from '../shared/types'
 
 const MOCK = process.env.VK_MOCK === '1'
@@ -127,6 +127,7 @@ async function setup() {
   })
   // Аккаунт SoundCloud: вход через окно сайта, дальше — лайки, плейлисты, лента, лайк прямо на SoundCloud
   sc.setAuth(scToken)
+  sc.setWriter(scWrite)
   let mockScUser = false
   const mockMe = () => (mockScUser ? { id: 1, name: 'mor1us', avatar: undefined } : null)
   handle('scacc:me', () => (MOCK ? mockMe() : sc.me().catch(() => null)))
@@ -142,7 +143,7 @@ async function setup() {
   handle('scacc:playlists', async () => (MOCK ? (mockScUser ? [{ id: 1, title: 'Ночные поездки', count: 6, mine: true }, { id: 2, title: 'Phonk Drive', count: 8, mine: false }] : []) : sc.playlists()))
   handle('scacc:playlistTracks', async (id: number) => (MOCK ? scSearch(id === 1 ? 'Кислота' : 'Неон') : sc.playlistTracks(id)))
   handle('scacc:feed', async () => (MOCK ? (mockScUser ? scSearch('Пустой') : []) : sc.feed()))
-  handle('scacc:like', async (t: Track, on: boolean) => (MOCK ? null : sc.setLike(t, on)))
+  handle('scacc:like', async (t: Track, on: boolean) => (MOCK ? null : sc.setLike(t, on).catch((e) => { log('soundcloud: лайк — ' + (e as Error).message); throw e })))
   handle('sc:status', () => (SC_DOWN_TEST ? { ok: false, message: SC_DOWN, hasKey: false } : MOCK ? { ok: true, hasKey: true } : sc.status()))
   handle('sc:prepare', () => (SC_DOWN_TEST ? { ok: false, message: SC_NEED_KEY, hasKey: false } : MOCK ? { ok: true, hasKey: true } : sc.prepare()))
   handle('sc:users', async (q: string) => {

@@ -229,3 +229,27 @@ describe('аккаунт SoundCloud', () => {
     expect(await sc.likes()).toEqual([])
   })
 })
+
+describe('лайк через страницу сайта SoundCloud', () => {
+  const mk = (status: number) => {
+    const calls: string[] = []
+    const sc = new SoundCloud(async (url) => (url.includes('/me?') ? res(200, { id: 9 }) : res(200, { collection: [] })), { get: () => CID, set: () => {} })
+    sc.setAuth(async () => 'TOKEN')
+    sc.setWriter(async (m, url, tok) => { calls.push(`${m} ${new URL(url).pathname} ${tok}`); return status })
+    return { sc, calls }
+  }
+  it('лайк уходит со страницы сайта с ключом входа', async () => {
+    const { sc, calls } = mk(200)
+    await sc.setLike(mapScTrack(raw())!, true)
+    expect(calls).toEqual(['PUT /users/9/track_likes/42 TOKEN'])
+  })
+  it('снять лайк, которого нет (404), — не ошибка', async () => {
+    const { sc } = mk(404)
+    await expect(sc.setLike(mapScTrack(raw())!, false)).resolves.toBeUndefined()
+  })
+  it('отказ 403 — понятная ошибка, а весь SoundCloud не выключается', async () => {
+    const { sc } = mk(403)
+    await expect(sc.setLike(mapScTrack(raw())!, true)).rejects.toThrow('ответ 403')
+    expect(sc.status().ok).toBe(true)
+  })
+})

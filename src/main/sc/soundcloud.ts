@@ -216,7 +216,7 @@ export class SoundCloud {
     const r = await this.get(u.toString(), headers, method)
     if (needAuth && r.status === 401) throw new ScAuthLost('Вход в SoundCloud устарел — войди заново во вкладке SoundCloud')
     if ((r.status === 401 || r.status === 403) && !retried) { await this.clientId(true); return this.api(path, params, true, method, needAuth) }
-    if ((r.status === 403 || r.status === 451) && retried) { this.markDown(new URL(API).host, `ответ ${r.status} — похоже, доступ из этой страны закрыт`); throw new ScUnavailable(SC_DOWN) }
+    if ((r.status === 403 || r.status === 451) && retried && method === 'GET' && !needAuth) { this.markDown(new URL(API).host, `ответ ${r.status} — похоже, доступ из этой страны закрыт`); throw new ScUnavailable(SC_DOWN) }
     if (!r.ok) { this.log(`soundcloud: ${u.pathname} → ${r.status}`); throw new Error(`SoundCloud ответил ${r.status}`) }
     this.keyProblem = null
     if (method !== 'GET') return null
@@ -340,10 +340,25 @@ export class SoundCloud {
     return items.map((x) => mapScTrack(x?.track)).filter((t): t is Track => !!t && !seen.has(t.id) && !!seen.add(t.id))
   }
 
+  /** Как отправлять изменения: SoundCloud принимает их только со своего сайта (см. scWrite). */
+  private writer: ((method: 'PUT' | 'DELETE', url: string, token: string) => Promise<number>) | null = null
+  setWriter(f: (method: 'PUT' | 'DELETE', url: string, token: string) => Promise<number>) { this.writer = f }
+
   /** Лайк прямо на SoundCloud. */
   async setLike(t: Track, on: boolean): Promise<void> {
     const me = await this.me(); if (!me) return
-    await this.api(`/users/${me.id}/track_likes/${t.vkId}`, {}, false, on ? 'PUT' : 'DELETE', true)
+    const token = await this.auth()
+    if (!token) throw new Error('Войди в SoundCloud во вкладке SoundCloud')
+    if (!this.writer) { await this.api(`/users/${me.id}/track_likes/${t.vkId}`, {}, false, on ? 'PUT' : 'DELETE', true); return }
+    const u = new URL(`${API}/users/${me.id}/track_likes/${t.vkId}`)
+    u.searchParams.set('client_id', await this.clientId())
+    const status = await this.writer(on ? 'PUT' : 'DELETE', u.toString(), token)
+    if (status >= 200 && status < 300) return
+    if (!on && status === 404) return // лайка и так нет
+    this.log(`soundcloud: ${on ? 'лайк' : 'снятие лайка'} → ${status || 'нет связи'}`)
+    if (status === 0) throw new ScUnavailable('SoundCloud не ответил — проверь VPN')
+    if (status === 401) throw new ScAuthLost('Вход в SoundCloud устарел — войди заново во вкладке SoundCloud')
+    throw new Error(`SoundCloud не принял ${on ? 'лайк' : 'снятие лайка'} (ответ ${status})`)
   }
 
   /** Ссылка на поток живёт недолго — получаем её прямо перед прослушиванием или скачиванием. */
