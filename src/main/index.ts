@@ -1,6 +1,6 @@
 import { app, BrowserWindow, shell, session, dialog, net } from 'electron'
 import { createDownloads, registerMediaScheme, MEDIA_SCHEME } from './downloads/runtime'
-import type { LocalPl, Settings, Track, WaveProfile } from '../shared/types'
+import type { LocalPl, ScComment, ScMe, ScPlaylistRef, Settings, Track, WaveProfile } from '../shared/types'
 import { settings } from './system/settings'
 import { setupTray, attachWindow } from './system/tray'
 import { setupUpdater, updates } from './system/updater'
@@ -27,6 +27,7 @@ const MOCK = process.env.VK_MOCK === '1'
 let win: BrowserWindow | null = null
 let api: AudioApi
 let keeper: TokenKeeper
+/** VK_MOCK_LOGIN=1 — начать разлогиненным, чтобы проверить экран входа. */
 let mockLoggedIn = process.env.VK_MOCK_LOGIN !== '1'
 /** Ожидание ответа на капчу ВК — одно на всё приложение. */
 const captcha = new CaptchaGate()
@@ -105,6 +106,10 @@ async function setup() {
     setInterval(() => void sc.refreshKey(), 6 * 3600_000)
   }
   const SC_DOWN_TEST = MOCK && process.env.SC_DOWN === '1' // тестовый режим «SoundCloud заблокирован»
+  let mockScUser = false
+  const mockMe = (): ScMe | null => (mockScUser ? { id: 1, name: 'mor1us' } : null)
+  const MOCK_SC_PLAYLISTS: ScPlaylistRef[] = [{ id: 1, title: 'Ночные поездки', count: 6, mine: true }, { id: 2, title: 'Phonk Drive', count: 8, mine: false }]
+  const MOCK_SC_COMMENTS: ScComment[] = [{ at: 3, text: 'вот тут дроп 🔥', user: 'neon_fan' }, { at: 9, text: 'лучший момент', user: 'kid' }, { at: 20, text: 'на репите', user: 'synth' }]
   const scSearch = async (q: string): Promise<Track[]> => {
     if (SC_DOWN_TEST) throw new Error(SC_DOWN)
     if (!MOCK) return sc.search(q)
@@ -116,6 +121,8 @@ async function setup() {
   const scLog = (what: string) => (e: unknown) => { if (!(e instanceof ScUnavailable)) log(`soundcloud: ${what} — ${(e as Error)?.message ?? e}`); throw e }
   handle('sc:search', (q: string) => scSearch(q).catch(scLog('поиск')))
   handle('sc:related', (t: Track) => (MOCK ? scSearch(t.artist) : sc.related(t)))
+  handle('sc:stream', (t: Track) => scStream(t).catch(scLog('поток')))
+  handle('sc:waveform', (t: Track, n?: number) => (MOCK ? [] : sc.waveform(t, n).catch(() => [])))
   handle('sc:resolve', async (url: string) => {
     if (!MOCK) return sc.resolve(url).catch(scLog('ссылка'))
     const tracks = await scSearch('Неон')
@@ -127,11 +134,34 @@ async function setup() {
     const r = await api.search(q)
     return [...new Set(r.tracks.flatMap((t) => [t.artist.toLowerCase(), `${t.artist} ${t.title}`.toLowerCase()]))].slice(0, 6)
   })
+  handle('sc:users', async (q: string) => {
+    if (SC_DOWN_TEST) return []
+    if (!MOCK) return sc.users(q).catch(() => [])
+    const r = await scSearch(q)
+    return [...new Set(r.map((t) => t.artist))].slice(0, 2).map((name) => ({ name: name + ' (SC)', followers: 1200 }))
+  })
+  handle('sc:searchPlaylists', async (q: string) => {
+    if (SC_DOWN_TEST) return []
+    if (MOCK) return [{ id: 11, title: `${q} — подборка SC`, count: 8, mine: false, author: 'synthboy' }, { id: 12, title: `Best of ${q}`, count: 5, mine: false, author: 'nightdj' }]
+    return sc.searchPlaylists(q).catch(scLog('плейлисты'))
+  })
+  handle('sc:comments', (t: Track) => {
+    if (MOCK) return MOCK_SC_COMMENTS
+    return sc.comments(t).catch(() => [])
+  })
+  handle('sc:status', () => {
+    if (SC_DOWN_TEST) return { ok: false, message: SC_DOWN, hasKey: false }
+    if (MOCK) return { ok: true, hasKey: true }
+    return sc.status()
+  })
+  handle('sc:prepare', () => {
+    if (SC_DOWN_TEST) return { ok: false, message: SC_NEED_KEY, hasKey: false }
+    if (MOCK) return { ok: true, hasKey: true }
+    return sc.prepare()
+  })
   // Аккаунт SoundCloud: вход через окно сайта, дальше — лайки, плейлисты, лента, лайк прямо на SoundCloud
   sc.setAuth(scToken)
   sc.setWriter(scWrite)
-  let mockScUser = false
-  const mockMe = () => (mockScUser ? { id: 1, name: 'mor1us', avatar: undefined } : null)
   handle('scacc:me', () => (MOCK ? mockMe() : sc.me().catch(() => null)))
   handle('scacc:login', async () => {
     if (MOCK) { mockScUser = true; return mockMe() }
@@ -141,32 +171,20 @@ async function setup() {
     return sc.me(true)
   })
   handle('scacc:logout', async () => { mockScUser = false; await scLogout(); sc.forgetMe(); log('soundcloud: выход из аккаунта') })
-  handle('scacc:likes', async () => (MOCK ? (mockScUser ? (await scSearch('Неон')).slice(0, 5) : []) : sc.likes()))
-  handle('scacc:playlists', async () => (MOCK ? (mockScUser ? [{ id: 1, title: 'Ночные поездки', count: 6, mine: true }, { id: 2, title: 'Phonk Drive', count: 8, mine: false }] : []) : sc.playlists()))
-  handle('scacc:playlistTracks', async (id: number) => (MOCK ? scSearch(id === 1 ? 'Кислота' : 'Неон') : sc.playlistTracks(id)))
-  handle('scacc:feed', async () => (MOCK ? (mockScUser ? scSearch('Пустой') : []) : sc.feed()))
+  handle('scacc:likes', async () => {
+    if (!MOCK) return sc.likes()
+    return mockScUser ? (await scSearch('Неон')).slice(0, 5) : []
+  })
+  handle('scacc:playlists', async () => {
+    if (!MOCK) return sc.playlists()
+    return mockScUser ? MOCK_SC_PLAYLISTS : []
+  })
+  handle('scacc:playlistTracks', (id: number) => (MOCK ? scSearch(id === 1 ? 'Кислота' : 'Неон') : sc.playlistTracks(id)))
+  handle('scacc:feed', async () => {
+    if (!MOCK) return sc.feed()
+    return mockScUser ? scSearch('Пустой') : []
+  })
   handle('scacc:like', async (t: Track, on: boolean) => { if (!MOCK) await sc.setLike(t, on).catch(scLog('лайк')) })
-  // Ошибки окна (интерфейса) — тоже в журнал, не чаще 30 в минуту
-  let uiErrs = 0, uiErrsAt = 0
-  handle('app:log', (msg: string) => {
-    const now = Date.now()
-    if (now - uiErrsAt > 60_000) { uiErrs = 0; uiErrsAt = now }
-    if (++uiErrs <= 30) log('окно: ' + String(msg).slice(0, 500))
-  })
-  handle('sc:searchPlaylists', async (q: string) => (SC_DOWN_TEST ? [] : MOCK ? [{ id: 11, title: `${q} — подборка SC`, count: 8, mine: false, author: 'synthboy' }, { id: 12, title: `Best of ${q}`, count: 5, mine: false, author: 'nightdj' }] : sc.searchPlaylists(q).catch(scLog('плейлисты'))))
-  handle('sc:status', () => (SC_DOWN_TEST ? { ok: false, message: SC_DOWN, hasKey: false } : MOCK ? { ok: true, hasKey: true } : sc.status()))
-  handle('sc:prepare', () => (SC_DOWN_TEST ? { ok: false, message: SC_NEED_KEY, hasKey: false } : MOCK ? { ok: true, hasKey: true } : sc.prepare()))
-  handle('sc:users', async (q: string) => {
-    if (SC_DOWN_TEST) return []
-    if (!MOCK) return sc.users(q).catch(() => [])
-    const r = await scSearch(q)
-    return [...new Set(r.map((t) => t.artist))].slice(0, 2).map((name) => ({ name: name + ' (SC)', followers: 1200 }))
-  })
-  handle('sc:waveform', (t: Track, n?: number) => (MOCK ? [] : sc.waveform(t, n).catch(() => [])))
-  handle('sc:comments', (t: Track) => (MOCK
-    ? [{ at: 3, text: 'вот тут дроп 🔥', user: 'neon_fan' }, { at: 9, text: 'лучший момент', user: 'kid' }, { at: 20, text: 'на репите', user: 'synth' }]
-    : sc.comments(t).catch(() => [])))
-  handle('sc:stream', (t: Track) => scStream(t).catch(scLog('поток')))
   // Лайки SoundCloud и свои плейлисты Хвои (ВК + SoundCloud вперемешку) хранятся на компе.
   const scLikes = jsonFile<Track[]>('sc-likes.json', () => [])
   handle('scl:get', () => scLikes.read())
@@ -185,6 +203,13 @@ async function setup() {
   handle('dl:localPath', (id: string) => (dl.localPath(id) ? `${MEDIA_SCHEME}://local/${encodeURIComponent(id)}` : null))
   handle('dl:openFolder', (id?: string) => { const p = id ? dl.localPath(id) : null; if (p) shell.showItemInFolder(p); else void shell.openPath(settings.get().downloadDir) })
   handle('vk:captchaAnswer', (key: string) => captcha.answer(key))
+  // Ошибки окна (интерфейса) — тоже в журнал, не чаще 30 в минуту
+  let uiErrs = 0, uiErrsAt = 0
+  handle('app:log', (msg: string) => {
+    const now = Date.now()
+    if (now - uiErrsAt > 60_000) { uiErrs = 0; uiErrsAt = now }
+    if (++uiErrs <= 30) log('окно: ' + String(msg).slice(0, 500))
+  })
   handle('settings:get', () => settings.get())
   handle('settings:set', (patch: Partial<Settings>) => settings.set(patch))
   handle('settings:pickDir', async () => {

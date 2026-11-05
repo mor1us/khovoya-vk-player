@@ -1,4 +1,5 @@
 import type { ScArtist, ScComment, ScMe, ScPlaylistRef, ScResolved, ScStatus, Track } from '../../shared/types'
+import { uniqueBy } from '../../shared/list'
 
 export type { ScArtist, ScComment, ScMe, ScPlaylistRef, ScResolved, ScStatus }
 
@@ -105,7 +106,7 @@ export class SoundCloud {
   private cidJob: Promise<string> | null = null
   /** Нет связи — минуту не стучимся на этот адрес, чтобы поиск и Волна ВК не ждали SoundCloud. */
   private down = new Map<string, number>()
-  private keyProblem: 'none' | 'expired' | null = null
+  private keyProblem: 'missing' | 'expired' | null = null
   private now: () => number
   private timeoutMs: number
   constructor(private fetch: Fetch, private store: { get(): string | null; set(v: string): void; at?(): number }, private log: (m: string) => void = () => {}, opts: { now?: () => number; timeoutMs?: number } = {}) {
@@ -117,7 +118,7 @@ export class SoundCloud {
   status(): ScStatus {
     const hasKey = !!this.cid
     const siteDown = SITES.every((u) => this.isDown(new URL(u).host))
-    if (this.keyProblem === 'none' || (!hasKey && siteDown)) return { ok: false, message: SC_NEED_KEY, hasKey }
+    if (this.keyProblem === 'missing' || (!hasKey && siteDown)) return { ok: false, message: SC_NEED_KEY, hasKey }
     if (this.keyProblem === 'expired') return { ok: false, message: SC_KEY_OLD, hasKey }
     if (this.isDown(new URL(API).host)) return { ok: false, message: SC_DOWN, hasKey }
     return { ok: true, hasKey }
@@ -175,7 +176,7 @@ export class SoundCloud {
   async clientId(force = false): Promise<string> {
     if (this.cid && !force) return this.cid
     this.cidJob ??= this.fetchKey()
-      .catch((e) => { if (e instanceof ScUnavailable) this.keyProblem = this.cid ? 'expired' : 'none'; throw e })
+      .catch((e) => { if (e instanceof ScUnavailable) this.keyProblem = this.cid ? 'expired' : 'missing'; throw e })
       .finally(() => { this.cidJob = null })
     return this.cidJob
   }
@@ -311,8 +312,7 @@ export class SoundCloud {
       this.pages(`/users/${me.id}/playlists_without_albums`, { limit: 50 }, 200).catch(() => []),
       this.pages(`/users/${me.id}/likes`, { limit: 100 }, 300).catch(() => [])
     ])
-    const seen = new Set<number>()
-    return [...own.map((p) => ref(p, true)), ...liked.filter((x) => x?.playlist).map((x) => ref(x.playlist, false))].filter((p) => !seen.has(p.id) && !!seen.add(p.id))
+    return uniqueBy([...own.map((p) => ref(p, true)), ...liked.filter((x) => x?.playlist).map((x) => ref(x.playlist, false))], (p) => p.id)
   }
 
   /** Треки плейлиста SoundCloud (SoundCloud отдаёт их не целиком — дозапрашиваем). */
@@ -334,8 +334,8 @@ export class SoundCloud {
   /** Лента подписок: новые треки и репосты тех, на кого подписан. */
   async feed(limit = 50): Promise<Track[]> {
     const items = await this.pages('/stream', { limit: 50 }, limit)
-    const seen = new Set<string>()
-    return items.map((x) => mapScTrack(x?.track)).filter((t): t is Track => !!t && !seen.has(t.id) && !!seen.add(t.id))
+    const tracks = items.map((x) => mapScTrack(x?.track)).filter((t): t is Track => !!t)
+    return uniqueBy(tracks, (t) => t.id)
   }
 
   /** Как отправлять изменения: SoundCloud принимает их только со своего сайта (см. scWrite). */

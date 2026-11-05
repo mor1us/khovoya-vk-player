@@ -1,4 +1,5 @@
 import type { Track, WaveMode } from '../../shared/types'
+import { uniqueBy } from '../../shared/list'
 
 /**
  * Настройки Волны: настроение, узнаваемость, язык. В каждой группе можно выбрать несколько.
@@ -129,8 +130,7 @@ export function tuneQueries(t: WaveTune, topArtists: string[]): { q: string; byD
   if (!t.mood.length && instr) out.push({ q: words.includes('ru') ? 'русский бит инструментал' : 'instrumental', byDate: true })
   // свежие треки любимых артистов — главный источник новинок
   if (t.recog.includes('new') || t.lang.length) for (const a of topArtists.slice(0, 5)) out.push({ q: a, byDate: true })
-  const seen = new Set<string>()
-  return out.filter((x) => !seen.has(x.q) && !!seen.add(x.q))
+  return uniqueBy(out, (x) => x.q)
 }
 
 const DAY = 86_400_000
