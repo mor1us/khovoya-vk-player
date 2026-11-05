@@ -18,7 +18,7 @@ export function log(msg: string) {
 
 async function tokenInPage(w: BrowserWindow, tld: 'ru' | 'com'): Promise<WebToken> {
   const text = String(await w.webContents.executeJavaScript(webTokenScript(tld), true))
-  let json: unknown = null
+  let json: unknown
   try { json = JSON.parse(text) } catch { log(`web_token(${tld}) в странице: не JSON: ${text.slice(0, 200)}`); throw new SessionLostError() }
   try { return parseWebToken(json) } catch (e) { log(`web_token(${tld}) в странице: отказ: ${text.slice(0, 300)}`); throw e }
 }

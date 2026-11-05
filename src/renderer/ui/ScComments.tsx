@@ -13,7 +13,7 @@ export function ScComments({ track, pos }: { track: Track; pos: number }) {
     setList(cache.get(track.id) ?? [])
     if (!on || track.src !== 'sc' || cache.has(track.id)) return
     let alive = true
-    window.api.invoke<C[]>('sc:comments', track).then((c) => { cache.set(track.id, c ?? []); if (alive) setList(c ?? []) }).catch(() => {})
+    window.api.invoke('sc:comments', track).then((c) => { cache.set(track.id, c ?? []); if (alive) setList(c ?? []) }).catch(() => {})
     return () => { alive = false }
   }, [track.id, on]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!on || track.src !== 'sc') return null

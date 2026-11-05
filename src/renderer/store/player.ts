@@ -2,6 +2,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla'
 import type { Track } from '../../shared/types'
 import { Queue, type Repeat, type QueueJSON } from '../player/queue'
 import { fadePlan, withUrlRefresh } from '../player/crossfade'
+import { parseJson } from './json'
 
 export type EngineLike = {
   load(url: string, startAt?: number): Promise<void>
@@ -61,7 +62,7 @@ export function createPlayer(d: PlayerDeps): StoreApi<PlayerState> {
   let fadeStartedFor: string | null = null
   let busy = false
 
-  const recent = (): string[] => { try { return JSON.parse(d.storage.getItem('recent') ?? '[]') } catch { return [] } }
+  const recent = (): string[] => parseJson<string[]>(d.storage.getItem('recent'), [])
   const pushRecent = (id: string) => d.storage.setItem('recent', JSON.stringify([id, ...recent().filter((x) => x !== id)].slice(0, RECENT_MAX)))
 
   const store = createStore<PlayerState>()((set, get) => {
@@ -203,8 +204,8 @@ export function createPlayer(d: PlayerDeps): StoreApi<PlayerState> {
         d.storage.setItem('player', JSON.stringify({ queue: s.queue.toJSON(), position: s.position, volume: s.volume, shuffle: s.shuffle, repeat: s.repeat }))
       },
       restore() {
-        let j: { queue: QueueJSON; position: number; volume: number; shuffle: boolean; repeat: Repeat } | null = null
-        try { j = JSON.parse(d.storage.getItem('player') ?? 'null') } catch { j = null }
+        type Saved = { queue: QueueJSON; position: number; volume: number; shuffle: boolean; repeat: Repeat }
+        const j = parseJson<Saved | null>(d.storage.getItem('player'), null)
         if (!j?.queue) return
         const q = Queue.fromJSON(j.queue)
         d.engine.setVolume(j.volume ?? 0.8)

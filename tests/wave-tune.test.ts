@@ -70,16 +70,16 @@ describe('настроение, узнаваемость, свежесть', () 
 describe('отбор и поиски', () => {
   it('язык фильтрует строго, если подходящих хватает', () => {
     const c = [...Array.from({ length: 10 }, (_, i) => tr('r' + i, 'Песня ' + i, 'Артист')), tr('e', 'Song', 'Band')]
-    expect(applyTune(c, T({ lang: ['ru'] }), new Set(), 0, 20).some((t) => t.id === 'e')).toBe(false)
+    expect(applyTune(c, T({ lang: ['ru'] }), 0, 20).some((t) => t.id === 'e')).toBe(false)
   })
   it('«Новинки» оставляют только свежее за год, если его хватает', () => {
     const now = Date.UTC(2026, 9, 31)
     const c = [tr('f', 'a', 'b', now / 1000 - 30 * 86400), tr('o', 'c', 'd', now / 1000 - 2000 * 86400)]
-    expect(applyTune(c, T({ recog: ['unknown', 'new'] }), new Set(), now, 1).map((t) => t.id)).toEqual(['f'])
+    expect(applyTune(c, T({ recog: ['unknown', 'new'] }), now, 1).map((t) => t.id)).toEqual(['f'])
   })
   it('если подходящих по языку почти нет — ничего не теряем', () => {
     const c = [tr('r', 'Песня', 'Артист'), tr('e1', 'Song', 'Band'), tr('e2', 'Song 2', 'Band')]
-    expect(applyTune(c, T({ lang: ['ru'] }), new Set(), 0, 20)).toHaveLength(3)
+    expect(applyTune(c, T({ lang: ['ru'] }), 0, 20)).toHaveLength(3)
   })
   it('нет общих запросов вроде «русские хиты» — свежее берём у любимых артистов', () => {
     const q = tuneQueries(T({ lang: ['ru'] }), ['скриптонит', 'markul'])

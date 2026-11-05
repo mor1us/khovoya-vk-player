@@ -1,12 +1,13 @@
 import type { Playlist } from '../../shared/types'
 import { useUi } from './ui'
+import { readJson, writeJson } from './json'
 
 /** Запоминаем, какой плейлист играет, чтобы из очереди можно было в него перейти. */
-let lastPl: Playlist | null = (() => { try { return JSON.parse(localStorage.getItem('srcPl') ?? 'null') } catch { return null } })()
+let lastPl: Playlist | null = readJson<Playlist | null>('srcPl', null)
 
 export function rememberPlaylist(p: Playlist) {
   lastPl = p
-  try { localStorage.setItem('srcPl', JSON.stringify(p)) } catch { /* не страшно */ }
+  writeJson('srcPl', p)
 }
 
 /** Переход к тому, откуда играет музыка. false — переходить некуда. */
@@ -16,7 +17,7 @@ export function canOpenSource(src: string): boolean {
 
 export function openSource(src: string) {
   const ui = useUi.getState()
-  if (src === 'pl:Моё · SoundCloud' || src === 'pl:Лента SoundCloud' || src === 'pl:Лента SoundCloud') return ui.go('soundcloud')
+  if (src === 'pl:Моё · SoundCloud' || src === 'pl:Лента SoundCloud') return ui.go('soundcloud')
   if (src.startsWith('pl:')) { if (lastPl && src.slice(3) === lastPl.title) ui.openPlaylist(lastPl); return }
   if (src === 'mine') return ui.go('mine')
   if (src === 'similar') return ui.go('similar')

@@ -24,8 +24,7 @@ export async function withUrlRefresh(url: string, load: (u: string) => Promise<v
   if (url) {
     try { await load(url); return 'ok' } catch { /* попробуем свежую ссылку */ }
   }
-  let fresh = ''
-  try { fresh = await refresh() } catch { return 'skip' }
+  const fresh = await refresh().catch(() => '')
   if (!fresh) return 'skip'
   try { await load(fresh); return 'ok' } catch { return 'skip' }
 }

@@ -11,10 +11,13 @@
     "dev:mock": "cross-env VK_MOCK=1 electron-vite dev",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "lint": "eslint .",
+    "check": "npm run lint && npm run typecheck && npm test",
     "test": "vitest run",
     "dist": "electron-vite build && electron-builder --win"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@fontsource/inter": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "@fontsource/manrope": "^5.3.0",
@@ -28,10 +31,14 @@
     "electron": "^33.4.11",
     "electron-builder": "^25.1.8",
     "electron-vite": "^2.3.0",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
     "hls.js": "^1.7.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.1",
     "vite": "^5.4.21",
     "vitest": "^2.1.9",
     "zustand": "^4.5.7"

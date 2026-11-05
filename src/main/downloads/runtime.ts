@@ -31,7 +31,8 @@ function runFfmpeg(args: string[], onProgress: (sec: number) => void, signal?: A
     p.on('error', (e) => reject(e))
     p.on('close', (code) => {
       if (signal?.aborted) { try { unlinkSync(args[args.length - 1]) } catch { /* нет файла */ } return reject(new Error('Отменено')) }
-      code === 0 ? resolve() : reject(new Error(err.includes('403') || err.includes('404') ? 'Ссылка устарела — попробуй ещё раз' : 'Не удалось скачать трек'))
+      if (code === 0) resolve()
+      else reject(new Error(err.includes('403') || err.includes('404') ? 'Ссылка устарела — попробуй ещё раз' : 'Не удалось скачать трек'))
     })
   })
 }

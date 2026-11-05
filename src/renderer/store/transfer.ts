@@ -15,7 +15,7 @@ export async function findOnVk(tracks: Track[], onProgress?: (done: number, tota
       if (t.src !== 'sc') { found[i] = t } // уже из ВК
       else {
         try {
-          const r = await window.api.invoke<{ tracks: Track[] }>('vk:search', `${t.artist} ${t.title}`)
+          const r = await window.api.invoke('vk:search', `${t.artist} ${t.title}`)
           found[i] = bestMatch(t, r.tracks)
         } catch { found[i] = null }
       }

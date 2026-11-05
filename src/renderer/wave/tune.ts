@@ -150,7 +150,7 @@ export function freshness(t: Track, now: number): number {
  * Отбор кандидатов под настройки. Язык — строгий фильтр (если подходящих совсем мало, берём что есть).
  * Настроение и «Новинки» дают кандидатам очки (см. tuneBoost), а не отсекают.
  */
-export function applyTune(cands: Track[], t: WaveTune, _extra: Set<string>, now: number, size: number, artists?: Map<string, boolean>): Track[] {
+export function applyTune(cands: Track[], t: WaveTune, now: number, size: number, artists?: Map<string, boolean>): Track[] {
   let xs = cands
   if (t.lang.length) {
     const ok = xs.filter((x) => matchLangs(x, t.lang, artists))

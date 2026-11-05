@@ -12,7 +12,7 @@ function useRealBars(track: Track | undefined, n: number): number[] | null {
     setBars(key ? realCache.get(key) ?? null : null)
     if (!track || track.src !== 'sc' || !track.wave || realCache.has(key)) return
     let alive = true
-    window.api.invoke<number[]>('sc:waveform', track, n).then((b) => {
+    window.api.invoke('sc:waveform', track, n).then((b) => {
       if (!b?.length) return
       realCache.set(key, b)
       if (alive) setBars(b)

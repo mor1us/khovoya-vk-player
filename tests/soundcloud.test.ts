@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { SoundCloud, findClientId, findScriptUrls, mapScTrack, pickTranscoding, type Fetch } from '../src/main/sc/soundcloud'
+import { SoundCloud, findClientId, findScriptUrls, mapScTrack, pickTranscodings, type Fetch } from '../src/main/sc/soundcloud'
+
+const pickTranscoding = (r: unknown) => pickTranscodings(r)[0] ?? null
 
 const CID = 'a'.repeat(16) + 'B'.repeat(16)
 const raw = (over: any = {}) => ({

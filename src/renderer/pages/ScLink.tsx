@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Track } from '../../shared/types'
+import type { ScResolved, Track } from '../../shared/types'
 import { player } from '../store/playerInstance'
 import { VirtualTrackList } from '../ui/VirtualTrackList'
 import { TrackRow, SrcBadge } from '../ui/TrackRow'
@@ -8,9 +8,7 @@ import { PlaylistActions } from '../ui/PlaylistActions'
 import { plural } from '../ui/format'
 import * as I from '../ui/icons'
 
-type Resolved =
-  | { kind: 'track'; track: Track }
-  | { kind: 'playlist'; title: string; author: string; cover?: string; link?: string; tracks: Track[] }
+type Resolved = ScResolved
 
 export const isScUrl = (s: string) => /^https?:\/\/(?:www\.|m\.|on\.)?soundcloud\.com\/\S+/i.test(s.trim())
 
@@ -21,7 +19,7 @@ export function ScLink({ url }: { url: string }) {
   useEffect(() => {
     let alive = true
     setR(null); setErr('')
-    window.api.invoke<Resolved>('sc:resolve', url).then((x) => alive && setR(x)).catch((e) => alive && setErr((e as Error).message))
+    window.api.invoke('sc:resolve', url).then((x) => alive && setR(x)).catch((e) => alive && setErr((e as Error).message))
     return () => { alive = false }
   }, [url])
   const src = r?.kind === 'playlist' ? `pl:${r.title}` : 'search:ссылка SoundCloud'

@@ -6,6 +6,7 @@ import { useSuggest, type Suggest } from './searchSuggest'
 import { Cover } from './Cover'
 import { SrcBadge } from './TrackRow'
 import { player } from '../store/playerInstance'
+import { readJson } from '../store/json'
 
 const TABS: [Tab, string][] = [['home', 'Главная'], ['mine', 'Моё'], ['playlists', 'Плейлисты'], ['downloads', 'Загрузки'], ['soundcloud', 'SoundCloud']]
 export const searchRef: { current: HTMLInputElement | null } = { current: null }
@@ -28,7 +29,7 @@ export function TopBar({ onLogout }: { onLogout: () => void }) {
   const [focus, setFocus] = useState(false)
   const input = useRef<HTMLInputElement>(null)
   useEffect(() => { searchRef.current = input.current }, [])
-  const hist: string[] = focus && !query ? JSON.parse(localStorage.getItem('searchHistory') ?? '[]') : []
+  const hist = focus && !query ? readJson<string[]>('searchHistory', []) : []
   const items = useSuggest(query, focus)
   const [act, setAct] = useState(0)
   useEffect(() => { setAct(0) }, [query])

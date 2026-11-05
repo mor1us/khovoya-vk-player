@@ -8,7 +8,7 @@ export function Login({ onDone }: { onDone: (s: Extract<LoginStep, { kind: 'ok' 
   async function go() {
     setBusy(true); setErr('')
     try {
-      const r = await window.api.invoke<LoginStep>('auth:browser')
+      const r = await window.api.invoke('auth:browser')
       if (r.kind === 'ok') onDone(r)
       else if (r.kind === 'error' && r.message !== 'Окно входа закрыто') setErr(r.message)
     } catch (e) { setErr((e as Error).message) } finally { setBusy(false) }

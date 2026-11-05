@@ -8,7 +8,7 @@ import { SrcBadge } from '../ui/TrackRow'
 import { Cover } from '../ui/Cover'
 import { KEYWORDS, TAGS, withKeyword, activeKeyword } from '../ui/searchTags'
 import { mergeSources } from '../ui/mergeSearch'
-import { asPlaylist, type ScPlaylistRef } from '../store/sc'
+import { asPlaylist } from '../store/sc'
 import { ScLink, isScUrl } from './ScLink'
 
 type Where = 'all' | 'vk' | 'sc'
@@ -35,7 +35,7 @@ function SearchResults({ q }: { q: string }) {
     if (!q) return
     let alive = true
     setRes(null); setErr('')
-    window.api.invoke<{ tracks: Track[]; playlists: Playlist[] }>('vk:search', q, 0, byDate)
+    window.api.invoke('vk:search', q, 0, byDate)
       .then((r) => alive && setRes(r)).catch((e) => alive && setErr((e as Error).message))
     return () => { alive = false }
   }, [q, byDate])
@@ -43,14 +43,14 @@ function SearchResults({ q }: { q: string }) {
     if (!q) return
     let alive = true
     setSc(null); setScErr('')
-    window.api.invoke<Track[]>('sc:search', q).then((r) => alive && setSc(byDate ? [...r].sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0)) : r)).catch((e) => { if (alive) { setSc([]); setScErr((e as Error).message) } })
+    window.api.invoke('sc:search', q).then((r) => alive && setSc(byDate ? [...r].sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0)) : r)).catch((e) => { if (alive) { setSc([]); setScErr((e as Error).message) } })
     return () => { alive = false }
   }, [q, byDate])
   useEffect(() => { // плейлисты SoundCloud — отдельным рядом
     if (!q) return
     let alive = true
     setScPl([])
-    window.api.invoke<ScPlaylistRef[]>('sc:searchPlaylists', q).then((r) => alive && setScPl(r.map(asPlaylist))).catch(() => {})
+    window.api.invoke('sc:searchPlaylists', q).then((r) => alive && setScPl(r.map(asPlaylist))).catch(() => {})
     return () => { alive = false }
   }, [q])
   const vkTracks = res?.tracks ?? []

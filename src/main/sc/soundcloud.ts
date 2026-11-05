@@ -1,4 +1,6 @@
-import type { Track } from '../../shared/types'
+import type { ScArtist, ScComment, ScMe, ScPlaylistRef, ScResolved, ScStatus, Track } from '../../shared/types'
+
+export type { ScArtist, ScComment, ScMe, ScPlaylistRef, ScResolved, ScStatus }
 
 /**
  * SoundCloud без входа: публичный поиск и прослушивание через тот же API, что у сайта soundcloud.com.
@@ -35,7 +37,6 @@ export function pickTranscodings(r: any): Transcoding[] {
   }
   return ts.filter((t) => rank(t) < 9).sort((a, b) => rank(a) - rank(b))
 }
-export const pickTranscoding = (r: any): Transcoding | null => pickTranscodings(r)[0] ?? null
 
 export function artwork(r: any): string | undefined {
   const u: string | undefined = r?.artwork_url || r?.user?.avatar_url
@@ -69,10 +70,6 @@ export function mapScTrack(r: any): Track | null {
 
 export const isScUrl = (s: string) => /^https?:\/\/(?:www\.|m\.|on\.)?soundcloud\.com\/\S+/i.test(s.trim())
 
-export type ScResolved =
-  | { kind: 'track'; track: Track }
-  | { kind: 'playlist'; title: string; author: string; cover?: string; link?: string; tracks: Track[] }
-
 /** Сжать рисунок громкости SoundCloud до n столбиков 0..1. */
 export function bars(samples: number[], n: number, height = 140): number[] {
   if (!samples.length) return []
@@ -88,8 +85,6 @@ export function bars(samples: number[], n: number, height = 140): number[] {
   return out.map((v) => Math.max(0.08, Math.min(1, v / top)))
 }
 
-export type ScComment = { at: number; text: string; user: string; avatar?: string }
-
 /** В России SoundCloud открывается только через VPN — говорим об этом прямо. */
 export const SC_DOWN = 'SoundCloud недоступен. В России он открывается только через VPN — включи VPN и попробуй снова'
 export const SC_NEED_KEY = 'Чтобы SoundCloud заработал без VPN, один раз включи VPN и открой вкладку SoundCloud — Хвоя запомнит ключ, дальше можно без VPN'
@@ -97,13 +92,9 @@ export const SC_KEY_OLD = 'Ключ SoundCloud устарел. Включи VPN 
 export class ScUnavailable extends Error {}
 export class ScAuthLost extends Error {}
 
-export type ScMe = { id: number; name: string; avatar?: string }
-export type ScPlaylistRef = { id: number; title: string; count: number; cover?: string; link?: string; mine: boolean; author?: string }
 
 /** Сайт, с которого берём ключ (в России закрыт), — в отличие от API и серверов с музыкой, которые могут работать. */
 const SITES = ['https://soundcloud.com/', 'https://m.soundcloud.com/']
-
-export type ScStatus = { ok: boolean; message?: string; hasKey: boolean }
 
 /**
  * Ключ (client_id) берём с сайта один раз и храним на компе. Дальше поиск и музыка идут через API —
@@ -139,11 +130,11 @@ export class SoundCloud {
     this.down.set(host, this.now() + 60_000)
   }
 
-  /** Запрос с ограничением по времени: заблокированный адрес часто просто молчит. */
   /** Ключ входа в аккаунт (cookie oauth_token с сайта). Нет входа — null. */
   private auth: () => Promise<string | null> = async () => null
   setAuth(f: () => Promise<string | null>) { this.auth = f }
 
+  /** Запрос с ограничением по времени: заблокированный адрес часто просто молчит. */
   private async get(url: string, headers: Record<string, string>, method = 'GET') {
     const host = new URL(url).host
     if (this.isDown(host)) throw new ScUnavailable(SC_DOWN)
@@ -247,7 +238,7 @@ export class SoundCloud {
   }
 
   /** Артисты SoundCloud по запросу (для подсказок). */
-  async users(q: string, limit = 4): Promise<{ name: string; avatar?: string; link?: string; followers: number }[]> {
+  async users(q: string, limit = 4): Promise<ScArtist[]> {
     const j = await this.api('/search/users', { q, limit })
     return (j?.collection ?? []).filter((u: any) => u?.username).map((u: any) => ({
       name: String(u.username), avatar: u.avatar_url ? String(u.avatar_url).replace('-large.', '-t200x200.') : undefined, link: u.permalink_url, followers: Number(u.followers_count) || 0

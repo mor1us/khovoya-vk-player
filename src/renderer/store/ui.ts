@@ -1,4 +1,5 @@
 import { cleanQuery } from '../ui/searchTags'
+import { readJson, writeJson } from './json'
 import { create } from 'zustand'
 import type { Playlist, Session } from '../../shared/types'
 
@@ -38,8 +39,8 @@ export const useUi = create<Ui>((set, get) => ({
   submit(q) {
     const s = cleanQuery(q ?? get().query)
     if (!s) return
-    const hist = JSON.parse(localStorage.getItem('searchHistory') ?? '[]') as string[]
-    localStorage.setItem('searchHistory', JSON.stringify([s, ...hist.filter((x) => x !== s)].slice(0, 10)))
+    const hist = readJson<string[]>('searchHistory', [])
+    writeJson('searchHistory', [s, ...hist.filter((x) => x !== s)].slice(0, 10))
     set({ submitted: s, query: s }); get().go('search')
   },
   toast(text, action) {

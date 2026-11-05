@@ -21,7 +21,7 @@ export const useArtists = create<{ list: ArtistCard[] | null; loading: boolean; 
         while (i < top.length) {
           const k = i++
           try {
-            const tracks = await window.api.invoke<Track[]>('vk:artistTracks', { id: top[k].id, name: top[k].name })
+            const tracks = await window.api.invoke('vk:artistTracks', { id: top[k].id, name: top[k].name })
             const fresh = tracks.some((t) => !own.has(t.id) && isFresh(t.addedAt, Date.now()))
             out[k] = { ...out[k], tracks, fresh, cover: out[k].cover ?? tracks[0]?.coverUrl }
             set({ list: [...out].sort((a, b) => Number(b.fresh) - Number(a.fresh) || b.count - a.count) })

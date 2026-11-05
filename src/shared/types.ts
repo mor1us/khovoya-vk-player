@@ -55,8 +55,6 @@ export type Settings = {
 
 export type LoginStep =
   | { kind: 'ok'; userName: string; avatar?: string }
-  | { kind: '2fa'; phoneMask?: string; validationSid?: string }
-  | { kind: 'captcha'; sid: string; imageDataUrl: string }
   | { kind: 'error'; message: string }
 
 export type Session = { loggedIn: boolean; userName?: string; avatar?: string; userId?: number }
@@ -83,8 +81,22 @@ export type WaveProfile = {
   disliked?: Track[]
 }
 
-export type SysState = { background: boolean }
-
 export type DiscordUpdate = { track: Track | null; playing: boolean; position: number }
 
 export type ArtistRef = { id?: string; name: string }
+
+/** SoundCloud: всё, что ходит между окном и главным процессом. */
+export type ScMe = { id: number; name: string; avatar?: string }
+export type ScPlaylistRef = { id: number; title: string; count: number; cover?: string; link?: string; mine: boolean; author?: string }
+export type ScStatus = { ok: boolean; message?: string; hasKey: boolean }
+export type ScComment = { at: number; text: string; user: string; avatar?: string }
+export type ScArtist = { name: string; avatar?: string; link?: string; followers: number }
+export type ScResolved =
+  | { kind: 'track'; track: Track }
+  | { kind: 'playlist'; title: string; author: string; cover?: string; link?: string; tracks: Track[] }
+
+/** Блок подборок «Для вас» из каталога ВК. */
+export type ForYouBlock = { title: string; big: boolean; playlists: Playlist[] }
+
+/** Плейлист Хвои: лежит на компе, в нём могут быть треки ВК и SoundCloud. */
+export type LocalPl = { id: number; title: string; tracks: Track[]; updatedAt: number }

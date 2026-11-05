@@ -29,7 +29,7 @@ export function Downloads() {
             <div className={'st' + (j.status === 'error' ? ' bad' : '')}>
               {j.status === 'active' ? `${Math.round(j.progress * 100)}%` : ST[j.status]}
               {(j.status === 'active' || j.status === 'queued') && <button className="ic" title="Отменить" onClick={() => void useDownloads.getState().cancel(j.id)}><I.IX size={14} /></button>}
-              {(j.status === 'error' || j.status === 'canceled') && <button className="ic" title="Повторить" onClick={() => void window.api.invoke<Track[]>('vk:byId', [j.id]).then((t) => useDownloads.getState().start(t))}><I.IDown size={14} /></button>}
+              {(j.status === 'error' || j.status === 'canceled') && <button className="ic" title="Повторить" onClick={() => void window.api.invoke('vk:byId', [j.id]).then((t) => useDownloads.getState().start(t))}><I.IDown size={14} /></button>}
             </div>
           </div>))}</>}
       {done.length > 0 && <><div className="h" style={{ marginTop: 18 }}><h3>Скачано</h3></div>

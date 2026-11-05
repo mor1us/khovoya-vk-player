@@ -2,11 +2,12 @@ import { create } from 'zustand'
 import type { Track, WaveMode, WaveProfile } from '../../shared/types'
 import { applyReaction, emptyProfile, reactionFor, seedsFor, undoDislike, type Reaction } from '../wave/profile'
 import { pickBatch } from '../wave/picker'
-import { cryptoRandom } from '../player/shuffle'
+import { cryptoRandom, fisherYates } from '../player/shuffle'
 import { useLibrary } from './library'
 import { useSc } from './sc'
 import { applyTune, artistLangMap, matchLangs, modeFor, normalizeTune, tuneBoost, tuneQueries, type WaveTune } from '../wave/tune'
 import { player } from './playerInstance'
+import { readJson, writeJson } from './json'
 
 export type WaveKind = 'vk' | 'sc' | 'both'
 
@@ -31,11 +32,12 @@ type Wave = {
   undislike(t: Track): void
 }
 
-const recent = (): string[] => { try { return JSON.parse(localStorage.getItem('recent') ?? '[]') } catch { return [] } }
+const recent = (): string[] => readJson<string[]>('recent', [])
 const isWave = () => player.getState().source.startsWith('wave:')
 let fetching = false
 
-const readTune = (): WaveTune => { try { return normalizeTune(JSON.parse(localStorage.getItem('waveTune') ?? 'null')) } catch { return normalizeTune(null) } }
+const readTune = (): WaveTune => normalizeTune(readJson<unknown>('waveTune', null))
+const startTune = readTune()
 
 /** Сколько очков даёт источник: персональные подборки ВК и свежее у любимых артистов ценнее общего поиска. */
 const SRC = { daily: 4, fresh: 3, recSeed: 3, rec: 2, mood: 1, mine: 0 } as const
@@ -47,7 +49,7 @@ async function algoTracks(): Promise<Track[]> {
   await useLibrary.getState().loadForYou()
   const pls = (useLibrary.getState().forYou ?? []).flatMap((b) => b.playlists)
     .filter((p) => /для вас|открыти|новинк|плейлист\s*дня/i.test(p.title)).slice(0, 8)
-  const res = await Promise.allSettled(pls.map((p) => window.api.invoke<Track[]>('vk:playlistTracks', p)))
+  const res = await Promise.allSettled(pls.map((p) => window.api.invoke('vk:playlistTracks', p)))
   algo = { at: Date.now(), tracks: res.flatMap((r) => (r.status === 'fulfilled' ? r.value : [])) }
   return algo.tracks
 }
@@ -94,10 +96,10 @@ async function vkPool(profile: WaveProfile, tune: WaveTune, mode: WaveMode): Pro
   const qs = tuneQueries(tune, top)
   const list = <T,>(r: PromiseSettledResult<T>) => (r.status === 'fulfilled' ? r.value : null)
   const [general, bySeed, daily, searched] = await Promise.all([
-    window.api.invoke<Track[]>('vk:recommendations', undefined, 100).catch(() => [] as Track[]),
-    Promise.allSettled(seeds.slice(0, 5).map((s) => window.api.invoke<Track[]>('vk:recommendations', s, 40))),
+    window.api.invoke('vk:recommendations', undefined, 100).catch(() => [] as Track[]),
+    Promise.allSettled(seeds.slice(0, 5).map((s) => window.api.invoke('vk:recommendations', s, 40))),
     algoTracks().catch(() => [] as Track[]),
-    Promise.allSettled(qs.map((x) => window.api.invoke<{ tracks: Track[] }>('vk:search', x.q, 0, x.byDate).then((r) => ({ x, tracks: r.tracks.slice(0, x.byDate ? 15 : 30) }))))
+    Promise.allSettled(qs.map((x) => window.api.invoke('vk:search', x.q, 0, x.byDate).then((r) => ({ x, tracks: r.tracks.slice(0, x.byDate ? 15 : 30) }))))
   ])
   const source = new Map<string, number>()
   const moodHits = new Set<string>()
@@ -113,11 +115,11 @@ async function vkPool(profile: WaveProfile, tune: WaveTune, mode: WaveMode): Pro
     if (!isArtist) v.tracks.forEach((t) => moodHits.add(t.id))
   }
   if (!cands.length) { // рекомендации ВК недоступны — свежее у любимых артистов
-    const s = await Promise.allSettled(top.slice(0, 4).map((a) => window.api.invoke<{ tracks: Track[] }>('vk:search', a, 0, true)))
+    const s = await Promise.allSettled(top.slice(0, 4).map((a) => window.api.invoke('vk:search', a, 0, true)))
     add(s.flatMap((r) => list(r)?.tracks.slice(0, 15) ?? []), SRC.fresh)
   }
   if (mode !== 'new') { // своя музыка: для микса — случайная выборка, чтобы не тянуть одно старьё
-    const own = mode === 'fav' ? mine : [...mine].sort(() => cryptoRandom() - 0.5).slice(0, 300)
+    const own = mode === 'fav' ? mine : fisherYates(mine, cryptoRandom).slice(0, 300)
     add(own, SRC.mine)
   }
   return { cands, source, moodHits, artists: artistLangMap([...mine, ...cands]) }
@@ -129,7 +131,7 @@ const FALLBACK_SC = ['phonk', 'lofi hip hop', 'indie', 'hyperpop', 'drill', 'chi
 async function scCandidates(profile: WaveProfile, tune: WaveTune): Promise<{ cands: Track[]; extra: Set<string>; likes: Track[] }> {
   const likes = await useSc.getState().load()
   const cur = player.getState().current
-  const seeds = [...likes].sort(() => cryptoRandom() - 0.5).slice(0, 4)
+  const seeds = fisherYates(likes, cryptoRandom).slice(0, 4)
   if (cur?.src === 'sc' && !seeds.some((t) => t.id === cur.id)) seeds.unshift(cur)
   let top = Object.entries(profile.artists).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([a]) => a)
   if (!top.length) { // новичок: берём артистов из «Моей музыки»
@@ -139,9 +141,9 @@ async function scCandidates(profile: WaveProfile, tune: WaveTune): Promise<{ can
   }
   const qs = tuneQueries(tune, [])
   const [rel, byArtist, byTune] = await Promise.all([
-    Promise.allSettled(seeds.map((t) => window.api.invoke<Track[]>('sc:related', t))),
-    Promise.allSettled((top.length ? top : FALLBACK_SC.sort(() => cryptoRandom() - 0.5).slice(0, 3)).map((a) => window.api.invoke<Track[]>('sc:search', a))),
-    Promise.allSettled(qs.map((x) => window.api.invoke<Track[]>('sc:search', x.q)))
+    Promise.allSettled(seeds.map((t) => window.api.invoke('sc:related', t))),
+    Promise.allSettled((top.length ? top : fisherYates(FALLBACK_SC, cryptoRandom).slice(0, 3)).map((a) => window.api.invoke('sc:search', a))),
+    Promise.allSettled(qs.map((x) => window.api.invoke('sc:search', x.q)))
   ])
   const ok = (r: PromiseSettledResult<Track[]>[]) => r.flatMap((x) => (x.status === 'fulfilled' ? x.value : []))
   const tuned = ok(byTune)
@@ -153,7 +155,7 @@ async function scBatch(mode: WaveMode, profile: WaveProfile, size = 20, tune: Wa
   const queued = new Set(player.getState().queue?.list().map((t) => t.id) ?? [])
   const now = Date.now()
   const artists = artistLangMap(cands)
-  const pool = applyTune(cands.filter((t) => !queued.has(t.id) && t.duration < 15 * 60), tune, extra, now, size, artists)
+  const pool = applyTune(cands.filter((t) => !queued.has(t.id) && t.duration < 15 * 60), tune, now, size, artists)
   const source = new Map(cands.map((t) => [t.id, extra.has(t.id) ? 1 : 2]))
   return pickBatch({ candidates: pool, mine: new Set(likes.map((t) => t.id)), mode, profile, recent: recent(), now, rnd: cryptoRandom, size, boost: (t) => tuneBoost(t, tune, { now, moodHits: extra, source }) })
 }
@@ -182,14 +184,14 @@ async function batch(mode: WaveMode, profile: WaveProfile, size = 20, tune: Wave
   const pool = await vkPool(profile, tune, mode)
   const queued = new Set(player.getState().queue?.list().map((t) => t.id) ?? [])
   const now = Date.now()
-  const cand = applyTune(pool.cands.filter((t) => !queued.has(t.id) && t.duration < 15 * 60), tune, pool.moodHits, now, size, pool.artists)
+  const cand = applyTune(pool.cands.filter((t) => !queued.has(t.id) && t.duration < 15 * 60), tune, now, size, pool.artists)
   return pickBatch({ candidates: cand, mine, mode, profile, recent: recent(), now, rnd: cryptoRandom, size, boost: (t) => tuneBoost(t, tune, { now, moodHits: pool.moodHits, source: pool.source }) })
 }
 
 export const useWave = create<Wave>((set, get) => ({
-  mode: modeFor(readTune()),
-  tune: readTune(),
-  setTune(t) { localStorage.setItem('waveTune', JSON.stringify(t)); set({ tune: t, mode: modeFor(t) }) },
+  mode: modeFor(startTune),
+  tune: startTune,
+  setTune(t) { writeJson('waveTune', t); set({ tune: t, mode: modeFor(t) }) },
   profile: emptyProfile(),
   loading: false,
   loadingKind: null,
@@ -199,20 +201,21 @@ export const useWave = create<Wave>((set, get) => ({
     try {
       const b = await batchFor(kind)
       if (!b.length) {
-        const st = await window.api.invoke<{ ok: boolean; message?: string }>('sc:status').catch(() => ({ ok: true } as { ok: boolean; message?: string }))
+        const st = await window.api.invoke('sc:status').catch(() => ({ ok: true } as { ok: boolean; message?: string }))
         throw new Error(!st.ok && st.message ? st.message : kind === 'sc' ? 'SoundCloud сейчас ничего не отдал. Попробуй ещё раз чуть позже' : 'Не получилось собрать Волну')
       }
       await player.getState().playList(b, b[0].id, `wave:${kind}`)
     } finally { set({ loadingKind: null }) }
   },
-  setMode(m) { localStorage.setItem('waveMode', m); set({ mode: m }) },
-  async load() { try { set({ profile: (await window.api.invoke<WaveProfile | null>('wave:get')) ?? emptyProfile() }) } catch { /* пустой профиль */ } },
+  setMode(m) { set({ mode: m }) },
+  async load() { try { set({ profile: (await window.api.invoke('wave:get')) ?? emptyProfile() }) } catch { /* пустой профиль */ } },
   async start(mode) {
     const m = mode ?? get().mode
     set({ loading: true, loadingKind: 'vk' })
     try {
       const b = await batch(m, get().profile)
-      if (b.length) await player.getState().playList(b, b[0].id, `wave:${m}`)
+      if (!b.length) throw new Error('Не получилось собрать Волну. Попробуй ещё раз чуть позже')
+      await player.getState().playList(b, b[0].id, `wave:${m}`)
     } finally { set({ loading: false, loadingKind: null }) }
   },
   react(t, r) {

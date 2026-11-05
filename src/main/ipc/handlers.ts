@@ -1,5 +1,5 @@
 import { ipcMain, BrowserWindow } from 'electron'
-import type { Channel } from '../../shared/ipc'
+import type { Channel, IpcArgs, IpcResult } from '../../shared/ipc'
 import type { AudioApi } from '../vk/audio'
 import type { Session, Playlist, Track } from '../../shared/types'
 
@@ -17,10 +17,10 @@ function friendly(e: unknown): Error {
   return new Error(msg || 'Что-то пошло не так')
 }
 
-export function handle(ch: Channel, fn: (...a: any[]) => unknown) {
+export function handle<C extends Channel>(ch: C, fn: (...a: IpcArgs<C>) => IpcResult<C> | Promise<IpcResult<C>>) {
   ipcMain.removeHandler(ch)
   ipcMain.handle(ch, async (_e, ...args) => {
-    try { return await fn(...args) } catch (e) { throw friendly(e) }
+    try { return await fn(...(args as IpcArgs<C>)) } catch (e) { throw friendly(e) }
   })
 }
 
@@ -49,5 +49,5 @@ export function registerCore(c: Ctx) {
 
   handle('win:min', () => c.win()?.minimize())
   handle('win:close', () => c.win()?.close())
-  handle('win:max', () => { const w = c.win(); if (w) w.isMaximized() ? w.unmaximize() : w.maximize() })
+  handle('win:max', () => { const w = c.win(); if (!w) return; if (w.isMaximized()) w.unmaximize(); else w.maximize() })
 }

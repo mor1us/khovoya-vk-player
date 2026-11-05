@@ -12,7 +12,7 @@ export function useSelection(list: Track[]) {
         const [lo, hi] = a < b ? [a, b] : [b, a]
         return new Set(list.slice(lo, hi + 1).map((x) => x.id))
       }
-      if (e.ctrlKey) { const n = new Set(prev); n.has(t.id) ? n.delete(t.id) : n.add(t.id); return n }
+      if (e.ctrlKey) { const n = new Set(prev); if (n.has(t.id)) n.delete(t.id); else n.add(t.id); return n }
       return new Set([t.id])
     })
     if (!e.shiftKey) setAnchor(t.id)

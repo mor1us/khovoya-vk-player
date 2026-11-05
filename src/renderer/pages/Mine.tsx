@@ -25,9 +25,11 @@ export function Mine() {
   async function reorder(id: string, to: number) {
     const mv = moveItem(mine.map((t) => t.id), id, to)
     const map = new Map(mine.map((t) => [t.id, t]))
+    const track = map.get(id)
+    if (!track) return
     const prev = mine
     useLibrary.getState().setMine(mv.list.map((x) => map.get(x)!))
-    try { await window.api.invoke('pl:reorder', map.get(id), mv.before, mv.after) }
+    try { await window.api.invoke('pl:reorder', track, mv.before, mv.after) }
     catch { useLibrary.getState().setMine(prev); useUi.getState().toast('ВК не дал поменять порядок') }
   }
   return (

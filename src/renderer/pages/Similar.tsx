@@ -25,7 +25,7 @@ export function Similar() {
     let alive = true
     const target = cur
     setList(null)
-    const req = target?.src === 'sc' ? window.api.invoke<Track[]>('sc:related', target) : window.api.invoke<Track[]>('vk:recommendations', target?.id, 60)
+    const req = target?.src === 'sc' ? window.api.invoke('sc:related', target) : window.api.invoke('vk:recommendations', target?.id, 60)
     req
       .then((r) => {
         if (!alive) return

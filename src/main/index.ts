@@ -1,6 +1,6 @@
 import { app, BrowserWindow, shell, session, dialog, net } from 'electron'
 import { createDownloads, registerMediaScheme, MEDIA_SCHEME } from './downloads/runtime'
-import type { Track, Settings } from '../shared/types'
+import type { LocalPl, Settings, Track, WaveProfile } from '../shared/types'
 import { settings } from './system/settings'
 import { setupTray, attachWindow } from './system/tray'
 import { setupUpdater, updates } from './system/updater'
@@ -112,12 +112,14 @@ async function setup() {
     return r.tracks.slice(0, 8).map((t) => ({ ...t, title: t.title + ' (SC edit)', id: 'sc_' + t.vkId, ownerId: 0, src: 'sc' as const, scStream: t.url, url: '' }))
   }
   const scStream = (t: Track) => (MOCK ? Promise.resolve(t.scStream ?? '') : sc.streamUrl(t))
+  /** Ошибку SoundCloud — в журнал, кроме «недоступен» (она уже записана один раз в минуту). */
+  const scLog = (what: string) => (e: unknown) => { if (!(e instanceof ScUnavailable)) log(`soundcloud: ${what} — ${(e as Error)?.message ?? e}`); throw e }
   handle('sc:search', (q: string) => scSearch(q).catch(scLog('поиск')))
   handle('sc:related', (t: Track) => (MOCK ? scSearch(t.artist) : sc.related(t)))
   handle('sc:resolve', async (url: string) => {
     if (!MOCK) return sc.resolve(url).catch(scLog('ссылка'))
     const tracks = await scSearch('Неон')
-    return { kind: 'playlist', title: 'Тестовый плейлист SoundCloud', author: 'mock', tracks }
+    return { kind: 'playlist' as const, title: 'Тестовый плейлист SoundCloud', author: 'mock', tracks }
   })
   handle('sc:suggest', async (q: string) => {
     if (SC_DOWN_TEST) return []
@@ -125,8 +127,6 @@ async function setup() {
     const r = await api.search(q)
     return [...new Set(r.tracks.flatMap((t) => [t.artist.toLowerCase(), `${t.artist} ${t.title}`.toLowerCase()]))].slice(0, 6)
   })
-  /** Ошибку SoundCloud — в журнал, кроме «недоступен» (она уже записана один раз в минуту). */
-  const scLog = (what: string) => (e: unknown) => { if (!(e instanceof ScUnavailable)) log(`soundcloud: ${what} — ${(e as Error)?.message ?? e}`); throw e }
   // Аккаунт SoundCloud: вход через окно сайта, дальше — лайки, плейлисты, лента, лайк прямо на SoundCloud
   sc.setAuth(scToken)
   sc.setWriter(scWrite)
@@ -145,7 +145,7 @@ async function setup() {
   handle('scacc:playlists', async () => (MOCK ? (mockScUser ? [{ id: 1, title: 'Ночные поездки', count: 6, mine: true }, { id: 2, title: 'Phonk Drive', count: 8, mine: false }] : []) : sc.playlists()))
   handle('scacc:playlistTracks', async (id: number) => (MOCK ? scSearch(id === 1 ? 'Кислота' : 'Неон') : sc.playlistTracks(id)))
   handle('scacc:feed', async () => (MOCK ? (mockScUser ? scSearch('Пустой') : []) : sc.feed()))
-  handle('scacc:like', async (t: Track, on: boolean) => (MOCK ? null : sc.setLike(t, on).catch(scLog('лайк'))))
+  handle('scacc:like', async (t: Track, on: boolean) => { if (!MOCK) await sc.setLike(t, on).catch(scLog('лайк')) })
   // Ошибки окна (интерфейса) — тоже в журнал, не чаще 30 в минуту
   let uiErrs = 0, uiErrsAt = 0
   handle('app:log', (msg: string) => {
@@ -168,12 +168,12 @@ async function setup() {
     : sc.comments(t).catch(() => [])))
   handle('sc:stream', (t: Track) => scStream(t).catch(scLog('поток')))
   // Лайки SoundCloud и свои плейлисты Хвои (ВК + SoundCloud вперемешку) хранятся на компе.
-  const scLikes = jsonFile<unknown[]>('sc-likes.json', () => [])
+  const scLikes = jsonFile<Track[]>('sc-likes.json', () => [])
   handle('scl:get', () => scLikes.read())
-  handle('scl:set', (v: unknown[]) => scLikes.write(v))
-  const localPl = jsonFile<unknown[]>('khvoya-playlists.json', () => [])
+  handle('scl:set', (v: Track[]) => scLikes.write(v))
+  const localPl = jsonFile<LocalPl[]>('khvoya-playlists.json', () => [])
   handle('lpl:get', () => localPl.read())
-  handle('lpl:set', (v: unknown[]) => localPl.write(v))
+  handle('lpl:set', (v: LocalPl[]) => localPl.write(v))
   let changeTimer: NodeJS.Timeout | null = null
   const dl = createDownloads(() => settings.get().downloadDir, () => {
     if (changeTimer) return
@@ -186,7 +186,6 @@ async function setup() {
   handle('dl:openFolder', (id?: string) => { const p = id ? dl.localPath(id) : null; if (p) shell.showItemInFolder(p); else void shell.openPath(settings.get().downloadDir) })
   handle('settings:get', () => settings.get())
   handle('settings:set', (patch: Partial<Settings>) => settings.set(patch))
-  handle('win:close', () => win?.close())
   handle('settings:pickDir', async () => {
     if (!win) return null
     const r = await dialog.showOpenDialog(win, { title: 'Папка для скачанной музыки', defaultPath: settings.get().downloadDir, properties: ['openDirectory', 'createDirectory'] })
@@ -221,9 +220,9 @@ async function setup() {
   settings.onChange(applyDiscord)
   handle('discord:update', (u: DiscordUpdate) => { lastU = { u, at: Date.now() }; if (settings.get().discordEnabled) discord.update(activityNow()) })
   app.on('before-quit', () => discord.stop())
-  const wave = jsonFile<unknown>('wave-profile.json', () => null)
+  const wave = jsonFile<WaveProfile | null>('wave-profile.json', () => null)
   handle('wave:get', () => wave.read())
-  handle('wave:set', (p: unknown) => wave.write(p))
+  handle('wave:set', (p: WaveProfile) => wave.write(p))
 }
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')

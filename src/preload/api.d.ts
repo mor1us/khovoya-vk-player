@@ -1,9 +1,12 @@
-import type { Channel, EventName } from '../shared/ipc'
+import type { Channel, EventMap, EventName, IpcArgs, IpcResult } from '../shared/ipc'
+
 declare global {
   interface Window {
     api: {
-      invoke<T = unknown>(channel: Channel, ...args: unknown[]): Promise<T>
-      on(event: EventName, cb: (payload: any) => void): () => void
+      /** Аргументы и тип результата берутся из `IpcMap` — писать их руками больше не нужно. */
+      invoke<C extends Channel>(channel: C, ...args: IpcArgs<C>): Promise<IpcResult<C>>
+      /** Возвращает отписку. */
+      on<E extends EventName>(event: E, cb: (payload: EventMap[E]) => void): () => void
     }
   }
 }

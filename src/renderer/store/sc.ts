@@ -1,8 +1,7 @@
 import { create } from 'zustand'
-import type { Playlist, Track } from '../../shared/types'
+import type { Playlist, ScMe, ScPlaylistRef, Track } from '../../shared/types'
 
-export type ScMe = { id: number; name: string; avatar?: string }
-export type ScPlaylistRef = { id: number; title: string; count: number; cover?: string; link?: string; mine: boolean; author?: string }
+export type { ScMe, ScPlaylistRef }
 
 /**
  * SoundCloud в Хвое: лайки (на компе + из аккаунта, если вошёл), плейлисты и лента аккаунта.
@@ -34,19 +33,19 @@ export const useSc = create<Sc>((set, get) => ({
   likes: [], accLikes: [], me: null, accPlaylists: [], feed: null, loaded: false, accError: '',
   async load() {
     if (get().loaded) return get().allLikes()
-    try { const likes = ((await window.api.invoke<Track[]>('scl:get')) ?? []).filter((t) => t?.src === 'sc'); set({ likes, loaded: true }) } catch { set({ loaded: true }) }
+    try { const likes = ((await window.api.invoke('scl:get')) ?? []).filter((t) => t?.src === 'sc'); set({ likes, loaded: true }) } catch { set({ loaded: true }) }
     void get().loadAccount()
     return get().allLikes()
   },
   async loadAccount(force) {
     try {
-      const me = await window.api.invoke<ScMe | null>('scacc:me')
+      const me = await window.api.invoke('scacc:me')
       set({ me, accError: '' })
       if (!me) { set({ accLikes: [], accPlaylists: [], feed: null }); return }
       if (!force && get().accLikes.length) return
       const [likes, pls] = await Promise.all([
-        window.api.invoke<Track[]>('scacc:likes').catch((e) => { set({ accError: (e as Error).message }); return [] as Track[] }),
-        window.api.invoke<ScPlaylistRef[]>('scacc:playlists').catch(() => [] as ScPlaylistRef[])
+        window.api.invoke('scacc:likes').catch((e) => { set({ accError: (e as Error).message }); return [] as Track[] }),
+        window.api.invoke('scacc:playlists').catch(() => [] as ScPlaylistRef[])
       ])
       set({ accLikes: likes, accPlaylists: pls.map(asPlaylist) })
     } catch (e) { set({ accError: (e as Error).message }) }
@@ -54,10 +53,10 @@ export const useSc = create<Sc>((set, get) => ({
   async loadFeed() {
     if (!get().me) return
     set({ feed: null })
-    try { set({ feed: await window.api.invoke<Track[]>('scacc:feed') }) } catch (e) { set({ feed: [], accError: (e as Error).message }) }
+    try { set({ feed: await window.api.invoke('scacc:feed') }) } catch (e) { set({ feed: [], accError: (e as Error).message }) }
   },
   async login() {
-    const me = await window.api.invoke<ScMe | null>('scacc:login')
+    const me = await window.api.invoke('scacc:login')
     set({ me })
     await get().loadAccount(true)
   },

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Track } from '../../shared/types'
+import type { ScStatus, Track } from '../../shared/types'
 import { useSc } from '../store/sc'
 import { useLibrary } from '../store/library'
 import { useUi } from '../store/ui'
@@ -15,7 +15,7 @@ import * as I from '../ui/icons'
 import { SrcBadge } from '../ui/TrackRow'
 
 type Part = 'likes' | 'playlists' | 'feed'
-type Status = { ok: boolean; message?: string; hasKey: boolean }
+type Status = ScStatus
 
 /** Вход в аккаунт SoundCloud: кнопка или аватар с именем. */
 function Account() {
@@ -50,7 +50,7 @@ export function SoundCloud() {
   const [part, setPart] = useState<Part>('likes')
   const [q, setQ] = useState('')
   const [st, setSt] = useState<Status | null>(null)
-  const check = () => { setSt(null); window.api.invoke<Status>('sc:prepare').then(setSt).catch(() => {}) }
+  const check = () => { setSt(null); window.api.invoke('sc:prepare').then(setSt).catch(() => {}) }
   useEffect(() => {
     void useSc.getState().load()
     check() // берём/обновляем ключ, если сайт открывается, и проверяем связь

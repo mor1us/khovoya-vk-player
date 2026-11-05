@@ -22,10 +22,10 @@ function UpdatesRow() {
 
 export function Settings({ onLogout }: { onLogout: () => void }) {
   const [s, setS] = useState<S | null>(null)
-  useEffect(() => { window.api.invoke<S>('settings:get').then(setS).catch(() => {}) }, [])
+  useEffect(() => { window.api.invoke('settings:get').then(setS).catch(() => {}) }, [])
   if (!s) return <div className="page" />
   const save = async (patch: Partial<S>) => {
-    try { const n = await window.api.invoke<S>('settings:set', patch); setS(n); applySettings(n) } catch (e) { useUi.getState().toast((e as Error).message) }
+    try { const n = await window.api.invoke('settings:set', patch); setS(n); applySettings(n) } catch (e) { useUi.getState().toast((e as Error).message) }
   }
   return (
     <div className="page">
@@ -34,7 +34,7 @@ export function Settings({ onLogout }: { onLogout: () => void }) {
         <div className="item"><div className="l"><b>Кроссфейд</b><span>Плавный переход между треками. 0 — выключен.</span></div>
           <div className="range"><input type="range" min={0} max={12} step={1} value={s.crossfadeSec} onChange={(e) => void save({ crossfadeSec: +e.target.value })} /><b>{s.crossfadeSec} с</b></div></div>
         <div className="item"><div className="l"><b>Папка для скачанной музыки</b><span>{s.downloadDir}</span></div>
-          <button className="btn-s" onClick={async () => { const d = await window.api.invoke<string | null>('settings:pickDir'); if (d) await save({ downloadDir: d }) }}>Выбрать</button></div>
+          <button className="btn-s" onClick={async () => { const d = await window.api.invoke('settings:pickDir'); if (d) await save({ downloadDir: d }) }}>Выбрать</button></div>
         <div className="item"><div className="l"><b>Крестик сворачивает в трей</b><span>Музыка продолжит играть, управлять можно медиаклавишами. Выйти — через значок в трее.</span></div>
           <Toggle on={s.closeToTray} onChange={(v) => void save({ closeToTray: v })} /></div>
         <div className="item"><div className="l"><b>Анимации</b><span>Движущиеся линии Волны и плавные переходы. В свёрнутом окне они всегда выключены.</span></div>

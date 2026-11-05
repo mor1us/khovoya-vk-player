@@ -80,7 +80,7 @@ function useLines(ref: React.RefObject<HTMLCanvasElement>, live: boolean, colors
       for (let k = 0; k < 5; k++) {
         x.strokeStyle = colors[k % colors.length]
         x.beginPath(); x.lineWidth = 2 + k * 0.5
-        for (let i = 0; i <= w; i += 8) { const y = h * 0.62 + Math.sin(i / (120 + k * 26) + t / 1500 + k) * (16 + k * 7) + Math.sin(i / 50 + t / 900) * 3 - k * 10; i ? x.lineTo(i, y) : x.moveTo(i, y) }
+        for (let i = 0; i <= w; i += 8) { const y = h * 0.62 + Math.sin(i / (120 + k * 26) + t / 1500 + k) * (16 + k * 7) + Math.sin(i / 50 + t / 900) * 3 - k * 10; if (i) x.lineTo(i, y); else x.moveTo(i, y) }
         x.stroke()
       }
       if (live) raf = requestAnimationFrame(draw)

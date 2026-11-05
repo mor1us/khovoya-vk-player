@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Track } from '../../shared/types'
+import type { ScArtist, Track } from '../../shared/types'
 
 export type Suggest =
   | { kind: 'search'; q: string }
@@ -8,7 +8,7 @@ export type Suggest =
   | { kind: 'query'; q: string; fromHistory: boolean }
 
 /** Что показать под строкой поиска, пока печатаешь: артисты, треки, варианты запроса. */
-export type ScArtist = { name: string; avatar?: string; followers: number }
+export type { ScArtist }
 
 export function buildSuggest(q: string, vk: Track[], sc: string[], history: string[], scArtists: ScArtist[] = []): Suggest[] {
   const low = q.trim().toLowerCase()
@@ -42,10 +42,10 @@ export function useSuggest(q: string, open: boolean): Suggest[] {
       const hist = JSON.parse(localStorage.getItem('searchHistory') ?? '[]') as string[]
       // ВК показываем сразу, SoundCloud догружаем — без VPN в России он может не ответить
       const scP = Promise.all([
-        window.api.invoke<string[]>('sc:suggest', text).catch(() => [] as string[]),
-        window.api.invoke<ScArtist[]>('sc:users', text).catch(() => [] as ScArtist[])
+        window.api.invoke('sc:suggest', text).catch(() => [] as string[]),
+        window.api.invoke('sc:users', text).catch(() => [] as ScArtist[])
       ])
-      const vk = await window.api.invoke<{ tracks: Track[] }>('vk:search', text).then((r) => r.tracks).catch(() => [] as Track[])
+      const vk = await window.api.invoke('vk:search', text).then((r) => r.tracks).catch(() => [] as Track[])
       if (!alive) return
       setItems(buildSuggest(text, vk, [], hist, []))
       const [sc, users] = await scP

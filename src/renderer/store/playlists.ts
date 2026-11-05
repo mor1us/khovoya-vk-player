@@ -20,7 +20,7 @@ export async function loadPlaylistTracks(p: Playlist, force = false): Promise<Tr
   const s = usePlTracks.getState()
   if (p.sc) {
     if (s.byId[p.id] && !force) return s.byId[p.id]
-    const t = await window.api.invoke<Track[]>('scacc:playlistTracks', p.id)
+    const t = await window.api.invoke('scacc:playlistTracks', p.id)
     usePlTracks.setState((x) => ({ byId: { ...x.byId, [p.id]: t } }))
     return t
   }
@@ -28,7 +28,7 @@ export async function loadPlaylistTracks(p: Playlist, force = false): Promise<Tr
   if (s.byId[p.id] && !force) return s.byId[p.id]
   usePlTracks.setState({ loading: { ...s.loading, [p.id]: true } })
   try {
-    const tracks = await window.api.invoke<Track[]>('vk:playlistTracks', p)
+    const tracks = await window.api.invoke('vk:playlistTracks', p)
     usePlTracks.setState((x) => ({ byId: { ...x.byId, [p.id]: tracks } }))
     return tracks
   } finally { usePlTracks.setState((x) => ({ loading: { ...x.loading, [p.id]: false } })) }
@@ -105,7 +105,7 @@ export async function createPlaylistWith(title: string, tracks: Track[], local =
     return p
   }
   try {
-    const p = await window.api.invoke<Playlist>('pl:create', title)
+    const p = await window.api.invoke('pl:create', title)
     useLibrary.getState().setPlaylists([p, ...useLibrary.getState().playlists])
     setTracks(p.id, [])
     if (tracks.length) await addToPlaylist(p, tracks)

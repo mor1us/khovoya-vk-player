@@ -14,7 +14,7 @@ export const useDownloads = create<Dl>((set) => ({
   jobs: [], done: new Set(),
   async refresh() {
     try {
-      const jobs = await window.api.invoke<DownloadJob[]>('dl:list')
+      const jobs = await window.api.invoke('dl:list')
       set({ jobs, done: new Set(jobs.filter((j) => j.status === 'done').map((j) => j.id)) })
     } catch { /* загрузок пока нет */ }
   },

@@ -22,18 +22,18 @@ export const useLibrary = create<Lib>((set, get) => ({
   forYou: null,
   async loadForYou(force) {
     if (get().forYou && !force) return
-    try { set({ forYou: await window.api.invoke<ForYou[]>('vk:forYou') }) } catch { set({ forYou: [] }) }
+    try { set({ forYou: await window.api.invoke('vk:forYou') }) } catch { set({ forYou: [] }) }
   },
   mine: [], mineLoaded: false, playlists: [], error: null,
   async loadMine(force) {
     if (get().mineLoaded && !force) return get().mine
-    try { const mine = await window.api.invoke<Track[]>('vk:myTracks'); set({ mine, mineLoaded: true, error: null }); return mine }
+    try { const mine = await window.api.invoke('vk:myTracks'); set({ mine, mineLoaded: true, error: null }); return mine }
     catch (e) { set({ error: (e as Error).message }); return get().mine }
   },
   async loadPlaylists(force) {
     if (get().playlists.length && !force) return get().playlists
     await loadLocal()
-    try { const p = [...localPlaylists(), ...(await window.api.invoke<Playlist[]>('vk:playlists'))]; set({ playlists: p }); return p }
+    try { const p = [...localPlaylists(), ...(await window.api.invoke('vk:playlists'))]; set({ playlists: p }); return p }
     catch (e) { set({ error: (e as Error).message, playlists: [...localPlaylists(), ...get().playlists.filter((x) => !x.local)] }); return get().playlists }
   },
   isMine(id) { return get().mine.some((t) => t.id === id) },

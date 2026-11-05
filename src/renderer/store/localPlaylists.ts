@@ -1,7 +1,7 @@
-import type { Playlist, Track } from '../../shared/types'
+import type { LocalPl, Playlist, Track } from '../../shared/types'
 
 /** Плейлисты Хвои: на компе, без ограничений ВК — можно смешивать треки ВК и SoundCloud. */
-export type LocalPl = { id: number; title: string; tracks: Track[]; updatedAt: number }
+export type { LocalPl }
 
 let list: LocalPl[] = []
 let loaded = false
@@ -11,7 +11,7 @@ const save = () => window.api.invoke('lpl:set', list).catch(() => {})
 
 export async function loadLocal(): Promise<LocalPl[]> {
   if (loaded) return list
-  try { list = ((await window.api.invoke<LocalPl[]>('lpl:get')) ?? []).filter((x) => x && typeof x.id === 'number') } catch { list = [] }
+  try { list = ((await window.api.invoke('lpl:get')) ?? []).filter((x) => x && typeof x.id === 'number') } catch { list = [] }
   loaded = true
   return list
 }

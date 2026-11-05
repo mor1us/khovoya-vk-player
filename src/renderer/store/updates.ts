@@ -7,6 +7,6 @@ let bound = false
 export function bindUpdates() {
   if (bound) return
   bound = true
-  window.api.invoke<UpdateState>('upd:state').then((s) => useUpdates.setState({ s })).catch(() => {})
+  window.api.invoke('upd:state').then((s) => useUpdates.setState({ s })).catch(() => {})
   window.api.on('upd:changed', (s: UpdateState) => useUpdates.setState({ s, hidden: s.status === 'ready' || s.status === 'available' ? false : useUpdates.getState().hidden }))
 }

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import type { Session, Settings } from '../shared/types'
 import { useUi } from './store/ui'
 import { useLibrary } from './store/library'
 import { useWave, bindWave } from './store/wave'
@@ -38,7 +37,7 @@ function boot() {
     useUi.setState({ background: s.background })
     document.documentElement.classList.toggle('paused-ui', s.background)
   })
-  window.api.invoke<Settings>('settings:get').then(applySettings).catch(() => {})
+  window.api.invoke('settings:get').then(applySettings).catch(() => {})
   window.api.on('tray:cmd', (c: string) => { if (c === 'toggle') void player.getState().toggle(); if (c === 'next') void player.getState().next() })
 }
 
@@ -93,7 +92,7 @@ export function App() {
 
   useEffect(() => {
     boot()
-    window.api.invoke<Session>('auth:session').then((s) => useUi.getState().setSession(s)).catch(() => useUi.getState().setSession({ loggedIn: false })).finally(() => setChecking(false))
+    window.api.invoke('auth:session').then((s) => useUi.getState().setSession(s)).catch(() => useUi.getState().setSession({ loggedIn: false })).finally(() => setChecking(false))
     return window.api.on('auth:lost', () => { useUi.getState().setSession({ loggedIn: false }); useUi.getState().toast('Сессия ВК закончилась, войди снова') })
   }, [])
 

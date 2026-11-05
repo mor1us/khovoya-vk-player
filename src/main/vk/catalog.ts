@@ -1,7 +1,7 @@
-import type { Playlist } from '../../shared/types'
-import { mapPlaylist } from './models'
+import type { ForYouBlock } from '../../shared/types'
 
-export type ForYouBlock = { title: string; big: boolean; playlists: Playlist[] }
+export type { ForYouBlock }
+import { mapPlaylist } from './models'
 
 /** Каталог музыки ВК (catalog.getAudio): берём блоки с плейлистами — «Собрано алгоритмами», плейлисты дня и т.п. */
 export function parseCatalog(resp: any, myId: number): ForYouBlock[] {
