@@ -14,9 +14,10 @@ import { MockAudioApi } from './vk/mock'
 import { startMockMedia } from './vk/mockServer'
 import { fetchWebToken, loginWindow, logoutVk, userInfo, log } from './auth/webSession'
 import { TokenKeeper } from './auth/webToken'
-import { fetchImageDataUrl } from './auth/captcha'
+import { CaptchaGate, fetchImageDataUrl } from './auth/captcha'
 import type { LoginStep } from '../shared/types'
 import { registerCore, handle } from './ipc/handlers'
+import { bootSafely } from './system/boot'
 import { jsonFile } from './system/jsonFile'
 import { SoundCloud, SC_DOWN, SC_NEED_KEY, ScUnavailable, type Fetch } from './sc/soundcloud'
 import { scLoginWindow, scLogout, scToken, scWrite } from './sc/scAuth'
@@ -27,6 +28,8 @@ let win: BrowserWindow | null = null
 let api: AudioApi
 let keeper: TokenKeeper
 let mockLoggedIn = process.env.VK_MOCK_LOGIN !== '1'
+/** Ожидание ответа на капчу ВК — одно на всё приложение. */
+const captcha = new CaptchaGate()
 
 function createWindow(): BrowserWindow {
   const w = new BrowserWindow({
@@ -68,18 +71,15 @@ async function setup() {
   if (MOCK) {
     api = new MockAudioApi(await startMockMedia(join(app.getAppPath(), 'dev/fixtures')))
   } else {
-    // Капча посреди работы: просим окно показать картинку и ждём ответ (пока — пропуск, ответ придёт в Task 10).
     const client = new VkClient({
       token: async () => (await keeper.get())?.token ?? null,
       onTokenRejected: () => keeper.invalidate(),
       onAuthLost: () => { keeper.clear(); win?.webContents.send('auth:lost') },
+      // Капча посреди работы: окно показывает картинку, ответ приходит каналом 'vk:captchaAnswer'
       onCaptcha: async (sid, img) => {
         const imageDataUrl = await fetchImageDataUrl(fetch, img).catch(() => '')
-        if (!win || !imageDataUrl) return ''
-        return new Promise<string>((resolve) => {
-          handle('vk:captchaAnswer', (key: string) => { resolve(String(key ?? '')) })
-          win!.webContents.send('vk:captcha', { sid, imageDataUrl })
-        })
+        if (!win || !imageDataUrl) { log('капча: не удалось показать картинку'); return '' }
+        return captcha.ask(() => win!.webContents.send('vk:captcha', { sid, imageDataUrl }))
       }
     })
     api = new VkAudioApi(client, () => keeper.userId(), log)
@@ -184,6 +184,7 @@ async function setup() {
   handle('dl:cancel', (id: string) => dl.cancel(id))
   handle('dl:localPath', (id: string) => (dl.localPath(id) ? `${MEDIA_SCHEME}://local/${encodeURIComponent(id)}` : null))
   handle('dl:openFolder', (id?: string) => { const p = id ? dl.localPath(id) : null; if (p) shell.showItemInFolder(p); else void shell.openPath(settings.get().downloadDir) })
+  handle('vk:captchaAnswer', (key: string) => captcha.answer(key))
   handle('settings:get', () => settings.get())
   handle('settings:set', (patch: Partial<Settings>) => settings.set(patch))
   handle('settings:pickDir', async () => {
@@ -232,7 +233,16 @@ if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.on('second-instance', () => { if (!win) return; if (win.isMinimized()) win.restore(); win.show(); win.focus() })
-  app.whenReady().then(async () => { await setup(); win = createWindow(); attachWindow(win); setupTray(() => win); setupUpdater(() => win, log) })
+  app.whenReady().then(async () => {
+    // Даже если подготовка упала, окно должно открыться: иначе Хвоя висит в процессах молча
+    await bootSafely(setup, (e) => {
+      log(`подготовка не удалась: ${(e as Error)?.message ?? e}`)
+      dialog.showErrorBox('Хвоя', 'Не получилось подготовить Хвою — часть возможностей может не работать. Подробности в журнале: %APPDATA%/Хвоя/khvoya.log')
+    })
+    win = createWindow()
+    win.on('closed', () => captcha.cancel()) // окна нет — ответа на капчу не будет
+    attachWindow(win); setupTray(() => win); setupUpdater(() => win, log)
+  })
   app.on('window-all-closed', () => app.quit())
   app.on('activate', () => win?.show())
 }

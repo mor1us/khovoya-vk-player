@@ -66,6 +66,21 @@ describe('TokenKeeper', () => {
     await k.get(); fail = true; now = 10 * 60_000
     expect((await k.get())!.token).toBe('T1')
   })
+  it('сеть упала — не стучимся за ключом на каждый запрос', async () => {
+    let now = 0
+    const f = vi.fn(async () => { if (now > 0) throw new Error('net'); return tok(1) })
+    const k = new TokenKeeper(f, () => now)
+    await k.get()
+    now = 10 * 60_000
+    await k.get() // ключ просрочен, сеть не отвечает — живём со старым
+    expect(f).toHaveBeenCalledTimes(2)
+    await k.get(); await k.get() // пока пауза, новых попыток нет
+    expect(f).toHaveBeenCalledTimes(2)
+    now += 31_000 // пауза кончилась
+    await k.get()
+    expect(f).toHaveBeenCalledTimes(3)
+  })
+
   it('userId exposed after get', async () => {
     const k = new TokenKeeper(async () => ({ token: 'x', userId: 99, expires: 0 }), () => 0)
     await k.get(); expect(k.userId()).toBe(99)

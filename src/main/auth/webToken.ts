@@ -2,6 +2,8 @@
 export const WEB_TOKEN_APP_ID = 6287487
 export const WEB_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0'
 const REFRESH_MS = 5 * 60_000
+/** Сеть молчит — не ходим за ключом на каждый запрос, а ждём полминуты. */
+const NET_RETRY_MS = 30_000
 
 export class SessionLostError extends Error { constructor() { super('Сессия ВК закончилась, войди снова') } }
 export type WebToken = { token: string; userId: number; expires: number }
@@ -25,22 +27,26 @@ export function parseWebToken(json: any): WebToken {
 export class TokenKeeper {
   private cur: WebToken | null = null
   private at = 0
+  /** Когда последняя попытка сорвалась; -Infinity — не срывалась. */
+  private failedAt = -Infinity
   private pending: Promise<WebToken | null> | null = null
 
   constructor(private fetchToken: () => Promise<WebToken>, private now: () => number = Date.now, private onLost: () => void = () => {}) {}
 
-  invalidate() { this.at = -Infinity }
-  set(t: WebToken) { this.cur = t; this.at = this.now() }
-  clear() { this.cur = null; this.at = 0 }
+  invalidate() { this.at = -Infinity; this.failedAt = -Infinity }
+  set(t: WebToken) { this.cur = t; this.at = this.now(); this.failedAt = -Infinity }
+  clear() { this.cur = null; this.at = 0; this.failedAt = -Infinity }
   userId(): number { return this.cur?.userId ?? 0 }
 
   async get(): Promise<WebToken | null> {
     if (this.cur && this.now() - this.at < REFRESH_MS) return this.cur
+    if (this.now() - this.failedAt < NET_RETRY_MS) return this.cur // недавно не вышло — передохнём
     if (this.pending) return this.pending
     this.pending = (async () => {
       try {
-        this.cur = await this.fetchToken(); this.at = this.now(); return this.cur
+        this.cur = await this.fetchToken(); this.at = this.now(); this.failedAt = -Infinity; return this.cur
       } catch (e) {
+        this.failedAt = this.now()
         if (e instanceof SessionLostError) { this.cur = null; this.onLost(); return null }
         return this.cur // сеть упала — живём со старым ключом
       } finally { this.pending = null }
