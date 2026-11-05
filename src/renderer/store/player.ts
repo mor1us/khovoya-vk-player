@@ -3,6 +3,7 @@ import type { Track } from '../../shared/types'
 import { Queue, type Repeat, type QueueJSON } from '../player/queue'
 import { fadePlan, withUrlRefresh } from '../player/crossfade'
 import { parseJson } from './json'
+import { trackKey } from '../../shared/match'
 
 export type EngineLike = {
   load(url: string, startAt?: number): Promise<void>
@@ -63,7 +64,13 @@ export function createPlayer(d: PlayerDeps): StoreApi<PlayerState> {
   let busy = false
 
   const recent = (): string[] => parseJson<string[]>(d.storage.getItem('recent'), [])
-  const pushRecent = (id: string) => d.storage.setItem('recent', JSON.stringify([id, ...recent().filter((x) => x !== id)].slice(0, RECENT_MAX)))
+  const recentKeys = (): string[] => parseJson<string[]>(d.storage.getItem('recentKeys'), [])
+  /** Кроме id храним ключ «артист — название»: Волна должна узнавать ту же песню в другой копии ВК. */
+  const pushRecent = (t: Track) => {
+    d.storage.setItem('recent', JSON.stringify([t.id, ...recent().filter((x) => x !== t.id)].slice(0, RECENT_MAX)))
+    const k = trackKey(t)
+    d.storage.setItem('recentKeys', JSON.stringify([k, ...recentKeys().filter((x) => x !== k)].slice(0, RECENT_MAX)))
+  }
 
   const store = createStore<PlayerState>()((set, get) => {
     /** Запустить трек: manual — 0,3 с, auto — кроссфейд по настройке, first — без перехода. */
@@ -93,7 +100,7 @@ export function createPlayer(d: PlayerDeps): StoreApi<PlayerState> {
       }
       loadedId = target.id
       fadeStartedFor = null
-      pushRecent(target.id)
+      pushRecent(target)
       set({ current: target, playing: true, position: startAt, duration: target.duration, rev: get().rev + 1 })
       if (prev?.id !== target.id || mode !== 'first') d.onTrackChange?.(prev ?? null, target, { listened: prevListened, manual: mode !== 'auto' })
       const q = get().queue

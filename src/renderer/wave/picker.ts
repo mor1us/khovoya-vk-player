@@ -1,15 +1,22 @@
 import type { Track, WaveMode, WaveProfile } from '../../shared/types'
+import { trackKey } from '../../shared/match'
 import { artistKey } from './profile'
 
 const MAX_PER_ARTIST = 2
 const MIN_ARTIST_WEIGHT = -6
+/** Насколько сильно вкус может поднять трек. Вес артиста сжимаем, чтобы пара старых любимцев не затопила пачку. */
+const TASTE_MAX = 6
 
 type Opts = {
   candidates: Track[]
   mine: Set<string>
+  /** Своё по ключу «артист — название»: твой трек узнаётся и в копии у другого владельца. */
+  mineKeys?: string[]
   mode: WaveMode
   profile: WaveProfile
   recent: string[]
+  /** Недавно игравшее, но ключами «артист — название»: та же песня в другой копии ВК тоже недавняя. */
+  recentKeys?: string[]
   now: number
   rnd: () => number
   size?: number
@@ -21,21 +28,31 @@ type Opts = {
 export function pickBatch(o: Opts): Track[] {
   const size = o.size ?? 20
   const banned = new Set(o.profile.banned)
-  const recent = new Set(o.recent.slice(0, 300))
+  const bannedKeys = new Set(o.profile.bannedKeys ?? [])
+  const recent = new Set(o.recent)
+  const recentKeys = new Set(o.recentKeys ?? [])
+  const snoozedKeys = o.profile.snoozedKeys ?? {}
+  const mineKeys = new Set(o.mineKeys ?? [])
+  const isMine = (t: Track) => o.mine.has(t.id) || mineKeys.has(trackKey(t))
   const seen = new Set<string>()
   const ok = o.candidates.filter((t) => {
-    if (seen.has(t.id)) return false
-    seen.add(t.id)
-    if (!t.available || banned.has(t.id) || recent.has(t.id)) return false
-    const until = o.profile.snoozed[t.id]
-    if (until && until > o.now) return false
+    // В ВК один и тот же трек лежит у десятков владельцев: копии считаем одним треком,
+    // иначе он приходит в пачке по два-три раза, а «не нравится» блокирует только одну копию.
+    const k = trackKey(t)
+    if (seen.has(k)) return false
+    seen.add(k)
+    if (!t.available || banned.has(t.id) || bannedKeys.has(k) || recent.has(t.id) || recentKeys.has(k)) return false
+    const until = Math.max(o.profile.snoozed[t.id] ?? 0, snoozedKeys[k] ?? 0)
+    if (until > o.now) return false
     return (o.profile.artists[artistKey(t.artist)] ?? 0) >= MIN_ARTIST_WEIGHT
   })
-  const score = (t: Track) => (o.profile.artists[artistKey(t.artist)] ?? 0) + (o.boost?.(t) ?? 0) + o.rnd() * 4
+  /** Вкус: разница между весом 3 и 15 не должна быть решающей — иначе выдача упирается в одних артистов. */
+  const taste = (t: Track) => TASTE_MAX * Math.tanh((o.profile.artists[artistKey(t.artist)] ?? 0) / TASTE_MAX)
+  const score = (t: Track) => taste(t) + (o.boost?.(t) ?? 0) + o.rnd() * 4
   const rank = (xs: Track[]) => xs.map((t) => ({ t, s: score(t) })).sort((a, b) => b.s - a.s).map((x) => x.t)
 
-  const fresh = rank(ok.filter((t) => !o.mine.has(t.id)))
-  const own = rank(ok.filter((t) => o.mine.has(t.id)))
+  const fresh = rank(ok.filter((t) => !isMine(t)))
+  const own = rank(ok.filter((t) => isMine(t)))
 
   const perArtist = new Map<string, number>()
   const out: Track[] = []

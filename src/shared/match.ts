@@ -8,6 +8,11 @@ export function norm(s: string): string {
     .replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim()
 }
 
+/** Ключ песни без привязки к копии: в ВК одна и та же запись лежит у десятков владельцев. */
+export function trackKey(t: { artist: string; title: string }): string {
+  return `${norm(t.artist)}|${norm(t.title)}`
+}
+
 /** Тот же трек на другом сервисе: совпадает название, артист пересекается, длина отличается не больше чем на 8 с. */
 export function bestMatch(t: Track, cands: Track[]): Track | null {
   const title = norm(t.title), artist = norm(t.artist)

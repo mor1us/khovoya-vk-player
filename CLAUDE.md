@@ -10,7 +10,7 @@ npm install
 node dev/make-fixtures.mjs   # тестовые mp3 для режима без ВК (один раз)
 npm run dev:mock             # запуск с поддельным ВК (VK_MOCK=1) — основной способ проверять правки
 npm run dev                  # запуск с настоящим ВК (нужен вход)
-npm test                     # vitest, 32 файла / 212 тестов — запускать после каждой правки логики
+npm test                     # vitest, 34 файла / 222 теста — запускать после каждой правки логики
 npm run typecheck            # tsc по двум конфигам (node + web)
 npm run lint                 # ESLint: ошибок быть не должно, предупреждения — к сведению
 npm run check                # lint + typecheck + тесты одной командой

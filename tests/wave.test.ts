@@ -96,7 +96,7 @@ describe('reactionFor', () => {
   it('manual skip before 30 s → earlySkip', () => { expect(reactionFor(t, { listened: 12, manual: true })).toBe('earlySkip') })
   it('auto switch → finished', () => { expect(reactionFor(t, { listened: 194, manual: false })).toBe('finished') })
   it('manual near the end → finished', () => { expect(reactionFor(t, { listened: 190, manual: true })).toBe('finished') })
-  it('manual in the middle → nothing', () => { expect(reactionFor(t, { listened: 90, manual: true })).toBeNull() })
+  it('manual in the middle → midSkip', () => { expect(reactionFor(t, { listened: 90, manual: true })).toBe('midSkip') })
 })
 
 describe('«Не нравится» можно вернуть', () => {

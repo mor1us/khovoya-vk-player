@@ -1,12 +1,14 @@
 import { create } from 'zustand'
 import type { Track, WaveMode, WaveProfile } from '../../shared/types'
-import { applyReaction, emptyProfile, reactionFor, seedsFor, undoDislike, type Reaction } from '../wave/profile'
+import { applyReaction, decayArtists, emptyProfile, reactionFor, seedsFor, undoDislike, type Reaction } from '../wave/profile'
 import { pickBatch } from '../wave/picker'
 import { cryptoRandom, fisherYates } from '../player/shuffle'
 import { useLibrary } from './library'
 import { useSc } from './sc'
 import { applyTune, artistLangMap, matchLangs, modeFor, normalizeTune, tuneBoost, tuneQueries, type WaveTune } from '../wave/tune'
 import { player } from './playerInstance'
+import { useUi } from './ui'
+import { trackKey } from '../../shared/match'
 import { readJson, writeJson } from './json'
 
 export type WaveKind = 'vk' | 'sc' | 'both'
@@ -33,6 +35,7 @@ type Wave = {
 }
 
 const recent = (): string[] => readJson<string[]>('recent', [])
+const recentKeys = (): string[] => readJson<string[]>('recentKeys', [])
 const isWave = () => player.getState().source.startsWith('wave:')
 let fetching = false
 
@@ -157,7 +160,7 @@ async function scBatch(mode: WaveMode, profile: WaveProfile, size = 20, tune: Wa
   const artists = artistLangMap(cands)
   const pool = applyTune(cands.filter((t) => !queued.has(t.id) && t.duration < 15 * 60), tune, now, size, artists)
   const source = new Map(cands.map((t) => [t.id, extra.has(t.id) ? 1 : 2]))
-  return pickBatch({ candidates: pool, mine: new Set(likes.map((t) => t.id)), mode, profile, recent: recent(), now, rnd: cryptoRandom, size, boost: (t) => tuneBoost(t, tune, { now, moodHits: extra, source }) })
+  return pickBatch({ candidates: pool, mine: new Set(likes.map((t) => t.id)), mineKeys: likes.map(trackKey), mode, profile, recent: recent(), recentKeys: recentKeys(), now, rnd: cryptoRandom, size, boost: (t) => tuneBoost(t, tune, { now, moodHits: extra, source }) })
 }
 
 /** ВК и SoundCloud через один. */
@@ -180,12 +183,13 @@ async function batchFor(kind: WaveKind, size = 20): Promise<Track[]> {
 export const kindOf = (source: string): WaveKind => (source === 'wave:sc' ? 'sc' : source === 'wave:both' ? 'both' : 'vk')
 
 async function batch(mode: WaveMode, profile: WaveProfile, size = 20, tune: WaveTune = useWave.getState().tune): Promise<Track[]> {
-  const mine = new Set(useLibrary.getState().mine.map((t) => t.id))
+  const mineTracks = useLibrary.getState().mine
+  const mine = new Set(mineTracks.map((t) => t.id))
   const pool = await vkPool(profile, tune, mode)
   const queued = new Set(player.getState().queue?.list().map((t) => t.id) ?? [])
   const now = Date.now()
   const cand = applyTune(pool.cands.filter((t) => !queued.has(t.id) && t.duration < 15 * 60), tune, now, size, pool.artists)
-  return pickBatch({ candidates: cand, mine, mode, profile, recent: recent(), now, rnd: cryptoRandom, size, boost: (t) => tuneBoost(t, tune, { now, moodHits: pool.moodHits, source: pool.source }) })
+  return pickBatch({ candidates: cand, mine, mineKeys: mineTracks.map(trackKey), mode, profile, recent: recent(), recentKeys: recentKeys(), now, rnd: cryptoRandom, size, boost: (t) => tuneBoost(t, tune, { now, moodHits: pool.moodHits, source: pool.source }) })
 }
 
 export const useWave = create<Wave>((set, get) => ({
@@ -208,7 +212,14 @@ export const useWave = create<Wave>((set, get) => ({
     } finally { set({ loadingKind: null }) }
   },
   setMode(m) { set({ mode: m }) },
-  async load() { try { set({ profile: (await window.api.invoke('wave:get')) ?? emptyProfile() }) } catch { /* пустой профиль */ } },
+  async load() {
+    try {
+      // вкус стареет и просто от времени: если месяц не слушал, веса приходят уже ослабшими
+      const p = (await window.api.invoke('wave:get')) ?? emptyProfile()
+      const now = Date.now()
+      set({ profile: { ...p, artists: decayArtists(p.artists ?? {}, p.at ?? 0, now), at: now } })
+    } catch { /* пустой профиль */ }
+  },
   async start(mode) {
     const m = mode ?? get().mode
     set({ loading: true, loadingKind: 'vk' })
@@ -264,7 +275,8 @@ export function bindWave() {
   return {
     onTrackChange(prev: Track | null, _next: Track | null, info: { listened: number; manual: boolean }) {
       if (!prev || !isWave()) return
-      const r = reactionFor(prev, info)
+      // в свёрнутом окне музыка играет сама — это не выбор, вес артисту за это не идёт
+      const r = reactionFor(prev, { ...info, background: useUi.getState().background })
       if (r) useWave.getState().react(prev, r)
     },
     async onQueueLow(remaining: number) {

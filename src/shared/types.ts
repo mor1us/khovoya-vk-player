@@ -79,6 +79,11 @@ export type WaveProfile = {
   reactions: number
   /** Треки с «не нравится» — чтобы можно было посмотреть и вернуть. */
   disliked?: Track[]
+  /** Баны и отдыхающие по ключу «артист — название»: копии трека в ВК считаются одной песней. */
+  bannedKeys?: string[]
+  snoozedKeys?: Record<string, number>
+  /** Когда профиль менялся последний раз: от этого стареют веса артистов. */
+  at?: number
 }
 
 export type DiscordUpdate = { track: Track | null; playing: boolean; position: number }
