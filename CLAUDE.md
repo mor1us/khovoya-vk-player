@@ -33,6 +33,8 @@ npm run dist                 # установщик локально
 - `src/renderer/` — окно. `store/` (zustand), `player/` (движок на двух `<audio>` + Web Audio, очередь,
   кроссфейд, перемешивание), `wave/` (отбор Волны: `picker.ts`, `profile.ts`, `tune.ts`), `pages/`, `ui/`,
   `theme/`.
+- `src/mobile/` — Android-версия (вторая реализация тех же каналов). **Правила для неё — в
+  `src/mobile/CLAUDE.md`**, они дополняют этот файл, а не заменяют его.
 - `docs/superpowers/specs/` — спецификация, `docs/superpowers/plans/` — план работ.
 
 ## Как тут принято
