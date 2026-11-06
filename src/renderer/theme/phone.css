@@ -1,0 +1,102 @@
+/* Телефонная раскладка. Цвета, шрифты и карточки — общие с компьютером, другое только расположение. */
+
+.app.phone{
+  display:grid;
+  grid-template-columns:1fr;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  height:100%;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.app.phone .main{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.app.phone .page{padding:12px 14px 16px}
+
+/* ── верх ───────────────────────────────────────────────── */
+.phead{
+  display:flex;align-items:center;gap:10px;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+  position:relative;flex:none;
+}
+.phead .brand{flex:1;font:800 20px var(--H);letter-spacing:-.5px;display:flex;align-items:center;gap:8px}
+.phead .brand i{width:10px;height:10px;border-radius:50%;background:var(--g)}
+.phead .avatar{width:40px;height:40px;border-radius:50%;flex:none}
+.phead.search{flex-direction:column;align-items:stretch;gap:10px}
+
+.pfield{
+  display:flex;align-items:center;gap:10px;
+  background:var(--p1);border-radius:14px;padding:0 14px;height:48px;color:var(--t2);
+}
+.pfield input{flex:1;background:none;border:0;outline:none;color:var(--text);font:500 16px var(--B);min-width:0}
+.pfield button{width:32px;height:32px;display:grid;place-items:center;border-radius:50%;color:var(--t2)}
+.ptags{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.ptags::-webkit-scrollbar{display:none}
+.ptags .tag{white-space:nowrap}
+
+.pic{width:44px;height:44px;display:grid;place-items:center;border-radius:12px;color:var(--t2);flex:none}
+.pic:active{background:var(--p1)}
+
+.pscrim{position:fixed;inset:0;z-index:40}
+.pmenu{
+  position:absolute;top:calc(100% - 4px);right:14px;z-index:41;min-width:220px;
+  background:var(--p1);border:1px solid var(--ln);border-radius:16px;padding:8px;
+  display:flex;flex-direction:column;
+}
+.pmenu button{text-align:left;padding:14px 12px;border-radius:10px;font:500 16px var(--B);color:var(--text)}
+.pmenu button:active{background:var(--p2)}
+.pmenu .lbl{padding:8px 12px;font:600 12px var(--M);color:var(--t3);text-transform:uppercase;letter-spacing:.5px}
+.pmenu .sep{height:1px;background:var(--ln);margin:6px 0}
+
+/* ── нижняя панель ──────────────────────────────────────── */
+.pbar{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  border-top:1px solid var(--ln);background:var(--k);flex:none;
+}
+.pbar button{
+  height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  color:#5C5C5C;font:600 11px var(--B);
+}
+.pbar button.on{color:var(--g)}
+.pbar button:active{background:var(--p1)}
+
+/* ── свёрнутый плеер ────────────────────────────────────── */
+.pmini{
+  position:relative;display:flex;align-items:center;gap:12px;
+  padding:8px 10px;margin:0 8px 8px;border-radius:16px;background:var(--p1);
+  overflow:hidden;
+}
+.pmini .cv{width:48px;height:48px;border-radius:10px}
+.pmini .tx{flex:1;min-width:0}
+.pmini .tt{font:600 15px var(--B);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pmini .ar{font:500 13px var(--B);color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pmini .pplay{
+  width:48px;height:48px;border-radius:14px;background:var(--g);color:#0B0B0B;
+  display:grid;place-items:center;flex:none;
+}
+.pmini .pprog{position:absolute;left:0;bottom:0;height:2px;background:var(--g);transition:width .25s linear}
+
+/* ── плеер на весь экран ────────────────────────────────── */
+.pfull{
+  position:fixed;inset:0;z-index:60;background:var(--k);
+  display:flex;flex-direction:column;align-items:center;
+  padding:calc(8px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom));
+  gap:14px;overflow-y:auto;
+}
+.pfull .ptop{display:flex;align-items:center;width:100%;gap:8px}
+.pfull .ptop .src{flex:1;text-align:center;font:600 12px var(--M);color:var(--t2);text-transform:uppercase;letter-spacing:.6px}
+.pcover{width:min(74vw,320px);aspect-ratio:1;border-radius:22px;margin-top:8px}
+.pfull .pname{width:100%;text-align:center}
+.pfull .pname .tt{font:800 24px var(--H);letter-spacing:-.6px;line-height:1.15}
+.pfull .pname .ar{font:500 16px var(--B);color:var(--t2);margin-top:6px}
+.pwf{width:100%;height:42px;margin:0}
+.ptimes{display:flex;justify-content:space-between;width:100%;font:500 12px var(--M);color:var(--t2);margin-top:-8px}
+.pfull .pctl{width:100%;margin-top:auto}
+.pfull .mid{justify-content:space-between;gap:0}
+.pfull .mid .ic{width:56px;height:56px}
+.pfull .mid .play{width:76px;height:76px;border-radius:26px}
+.pqueue{
+  display:flex;align-items:center;gap:8px;height:48px;padding:0 20px;border-radius:14px;
+  background:var(--p1);color:var(--text);font:600 15px var(--B);
+}
+
+/* Пальцем попасть сложнее, чем мышью: ряды выше, цели не меньше 48 точек. */
+.app.phone .row{min-height:56px}
+.app.phone .btn,.app.phone .btn-s{min-height:48px}

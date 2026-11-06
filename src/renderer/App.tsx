@@ -6,6 +6,10 @@ import { player, playerHooks, usePlayer } from './store/playerInstance'
 import { bindMedia } from './player/media'
 import { Stage, MiniBar } from './ui/Stage'
 import { TopBar, searchRef } from './ui/TopBar'
+import { BottomBar } from './ui/BottomBar'
+import { PhoneHeader } from './ui/PhoneHeader'
+import { PhoneStage } from './ui/PhoneStage'
+import { isPhone } from './ui/layout'
 import { Login } from './pages/Login'
 import { Pages } from './pages/Pages'
 import { DialogHost } from './ui/Dialog'
@@ -86,6 +90,7 @@ function Offline() {
 
 export function App() {
   const session = useUi((s) => s.session)
+  const phone = isPhone()
   const wide = useWide()
   const hasTrack = usePlayer((s) => !!s.current)
   const [checking, setChecking] = useState(true)
@@ -113,6 +118,15 @@ export function App() {
 
   if (checking) return <div style={{ height: '100%' }} />
   if (!session?.loggedIn) return <><Login onDone={(r) => useUi.getState().setSession({ loggedIn: true, userName: r.userName, avatar: r.avatar })} /><Toasts /><Offline /></>
+
+  if (phone) return (
+    <div className="app phone">
+      <PhoneHeader onLogout={logout} />
+      <main className="main"><Pages onLogout={logout} /></main>
+      <div>{hasTrack && <PhoneStage />}<BottomBar /></div>
+      <Toasts /><Offline /><CaptchaModal /><DialogHost />
+    </div>
+  )
 
   return (
     <div className={'app' + (wide ? '' : ' narrow')}>

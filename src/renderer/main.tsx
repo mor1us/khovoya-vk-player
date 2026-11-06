@@ -2,6 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import './theme/tokens.css'
 import './theme/app.css'
+import './theme/phone.css'
 import { App } from './App'
 
 /** Ошибки окна пишем в журнал Хвои (%APPDATA%/Хвоя/khvoya.log) — так их видно и потом можно разобрать. */
