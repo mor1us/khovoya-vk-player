@@ -61,6 +61,15 @@ describe('ВК на телефоне', () => {
     expect(lost).toBe(true)
   })
 
+  it('за ключом ходит с тем же заголовком, что и окно входа', async () => {
+    const { f, calls } = net([TOKEN, ok({ items: [] })])
+    const ua = 'Mozilla/5.0 (Linux; Android 14; SM-S911B) AppleWebKit/537.36 Chrome/131 Mobile Safari/537.36'
+    const { api } = makeVkApi({ fetch: f, onCaptcha: async () => '', onAuthLost: () => {}, log: () => {}, webUa: () => ua })
+    await api.myTracks()
+    const toToken = calls.find((c) => c.url.includes('act=web_token'))!
+    expect(toToken.headers['User-Agent']).toBe(ua)
+  })
+
   it('сессия отвечает «не вошёл», пока ключа нет', async () => {
     const { f } = net([{ type: 'error' }])
     const { session } = makeVkApi({ fetch: f, onCaptcha: async () => '', onAuthLost: () => {}, log: () => {} })

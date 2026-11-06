@@ -10,6 +10,9 @@ export type VkDeps = {
   onCaptcha(sid: string, imageDataUrl: string): Promise<string>
   onAuthLost(): void
   log(m: string): void
+  /** Заголовок настоящего WebView телефона. Выдавать себя за десктопный браузер нельзя:
+   *  ВК это видит, и вход по QR отваливается первым. */
+  webUa?: () => string
 }
 
 /**
@@ -19,7 +22,9 @@ export type VkDeps = {
 export function makeVkApi(deps: VkDeps): { api: AudioApi; keeper: TokenKeeper; session: () => Promise<Session> } {
   const fetchToken = async () => {
     const r = webTokenRequest('ru')
-    const res = await deps.fetch(r.url, { method: 'POST', body: r.body, headers: r.headers })
+    const ua = deps.webUa?.()
+    const headers = ua ? { ...r.headers, 'User-Agent': ua } : r.headers
+    const res = await deps.fetch(r.url, { method: 'POST', body: r.body, headers })
     const text = await res.text()
     try { return parseWebToken(JSON.parse(text)) } catch {
       deps.log(`web_token: ${res.status} ${text.slice(0, 200)}`)

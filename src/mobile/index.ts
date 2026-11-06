@@ -2,7 +2,7 @@ import { Preferences } from '@capacitor/preferences'
 import { installBridge, askCaptcha, emit } from './bridge'
 import { prefsStore } from './storage'
 import { makeVkApi } from './vkApi'
-import { nativeFetch, login as nativeLogin, logout as nativeLogout, playback } from './native'
+import { nativeFetch, login as nativeLogin, logout as nativeLogout, playback, webUserAgent } from './native'
 import { setPlatform } from '../renderer/ui/layout'
 import type { LoginStep } from '../shared/types'
 
@@ -17,11 +17,13 @@ export async function startMobile() {
   // не дожидаясь, что скажет Capacitor
   setPlatform('android')
   const store = await prefsStore(Preferences)
+  const ua = await webUserAgent()
   const vk = makeVkApi({
     fetch: nativeFetch,
     onCaptcha: askCaptcha,
     onAuthLost: () => emit('auth:lost'),
-    log
+    log,
+    webUa: () => ua
   })
 
   let playingNow = false

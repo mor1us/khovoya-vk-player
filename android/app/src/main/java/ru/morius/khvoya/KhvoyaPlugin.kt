@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.getcapacitor.JSObject
@@ -75,7 +76,8 @@ class KhvoyaPlugin : Plugin() {
       val web = WebView(ctx)
       web.settings.javaScriptEnabled = true
       web.settings.domStorageEnabled = true
-      web.settings.userAgentString = call.getString("userAgent")
+      // заголовок не подменяем: выдавать телефон за десктопный браузер нельзя,
+      // ВК это замечает и вход по QR перестаёт работать
       CookieManager.getInstance().setAcceptThirdPartyCookies(web, true)
 
       val dialog = Dialog(ctx, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
@@ -92,30 +94,41 @@ class KhvoyaPlugin : Plugin() {
 
       val script = call.getString("script") ?: ""
       val probe = {
-        web.evaluateJavascript(script) { raw ->
-          // evaluateJavascript отдаёт результат как строку JSON — разворачиваем один слой
-          val text = unquote(raw)
-          if (text.contains("access_token")) finish(JSObject().put("body", text))
+        // Спрашиваем ключ ТОЛЬКО когда ты уже на vk.com. На страницах входа (id.vk.com,
+        // login.vk.ru) молчим: иначе это десятки неавторизованных запросов подряд,
+        // и ВК отвечает «слишком много попыток», а вход по QR ломается первым.
+        if (!done && loggedInPage(web.url)) {
+          web.evaluateJavascript(script) { raw ->
+            // evaluateJavascript отдаёт результат как строку JSON — разворачиваем один слой
+            val text = unquote(raw)
+            if (text.contains("access_token")) finish(JSObject().put("body", text))
+          }
         }
       }
 
       web.webViewClient = object : WebViewClient() {
-        override fun onPageFinished(view: WebView?, url: String?) { if (!done) probe() }
+        override fun onPageFinished(view: WebView?, url: String?) { probe() }
       }
-      // ключ может появиться и без перезагрузки страницы — поглядываем раз в две секунды
+      // ключ может появиться и без перезагрузки страницы, но торопиться незачем
       val tick = object : Runnable {
         override fun run() {
           if (done) return
           probe()
-          Handler(Looper.getMainLooper()).postDelayed(this, 2000)
+          Handler(Looper.getMainLooper()).postDelayed(this, 3000)
         }
       }
-      Handler(Looper.getMainLooper()).postDelayed(tick, 2000)
+      Handler(Looper.getMainLooper()).postDelayed(tick, 3000)
 
       dialog.setOnCancelListener { if (!done) { done = true; call.resolve(JSObject().put("error", "Окно входа закрыто")) } }
       dialog.show()
       web.loadUrl(call.getString("url") ?: "https://vk.com/")
     }
+  }
+
+  /** Настоящий заголовок WebView: им же ходим за ключом, чтобы не расходиться с окном входа. */
+  @PluginMethod
+  fun userAgent(call: PluginCall) {
+    call.resolve(JSObject().put("value", WebSettings.getDefaultUserAgent(context)))
   }
 
   @PluginMethod
@@ -135,6 +148,12 @@ class KhvoyaPlugin : Plugin() {
       if (on) PlaybackService.start(ctx) else PlaybackService.stop(ctx)
       call.resolve()
     }
+  }
+
+  /** Та же проверка, что `pageTld` на компьютере: страницы входа за вошедшие не считаем. */
+  private fun loggedInPage(url: String?): Boolean {
+    val u = url ?: return false
+    return Regex("^https://(?:m\\.)?vk\\.(ru|com)(/|$)").containsMatchIn(u)
   }
 
   private fun unquote(raw: String?): String {

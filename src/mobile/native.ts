@@ -1,9 +1,10 @@
 import { registerPlugin } from '@capacitor/core'
-import { parseWebToken, webTokenScript, WEB_UA, SessionLostError, type WebToken } from '../main/auth/webToken'
+import { parseWebToken, webTokenScript, SessionLostError, type WebToken } from '../main/auth/webToken'
 
 type Khvoya = {
   request(o: { url: string; method: string; headers: Record<string, string>; body?: string }): Promise<{ status: number; body: string }>
-  login(o: { url: string; userAgent: string; script: string }): Promise<{ body?: string; error?: string }>
+  login(o: { url: string; script: string }): Promise<{ body?: string; error?: string }>
+  userAgent(): Promise<{ value: string }>
   logout(): Promise<void>
   playback(o: { on: boolean }): Promise<void>
 }
@@ -27,9 +28,14 @@ export const nativeFetch: typeof fetch = async (input, init) => {
   return new Response(r.body, { status: r.status })
 }
 
+/** Заголовок настоящего WebView. Им же ходим за ключом — иначе ВК видит расхождение. */
+export async function webUserAgent(): Promise<string> {
+  try { return (await native.userAgent()).value } catch { return '' }
+}
+
 /** Экран входа: настоящий сайт ВК. Ключ забираем тем же скриптом, что и компьютерная Хвоя. */
 export async function login(): Promise<WebToken> {
-  const r = await native.login({ url: 'https://vk.com/', userAgent: WEB_UA, script: webTokenScript('ru') })
+  const r = await native.login({ url: 'https://vk.com/', script: webTokenScript('ru') })
   if (r.error) throw new Error(r.error)
   try { return parseWebToken(JSON.parse(r.body ?? '')) } catch { throw new SessionLostError() }
 }
