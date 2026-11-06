@@ -15,10 +15,14 @@ export function currentPlatform(): string {
   return cap?.getPlatform?.() ?? 'electron'
 }
 
+let forced: string | null = null
+/** Мобильная сборка объявляет платформу сама: Capacitor в обычном браузере отвечает «web». */
+export function setPlatform(p: string) { forced = p; cached = null }
+
 let cached: Layout | null = null
 /** Считается один раз за запуск и дальше не меняется. */
 export function layout(): Layout {
-  if (cached === null) cached = pickLayout(currentPlatform())
+  if (cached === null) cached = pickLayout(forced ?? currentPlatform())
   return cached
 }
 
