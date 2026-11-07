@@ -2,10 +2,12 @@ import { Preferences } from '@capacitor/preferences'
 import { installBridge, askCaptcha, emit } from './bridge'
 import { prefsStore } from './storage'
 import { makeVkApi } from './vkApi'
-import { nativeFetch, login as nativeLogin, logout as nativeLogout, playback, webUserAgent, downloadApk, installApk } from './native'
+import { nativeFetch, login as nativeLogin, logout as nativeLogout, playback, webUserAgent, downloadApk, installApk, nativeShell } from './native'
 import { makeUpdates } from './updates'
 import { version as CURRENT } from '../../package.json'
 import { setPlatform } from '../renderer/ui/layout'
+import { useUi } from '../renderer/store/ui'
+import { usePhoneStage } from '../renderer/ui/PhoneStage'
 import type { LoginStep } from '../shared/types'
 
 /**
@@ -41,6 +43,14 @@ export async function startMobile() {
   })
   // смотрим один раз при запуске — чтобы новая версия не ждала, пока ты зайдёшь в настройки
   setTimeout(() => void updates.check(), 4000)
+
+  // кнопка «назад»: сперва свернуть плеер, потом вернуться по экранам,
+  // и только если возвращаться некуда — свернуть приложение
+  void nativeShell(() => {
+    if (usePhoneStage.getState().open) { usePhoneStage.setState({ open: false }); return true }
+    if (useUi.getState().history.length) { useUi.getState().back(); return true }
+    return false
+  })
 
   let playingNow = false
   installBridge({

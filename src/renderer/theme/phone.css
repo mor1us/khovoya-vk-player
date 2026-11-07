@@ -180,3 +180,23 @@
 }
 .app.phone .waves::-webkit-scrollbar{display:none}
 .app.phone .waves .wcol{flex:0 0 86%;scroll-snap-align:center;min-height:230px}
+
+/* ── чтобы не ощущалось вкладкой браузера ───────────────── */
+/* Выделение текста, подсветка касания, меню по долгому нажатию и свечение
+   на краях списка — всё это признаки страницы, а не приложения. */
+.app.phone, .login.phone {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
+}
+/* В поле поиска выделять, наоборот, нужно */
+.app.phone input, .app.phone textarea { -webkit-user-select: text; user-select: text }
+
+/* Полоса прокрутки на телефоне не нужна — её там и не рисуют */
+.app.phone *::-webkit-scrollbar { width: 0; height: 0 }
+.app.phone * { scrollbar-width: none }
+
+/* Перетаскивание окна Electron на телефоне смысла не имеет и мешает жестам */
+.app.phone .drag, .login.phone .drag { -webkit-app-region: no-drag }

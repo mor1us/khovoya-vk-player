@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
+import { create } from 'zustand'
 import { usePlayer, player } from '../store/playerInstance'
 import { useUi } from '../store/ui'
 import { Cover } from './Cover'
@@ -10,6 +11,10 @@ import { sourceLabel } from './source'
 import { openTrackMenu } from './TrackMenu'
 import * as I from './icons'
 
+/** Раскрыт ли плеер на весь экран. Снаружи это нужно системной кнопке «назад». */
+export const usePhoneStage = create<{ open: boolean }>(() => ({ open: false }))
+const setOpen = (open: boolean) => usePhoneStage.setState({ open })
+
 /**
  * Плеер на телефоне: полоска над нижней панелью, по нажатию раскрывается на весь экран.
  * Свайп вниз сворачивает обратно.
@@ -20,7 +25,7 @@ export function PhoneStage() {
   const source = usePlayer((s) => s.source)
   const duration = usePlayer((s) => s.duration)
   const pos = usePosition()
-  const [open, setOpen] = useState(false)
+  const open = usePhoneStage((s) => s.open)
   const from = useRef(0)
   const dur = duration || cur?.duration || 0
   if (!cur) return null

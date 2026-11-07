@@ -1,4 +1,7 @@
 import { registerPlugin } from '@capacitor/core'
+import { StatusBar, Style } from '@capacitor/status-bar'
+import { SplashScreen } from '@capacitor/splash-screen'
+import { App } from '@capacitor/app'
 import { parseWebToken, webTokenScript, SessionLostError, type WebToken } from '../main/auth/webToken'
 
 type Khvoya = {
@@ -47,6 +50,24 @@ export const logout = () => native.logout()
 /** Обновление: apk двоичный, поэтому качает нативная сторона и отдаёт путь. */
 export const downloadApk = async (url: string) => (await native.downloadApk({ url })).path
 export const installApk = (path: string) => native.installApk({ path })
+
+/**
+ * Телефонная обвязка, без которой приложение ощущается вкладкой браузера:
+ * строка состояния в цвет приложения, заставка уходит, когда окно готово,
+ * а системная кнопка «назад» возвращает по экранам, а не выходит из Хвои.
+ */
+export async function nativeShell(onBack: () => boolean) {
+  try {
+    await StatusBar.setStyle({ style: Style.Dark })
+    await StatusBar.setBackgroundColor({ color: '#0B0B0B' })
+    await StatusBar.setOverlaysWebView({ overlay: false })
+  } catch { /* на старых прошивках может не быть */ }
+  try {
+    // кнопка «назад»: отдаём её окну, и только если возвращаться некуда — сворачиваем
+    await App.addListener('backButton', () => { if (!onBack()) void App.minimizeApp() })
+  } catch { /* не страшно */ }
+  try { await SplashScreen.hide() } catch { /* не страшно */ }
+}
 
 /** Служба держит процесс живым, пока идёт звук. */
 export const playback = (on: boolean) => native.playback({ on }).catch(() => { /* не критично */ })
