@@ -2,6 +2,7 @@ package ru.morius.khvoya
 
 import android.annotation.SuppressLint
 import android.app.Dialog
+import android.content.Intent as AndroidIntent
 import android.os.Handler
 import android.os.Looper
 import android.view.ViewGroup
@@ -14,7 +15,9 @@ import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
+import androidx.core.content.FileProvider
 import java.io.BufferedReader
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
@@ -136,6 +139,47 @@ class KhvoyaPlugin : Plugin() {
     Handler(Looper.getMainLooper()).post {
       CookieManager.getInstance().removeAllCookies { CookieManager.getInstance().flush() }
       call.resolve()
+    }
+  }
+
+  /**
+   * Скачать apk обновления. Через обычный ответ его не пронести — он двоичный,
+   * поэтому кладём в кэш и отдаём путь.
+   */
+  @PluginMethod
+  fun downloadApk(call: PluginCall) {
+    val url = call.getString("url") ?: return call.reject("Нет адреса")
+    pool.execute {
+      try {
+        val out = File(context.cacheDir, "khvoya-update.apk")
+        (URL(url).openConnection() as HttpURLConnection).apply {
+          connectTimeout = 20000
+          readTimeout = 120000
+          instanceFollowRedirects = true
+        }.inputStream.use { input -> out.outputStream().use { input.copyTo(it) } }
+        call.resolve(JSObject().put("path", out.absolutePath))
+      } catch (e: Exception) {
+        call.reject("fetch failed: ${e.message}")
+      }
+    }
+  }
+
+  /** Открыть установщик Android. Дальше решает человек — поставить или отказаться. */
+  @PluginMethod
+  fun installApk(call: PluginCall) {
+    val path = call.getString("path") ?: return call.reject("Нет файла")
+    Handler(Looper.getMainLooper()).post {
+      try {
+        val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", File(path))
+        val i = AndroidIntent(AndroidIntent.ACTION_VIEW).apply {
+          setDataAndType(uri, "application/vnd.android.package-archive")
+          addFlags(AndroidIntent.FLAG_GRANT_READ_URI_PERMISSION or AndroidIntent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(i)
+        call.resolve()
+      } catch (e: Exception) {
+        call.reject("Не удалось открыть установщик: ${e.message}")
+      }
     }
   }
 

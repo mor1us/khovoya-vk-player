@@ -7,6 +7,8 @@ type Khvoya = {
   userAgent(): Promise<{ value: string }>
   logout(): Promise<void>
   playback(o: { on: boolean }): Promise<void>
+  downloadApk(o: { url: string }): Promise<{ path: string }>
+  installApk(o: { path: string }): Promise<void>
 }
 
 const native = registerPlugin<Khvoya>('Khvoya')
@@ -41,5 +43,9 @@ export async function login(): Promise<WebToken> {
 }
 
 export const logout = () => native.logout()
+/** Обновление: apk двоичный, поэтому качает нативная сторона и отдаёт путь. */
+export const downloadApk = async (url: string) => (await native.downloadApk({ url })).path
+export const installApk = (path: string) => native.installApk({ path })
+
 /** Служба держит процесс живым, пока идёт звук. */
 export const playback = (on: boolean) => native.playback({ on }).catch(() => { /* не критично */ })

@@ -4,6 +4,7 @@ import { isAllowedChannel, type Channel, type IpcArgs, type IpcResult } from '..
 import type { EventMap, EventName } from '../shared/ipc'
 import type { AudioApi } from '../main/vk/audio'
 import type { DiscordUpdate, LoginStep, Session, Settings, Track, LocalPl, WaveProfile } from '../shared/types'
+import type { UpdateState } from '../shared/updates'
 import { makeSettings } from '../shared/store'
 import { slotFrom, type Store } from './storage'
 import { defaultSettings } from '../main/system/settingsLogic'
@@ -16,6 +17,8 @@ export type BridgeDeps = {
   logout(): Promise<void> | void
   /** Что сейчас играет — уходит в фоновую службу и на экран блокировки. */
   now?(u: DiscordUpdate): void
+  /** Обновления Хвои на телефоне. Нет — каналы отвечают «выключено». */
+  updates?: { get(): UpdateState; check(): Promise<UpdateState>; download(): Promise<void>; install(): Promise<void> }
   log?(m: string): void
 }
 
@@ -107,10 +110,10 @@ export function installBridge(deps: BridgeDeps) {
   handle('dl:localPath', () => null)
   handle('dl:openFolder', () => {})
 
-  handle('upd:state', () => ({ status: 'disabled' as const }))
-  handle('upd:check', () => ({ status: 'disabled' as const }))
-  handle('upd:download', () => {})
-  handle('upd:install', () => {})
+  handle('upd:state', () => deps.updates?.get() ?? { status: 'disabled' as const })
+  handle('upd:check', () => deps.updates?.check() ?? { status: 'disabled' as const })
+  handle('upd:download', () => deps.updates?.download())
+  handle('upd:install', () => deps.updates?.install())
 
   window.api = {
     invoke(channel: string, ...args: unknown[]) {

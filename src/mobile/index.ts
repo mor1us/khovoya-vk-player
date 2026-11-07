@@ -2,7 +2,9 @@ import { Preferences } from '@capacitor/preferences'
 import { installBridge, askCaptcha, emit } from './bridge'
 import { prefsStore } from './storage'
 import { makeVkApi } from './vkApi'
-import { nativeFetch, login as nativeLogin, logout as nativeLogout, playback, webUserAgent } from './native'
+import { nativeFetch, login as nativeLogin, logout as nativeLogout, playback, webUserAgent, downloadApk, installApk } from './native'
+import { makeUpdates } from './updates'
+import { version as CURRENT } from '../../package.json'
 import { setPlatform } from '../renderer/ui/layout'
 import type { LoginStep } from '../shared/types'
 
@@ -26,8 +28,23 @@ export async function startMobile() {
     webUa: () => ua
   })
 
+  // На компьютере обновлениями занимается electron-updater; здесь то же самое руками.
+  const updates = makeUpdates({
+    current: CURRENT,
+    owner: 'mor1us',
+    repo: 'khovoya-vk-player',
+    fetch: nativeFetch,
+    download: downloadApk,
+    install: installApk,
+    onChange: (s) => emit('upd:changed', s),
+    log
+  })
+  // смотрим один раз при запуске — чтобы новая версия не ждала, пока ты зайдёшь в настройки
+  setTimeout(() => void updates.check(), 4000)
+
   let playingNow = false
   installBridge({
+    updates,
     api: vk.api,
     store,
     session: vk.session,
