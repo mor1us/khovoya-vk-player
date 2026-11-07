@@ -24,6 +24,6 @@ export function openSource(src: string) {
   if (src === 'downloads') return ui.go('downloads')
   if (src === 'history') return ui.go('history')
   if (src.startsWith('search:')) return ui.submit(src.slice(7))
-  if (src.startsWith('artist:')) return ui.submit(src.slice(7))
+  if (src.startsWith('artist:')) return ui.openArtist({ name: src.slice(7) })
   ui.go('home') // Волна и миксы живут на главной
 }

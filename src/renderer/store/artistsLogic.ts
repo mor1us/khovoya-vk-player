@@ -27,3 +27,9 @@ export function topArtists(mine: Track[], n: number): MyArtist[] {
 export function isFresh(dateSec: number | undefined, now: number): boolean {
   return !!dateSec && now / 1000 - dateSec <= FRESH_DAYS * 86400
 }
+
+/** Подпись трека на экране артиста: лишнего не говорим, молчание — тоже ответ. */
+export function artistWhy(t: Track, own: Set<string>, now: number): string {
+  if (own.has(t.id)) return 'в твоей музыке'
+  return isFresh(t.addedAt, now) ? 'новое' : ''
+}

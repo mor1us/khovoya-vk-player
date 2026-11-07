@@ -1,15 +1,17 @@
 import { cleanQuery } from '../ui/searchTags'
 import { readJson, writeJson } from './json'
 import { create } from 'zustand'
-import type { Playlist, Session } from '../../shared/types'
+import type { ArtistRef, Playlist, Session } from '../../shared/types'
 
 export type ToastAction = { label: string; run: () => void }
-export type Tab = 'home' | 'mine' | 'playlists' | 'downloads' | 'search' | 'settings' | 'playlist' | 'history' | 'similar' | 'queue' | 'disliked' | 'soundcloud'
+export type Tab = 'home' | 'mine' | 'playlists' | 'downloads' | 'search' | 'settings' | 'playlist' | 'artist' | 'history' | 'similar' | 'queue' | 'disliked' | 'soundcloud'
 
 type Ui = {
   tab: Tab
   history: Tab[]
   playlist: Playlist | null
+  /** Кого показывает экран исполнителя. */
+  artist: (ArtistRef & { cover?: string }) | null
   query: string
   /** Где искать: везде, только ВК или только SoundCloud. */
   searchWhere: 'all' | 'vk' | 'sc'
@@ -21,6 +23,7 @@ type Ui = {
   go(t: Tab): void
   back(): void
   openPlaylist(p: Playlist): void
+  openArtist(a: ArtistRef & { cover?: string }): void
   setQuery(q: string): void
   submit(q?: string): void
   /** Подсказка внизу справа; action — кнопка (например, «Открыть»). */
@@ -31,10 +34,11 @@ type Ui = {
 let tid = 0
 export const useUi = create<Ui>((set, get) => ({
   tab: 'home', history: [], searchWhere: ((localStorage.getItem('searchWhere') as 'all' | 'vk' | 'sc') || 'all'),
-  setSearchWhere(w) { localStorage.setItem('searchWhere', w); set({ searchWhere: w }) }, playlist: null, query: '', submitted: '', background: false, session: null, toasts: [],
+  setSearchWhere(w) { localStorage.setItem('searchWhere', w); set({ searchWhere: w }) }, playlist: null, artist: null, query: '', submitted: '', background: false, session: null, toasts: [],
   go(t) { if (t !== get().tab) set({ history: [...get().history.slice(-20), get().tab], tab: t }) },
   back() { const h = get().history; if (h.length) set({ tab: h[h.length - 1], history: h.slice(0, -1) }) },
   openPlaylist(p) { set({ playlist: p }); get().go('playlist') },
+  openArtist(a) { set({ artist: a }); if (get().tab === 'artist') set({ tab: 'home' }); get().go('artist') },
   setQuery(q) { set({ query: q }) },
   submit(q) {
     const s = cleanQuery(q ?? get().query)

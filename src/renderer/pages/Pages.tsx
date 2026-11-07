@@ -5,6 +5,7 @@ import { PhoneMine } from './PhoneMine'
 import { Search } from './Search'
 import { Playlists } from './Playlists'
 import { PlaylistPage } from './PlaylistPage'
+import { Artist } from './Artist'
 import { Downloads } from './Downloads'
 import { Settings } from './Settings'
 import { History } from './History'
@@ -24,6 +25,7 @@ export function Pages({ onLogout }: { onLogout: () => void }) {
       {tab === 'search' && <Search />}
       {tab === 'playlists' && <Playlists />}
       {tab === 'playlist' && <PlaylistPage />}
+      {tab === 'artist' && <Artist />}
       {tab === 'downloads' && <Downloads />}
       {tab === 'settings' && <Settings onLogout={onLogout} />}
       {tab === 'history' && <History />}

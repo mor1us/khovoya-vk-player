@@ -5,13 +5,16 @@ import { useLibrary } from './library'
 
 export type ArtistCard = MyArtist & { tracks: Track[]; fresh: boolean }
 
-export const useArtists = create<{ list: ArtistCard[] | null; loading: boolean; load(force?: boolean): Promise<void> }>((set, get) => ({
-  list: null, loading: false,
+/** failed — ВК не отдал «Моё»: артистов не из чего собрать, и молчать об этом нельзя. */
+export const useArtists = create<{ list: ArtistCard[] | null; failed: boolean; loading: boolean; load(force?: boolean): Promise<void> }>((set, get) => ({
+  list: null, failed: false, loading: false,
   async load(force) {
-    if ((get().list && !force) || get().loading) return
+    if ((get().list && !get().failed && !force) || get().loading) return
     set({ loading: true })
     try {
       const mine = await useLibrary.getState().loadMine()
+      if (!mine.length && useLibrary.getState().error) { set({ list: [], failed: true }); return }
+      set({ failed: false })
       const own = new Set(mine.map((t) => t.id))
       const top = topArtists(mine, 9)
       const out: ArtistCard[] = top.map((a) => ({ ...a, tracks: [], fresh: false }))
