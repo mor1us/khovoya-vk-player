@@ -1,6 +1,7 @@
 import { useUi } from '../store/ui'
 import { Home } from './Home'
 import { Mine } from './Mine'
+import { PhoneMine } from './PhoneMine'
 import { Search } from './Search'
 import { Playlists } from './Playlists'
 import { PlaylistPage } from './PlaylistPage'
@@ -12,13 +13,14 @@ import { Queue } from './Queue'
 import { Disliked } from './Disliked'
 import { SoundCloud } from './SoundCloud'
 import { TrackMenu } from '../ui/TrackMenu'
+import { isPhone } from '../ui/layout'
 
 export function Pages({ onLogout }: { onLogout: () => void }) {
   const tab = useUi((s) => s.tab)
   return (
     <>
       {tab === 'home' && <div className="page"><Home /></div>}
-      {tab === 'mine' && <Mine />}
+      {tab === 'mine' && (isPhone() ? <PhoneMine /> : <Mine />)}
       {tab === 'search' && <Search />}
       {tab === 'playlists' && <Playlists />}
       {tab === 'playlist' && <PlaylistPage />}

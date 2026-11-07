@@ -79,3 +79,16 @@ describe('artistTracks', () => {
     expect(r.map((t) => t.vkId)).toEqual([3, 1])
   })
 })
+
+describe('листание страниц', () => {
+  it('без поля count не уходит в вечный цикл', async () => {
+    // ВК обязан присылать count, но если не прислал — лучше отдать что есть,
+    // чем долбить его запросами до бесконечности
+    let calls = 0
+    const vk = { call: async () => { calls++; return { items: [{ id: calls, owner_id: 1, title: 'Т', artist: 'А', duration: 1, url: 'https://x/a.mp3' }] } } }
+    const api = new VkAudioApi(vk as never, () => 1)
+    const got = await api.myTracks()
+    expect(calls).toBe(1)
+    expect(got.length).toBe(1)
+  })
+})

@@ -5,11 +5,12 @@ import { usePlayer } from '../store/playerInstance'
 import { useDownloads } from '../store/downloads'
 import { openTrackMenu } from './TrackMenu'
 import * as I from './icons'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useLibrary } from '../store/library'
 import { useSc } from '../store/sc'
 import { useWave } from '../store/wave'
 import { useUi } from '../store/ui'
+import { isPhone } from './layout'
 
 export type RowProps = {
   track: Track
@@ -55,11 +56,26 @@ export function TrackRow(p: RowProps) {
       .catch((er) => useUi.getState().toast((er as Error).message))
   }
   const cls = 'row' + (t.src === 'sc' ? ' sc' : '') + (isCur ? ' cur' : '') + (p.selected ? ' sel' : '') + (t.available ? '' : ' na')
+  // На телефоне нет ни двойного щелчка, ни правой кнопки: одно касание играет,
+  // долгое нажатие открывает меню трека.
+  const phone = isPhone()
+  const hold = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const held = useRef(false)
+  const touch = phone ? {
+    onTouchStart: (e: React.TouchEvent) => {
+      held.current = false
+      const at = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      hold.current = setTimeout(() => { held.current = true; openTrackMenu({ clientX: at.x, clientY: at.y, preventDefault() {}, stopPropagation() {} } as React.MouseEvent, [t], p.ctxPlaylist) }, 500)
+    },
+    onTouchEnd: () => { if (hold.current) clearTimeout(hold.current) },
+    onTouchMove: () => { if (hold.current) clearTimeout(hold.current) }
+  } : {}
   return (
     <div className={cls} draggable={p.draggable ?? t.available}
       onDragStart={(e) => { e.dataTransfer.setData('text/track-ids', JSON.stringify((p.selected && p.selection?.length ? p.selection : [t]).map((x) => x.id))); p.onDragStart?.(e) }}
       onDragOver={p.onDragOver} onDrop={p.onDrop}
-      onClick={(e) => { if (e.ctrlKey || e.shiftKey) p.onSelect?.(e); else p.onSelect?.(e) }}
+      {...touch}
+      onClick={(e) => { if (phone) { if (!held.current && t.available) p.onPlay() } else p.onSelect?.(e) }}
       onDoubleClick={() => t.available && p.onPlay()}
       onContextMenu={(e) => openTrackMenu(e, p.selected && p.selection?.length ? p.selection : [t], p.ctxPlaylist)}
       title={t.available ? undefined : 'Трек недоступен (изъят правообладателем)'}>

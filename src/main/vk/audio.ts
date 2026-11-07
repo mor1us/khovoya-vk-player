@@ -63,7 +63,9 @@ export class VkAudioApi implements AudioApi {
     for (let offset = 0; ; offset += PAGE) {
       const r = await this.vk.call<{ count: number; items: any[] }>('audio.get', { ...params, count: PAGE, offset })
       out.push(...r.items.map(mapTrack))
-      if (!r.items.length || offset + PAGE >= r.count) return out
+      // неполная страница значит, что это была последняя; на отсутствующий count не надеемся —
+      // без этой проверки цикл был бы вечным и долбил бы ВК запросами
+      if (r.items.length < PAGE || !Number.isFinite(r.count) || offset + PAGE >= r.count) return out
     }
   }
 

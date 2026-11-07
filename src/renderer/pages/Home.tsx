@@ -11,6 +11,8 @@ import * as I from '../ui/icons'
 import { DailyCard } from '../ui/DailyCard'
 import { dailyOnly } from '../store/dailyLogic'
 import { useHScroll, Arrows } from '../ui/HScroll'
+import { isPhone } from '../ui/layout'
+import { TrackRow } from '../ui/TrackRow'
 
 /** «Забытое любимое» и др. миксы — отдельной карточкой-стопкой из 4 обложек. */
 function MixCrate({ m }: { m: Mix }) {
@@ -45,6 +47,21 @@ function DailyRow() {
   )
 }
 
+/** Три своих трека сверху — быстрый доступ к тому, что слушаешь чаще всего. */
+function MineShort() {
+  const mine = useLibrary((s) => s.mine)
+  const top = mine.slice(0, 3)
+  if (!top.length) return null
+  return (
+    <div className="pblock">
+      <div className="h"><h3>Мои треки</h3><button className="link" onClick={() => useUi.getState().go('mine')}>Показать все</button></div>
+      <div className="rows">
+        {top.map((t) => <TrackRow key={t.id} track={t} compact onPlay={() => void player.getState().playList(mine, t.id, 'mine')} />)}
+      </div>
+    </div>
+  )
+}
+
 export function Home() {
   const playlists = useLibrary((s) => s.playlists)
   const fav = useMixes((s) => s.mixes.find((m) => m.key === 'fav'))
@@ -53,6 +70,7 @@ export function Home() {
   return (
     <div className="home">
       <WaveCard />
+      {isPhone() && <MineShort />}
       <DailyRow />
       <div className="h"><h3>Мои плейлисты</h3><span className="hr"><button className="link" onClick={() => useUi.getState().go('playlists')}>Все {playlists.length} →</button><Arrows s={row} /></span></div>
       {playlists.length || fav ? <Crates list={playlists.slice(0, 12)} lead={lead} rowRef={row.ref} /> : <div className="empty-state">Плейлистов пока нет</div>}

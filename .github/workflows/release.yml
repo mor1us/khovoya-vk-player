@@ -37,3 +37,10 @@ jobs:
         run: |
           npm run build
           npx electron-builder --win --x64 --publish always
+
+  # Телефонная версия тем же выпуском. Отдельной работой и после компьютерной:
+  # упавшая сборка apk не должна портить уже состоявшийся выпуск для Windows.
+  android:
+    needs: release
+    uses: ./.github/workflows/android.yml
+    secrets: inherit

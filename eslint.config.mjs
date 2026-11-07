@@ -9,7 +9,7 @@ import globals from 'globals'
  * `npm run lint` должен проходить без ошибок; предупреждения — к сведению, не к немедленной правке.
  */
 export default ts.config(
-  { ignores: ['out/**', 'dist/**', 'node_modules/**', 'Build/**', 'dev/fixtures/**'] },
+  { ignores: ['out/**', 'dist/**', 'node_modules/**', 'Build/**', 'dev/fixtures/**', 'android/**', 'dev/probe/**'] },
   js.configs.recommended,
   ...ts.configs.recommended,
   {

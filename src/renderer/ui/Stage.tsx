@@ -37,7 +37,7 @@ function Artists({ names, src }: { names: string; src?: string }) {
 }
 
 /** Сердечко и «не то» по краям кнопок, как в Яндекс Музыке. */
-function LikeBtn() {
+export function LikeBtn() {
   const cur = usePlayer((s) => s.current)
   const inMine = useLibrary((s) => (cur && cur.src !== 'sc' ? s.mine.some((t) => t.id === cur.id) : false))
   const scLiked = useSc((s) => (cur?.src === 'sc' ? s.likes.some((t) => t.id === cur.id) || s.accLikes.some((t) => t.id === cur.id) : false))
@@ -63,7 +63,7 @@ function LikeBtn() {
   )
 }
 
-function DislikeBtn() {
+export function DislikeBtn() {
   const cur = usePlayer((s) => s.current)
   // перечёркнутое сердце горит, когда открыт список «Не нравится»
   const on = useUi((s) => s.tab === 'disliked')

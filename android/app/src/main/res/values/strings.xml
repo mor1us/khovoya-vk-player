@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Хвоя</string>
+    <string name="title_activity_main">Хвоя</string>
+    <string name="package_name">ru.morius.khvoya</string>
+    <string name="custom_url_scheme">ru.morius.khvoya</string>
+</resources>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Settings as S } from '../../shared/types'
 import { applySettings } from '../store/settings'
+import { isPhone } from '../ui/layout'
 import { useUi } from '../store/ui'
 import { useUpdates } from '../store/updates'
 import { updateText } from '../../shared/updates'
@@ -33,23 +34,26 @@ export function Settings({ onLogout }: { onLogout: () => void }) {
   const save = async (patch: Partial<S>) => {
     try { const n = await window.api.invoke('settings:set', patch); setS(n); applySettings(n) } catch (e) { useUi.getState().toast((e as Error).message) }
   }
+  // на телефоне нет ни трея, ни Discord, ни своей папки для загрузок — поля прячем,
+  // но из типа Settings не убираем: тип общий с компьютерной Хвоёй
+  const phone = isPhone()
   return (
     <div className="page">
       <div className="ph"><h1>Настройки</h1></div>
       <div className="set">
         <div className="item"><div className="l"><b>Кроссфейд</b><span>Плавный переход между треками. 0 — выключен.</span></div>
           <div className="range"><input type="range" min={0} max={12} step={1} value={s.crossfadeSec} onChange={(e) => void save({ crossfadeSec: +e.target.value })} /><b>{s.crossfadeSec} с</b></div></div>
-        <div className="item"><div className="l"><b>Папка для скачанной музыки</b><span>{s.downloadDir}</span></div>
-          <button className="btn-s" onClick={async () => { const d = await window.api.invoke('settings:pickDir'); if (d) await save({ downloadDir: d }) }}>Выбрать</button></div>
-        <div className="item"><div className="l"><b>Крестик сворачивает в трей</b><span>Музыка продолжит играть, управлять можно медиаклавишами. Выйти — через значок в трее.</span></div>
-          <Toggle on={s.closeToTray} onChange={(v) => void save({ closeToTray: v })} /></div>
+        {!phone && <div className="item"><div className="l"><b>Папка для скачанной музыки</b><span>{s.downloadDir}</span></div>
+          <button className="btn-s" onClick={async () => { const d = await window.api.invoke('settings:pickDir'); if (d) await save({ downloadDir: d }) }}>Выбрать</button></div>}
+        {!phone && <div className="item"><div className="l"><b>Крестик сворачивает в трей</b><span>Музыка продолжит играть, управлять можно медиаклавишами. Выйти — через значок в трее.</span></div>
+          <Toggle on={s.closeToTray} onChange={(v) => void save({ closeToTray: v })} /></div>}
         <div className="item"><div className="l"><b>Анимации</b><span>Движущиеся линии Волны и плавные переходы. В свёрнутом окне они всегда выключены.</span></div>
           <Toggle on={s.animations} onChange={(v) => void save({ animations: v })} /></div>
         <div className="item"><div className="l"><b>Комментарии SoundCloud</b><span>Всплывают над волной в той секунде трека, где их оставили, — как на сайте SoundCloud.</span></div>
           <Toggle on={s.scComments} onChange={(v) => void save({ scComments: v })} /></div>
-        <div className="item"><div className="l"><b>Статус в Discord</b><span>Друзья видят, что ты слушаешь. Нужен ID приложения из Discord Developer Portal — инструкция в файле docs/discord-setup.md.</span></div>
-          <Toggle on={s.discordEnabled} onChange={(v) => void save({ discordEnabled: v })} /></div>
-        {s.discordEnabled && <div className="item"><div className="l"><b>ID приложения Discord</b><span>Только цифры, например 1234567890123456789</span></div>
+        {!phone && <div className="item"><div className="l"><b>Статус в Discord</b><span>Друзья видят, что ты слушаешь. Нужен ID приложения из Discord Developer Portal — инструкция в файле docs/discord-setup.md.</span></div>
+          <Toggle on={s.discordEnabled} onChange={(v) => void save({ discordEnabled: v })} /></div>}
+        {!phone && s.discordEnabled && <div className="item"><div className="l"><b>ID приложения Discord</b><span>Только цифры, например 1234567890123456789</span></div>
           <input className="filter wide" defaultValue={s.discordAppId} placeholder="Application ID" onBlur={(e) => void save({ discordAppId: e.target.value })} /></div>}
         <UpdatesRow />
         <div className="item"><div className="l"><b>Аккаунт ВК</b><span>{useUi.getState().session?.userName}</span></div>
