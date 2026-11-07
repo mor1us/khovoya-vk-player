@@ -3,7 +3,7 @@ import { parseWebToken, webTokenScript, SessionLostError, type WebToken } from '
 
 type Khvoya = {
   request(o: { url: string; method: string; headers: Record<string, string>; body?: string }): Promise<{ status: number; body: string }>
-  login(o: { url: string; script: string }): Promise<{ body?: string; error?: string }>
+  login(o: { url: string; scriptRu: string; scriptCom: string }): Promise<{ body?: string; error?: string }>
   userAgent(): Promise<{ value: string }>
   logout(): Promise<void>
   playback(o: { on: boolean }): Promise<void>
@@ -37,7 +37,8 @@ export async function webUserAgent(): Promise<string> {
 
 /** Экран входа: настоящий сайт ВК. Ключ забираем тем же скриптом, что и компьютерная Хвоя. */
 export async function login(): Promise<WebToken> {
-  const r = await native.login({ url: 'https://vk.com/', script: webTokenScript('ru') })
+  // оба домена: на каком войдёшь, тот скрипт нативная сторона и выполнит
+  const r = await native.login({ url: 'https://vk.com/', scriptRu: webTokenScript('ru'), scriptCom: webTokenScript('com') })
   if (r.error) throw new Error(r.error)
   try { return parseWebToken(JSON.parse(r.body ?? '')) } catch { throw new SessionLostError() }
 }

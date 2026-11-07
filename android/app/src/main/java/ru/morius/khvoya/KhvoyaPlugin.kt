@@ -95,14 +95,22 @@ class KhvoyaPlugin : Plugin() {
         }
       }
 
-      val script = call.getString("script") ?: ""
+      // Скрипт нужен под тот домен, на котором ты вошёл: cookie у vk.ru и vk.com разные.
+      val scriptRu = call.getString("scriptRu") ?: ""
+      val scriptCom = call.getString("scriptCom") ?: ""
       val probe = {
         // Спрашиваем ключ ТОЛЬКО когда ты уже на vk.com. На страницах входа (id.vk.com,
         // login.vk.ru) молчим: иначе это десятки неавторизованных запросов подряд,
         // и ВК отвечает «слишком много попыток», а вход по QR ломается первым.
-        if (!done && loggedInPage(web.url)) {
-          web.evaluateJavascript(script) { raw ->
-            // evaluateJavascript отдаёт результат как строку JSON — разворачиваем один слой
+        val tld = pageTld(web.url)
+        if (!done && tld != null) {
+          // evaluateJavascript не умеет ждать обещания: отдал бы сам объект, а не ответ ВК.
+          // Поэтому запрос запускаем один раз и складываем текст в окно, а дальше забираем готовое.
+          val inner = if (tld == "com") scriptCom else scriptRu
+          val wrapped = "(function(){ if(!window.__khvoyaGoing){ window.__khvoyaGoing=1; (" + inner +
+            ").then(function(t){window.__khvoyaToken=t}).catch(function(){window.__khvoyaGoing=0}) } return window.__khvoyaToken || '' })()"
+          web.evaluateJavascript(wrapped) { raw ->
+            // результат приходит строкой JSON — разворачиваем один слой
             val text = unquote(raw)
             if (text.contains("access_token")) finish(JSObject().put("body", text))
           }
@@ -194,10 +202,10 @@ class KhvoyaPlugin : Plugin() {
     }
   }
 
-  /** Та же проверка, что `pageTld` на компьютере: страницы входа за вошедшие не считаем. */
-  private fun loggedInPage(url: String?): Boolean {
-    val u = url ?: return false
-    return Regex("^https://(?:m\\.)?vk\\.(ru|com)(/|$)").containsMatchIn(u)
+  /** То же, что `pageTld` на компьютере: домен вошедшей страницы; страницы входа не считаются. */
+  private fun pageTld(url: String?): String? {
+    val u = url ?: return null
+    return Regex("^https://(?:m\\.)?vk\\.(ru|com)(/|\$)").find(u)?.groupValues?.get(1)
   }
 
   private fun unquote(raw: String?): String {
