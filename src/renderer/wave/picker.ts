@@ -79,3 +79,22 @@ export function pickBatch(o: Opts): Track[] {
   for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(o.rnd() * (i + 1)); [out[i], out[j]] = [out[j], out[i]] }
   return out
 }
+
+/**
+ * Сплести две пачки — ВК и SoundCloud. Строго через один звучит механически: слышно, что Волна
+ * считает, а не подбирает. Берём отрезками по одному-два, начиная со случайной стороны;
+ * когда одна сторона кончилась, остаток второй идёт подряд.
+ */
+export function blend<T>(a: T[], b: T[], rnd: () => number): T[] {
+  const out: T[] = []
+  const at = [0, 0]
+  const src = [a, b]
+  let side = rnd() < 0.5 ? 0 : 1
+  while (at[0] < a.length || at[1] < b.length) {
+    if (at[side] >= src[side].length) { side = 1 - side; continue }
+    const take = rnd() < 0.4 ? 2 : 1 // иногда два подряд с одной стороны
+    for (let k = 0; k < take && at[side] < src[side].length; k++) out.push(src[side][at[side]++])
+    side = 1 - side
+  }
+  return out
+}

@@ -133,7 +133,12 @@ export class SoundCloud {
 
   /** Ключ входа в аккаунт (cookie oauth_token с сайта). Нет входа — null. */
   private auth: () => Promise<string | null> = async () => null
-  setAuth(f: () => Promise<string | null>) { this.auth = f }
+  /** Вход протух: SoundCloud отвечает 401 даже на то, что открыто всем. Дальше ходим без него. */
+  private authLost = false
+  setAuth(f: () => Promise<string | null>) { this.auth = f; this.authLost = false; this.meCache = null }
+
+  /** Ключ входа, если он ещё на что-то годится. */
+  private async token(): Promise<string | null> { return this.authLost ? null : this.auth() }
 
   /** Запрос с ограничением по времени: заблокированный адрес часто просто молчит. */
   private async get(url: string, headers: Record<string, string>, method = 'GET') {
@@ -201,12 +206,14 @@ export class SoundCloud {
     const u = new URL(path.startsWith('http') ? path : API + path)
     for (const [k, v] of Object.entries(params)) u.searchParams.set(k, String(v))
     u.searchParams.set('client_id', cid)
-    const token = await this.auth()
+    const token = await this.token()
     if (needAuth && !token) throw new Error('Войди в SoundCloud во вкладке SoundCloud')
     const headers: Record<string, string> = { 'User-Agent': SC_UA, Accept: 'application/json' }
     if (token) headers.Authorization = `OAuth ${token}`
     const r = await this.get(u.toString(), headers, method)
     if (needAuth && r.status === 401) throw new ScAuthLost('Вход в SoundCloud устарел — войди заново во вкладке SoundCloud')
+    // 401 на то, что открыто всем, — дело не в ключе, а в протухшем входе: повторяем без него
+    if (r.status === 401 && token && !needAuth) { this.forgetAuth(); return this.api(path, params, retried, method, needAuth) }
     if ((r.status === 401 || r.status === 403) && !retried) { await this.clientId(true); return this.api(path, params, true, method, needAuth) }
     if ((r.status === 403 || r.status === 451) && retried && method === 'GET' && !needAuth) { this.markDown(new URL(API).host, `ответ ${r.status} — похоже, доступ из этой страны закрыт`); throw new ScUnavailable(SC_DOWN) }
     if (!r.ok) { this.log(`soundcloud: ${u.pathname} → ${r.status}`); throw new Error(`SoundCloud ответил ${r.status}`) }
@@ -277,9 +284,17 @@ export class SoundCloud {
   }
 
   // ── Аккаунт (после входа) ──
+  /** Забыть протухший вход: публичное снова работает, а окно покажет «войти». */
+  private forgetAuth() {
+    if (this.authLost) return
+    this.authLost = true
+    this.meCache = null
+    this.log('soundcloud: вход устарел — дальше без него, войди заново во вкладке SoundCloud')
+  }
+
   private meCache: ScMe | null = null
   async me(force = false): Promise<ScMe | null> {
-    if (!(await this.auth())) { this.meCache = null; return null }
+    if (!(await this.token())) { this.meCache = null; return null }
     if (this.meCache && !force) return this.meCache
     const j = await this.api('/me', {}, false, 'GET', true)
     this.meCache = { id: Number(j.id), name: String(j.username ?? j.full_name ?? 'SoundCloud'), avatar: j.avatar_url ? String(j.avatar_url).replace('-large.', '-t200x200.') : undefined }
@@ -345,7 +360,7 @@ export class SoundCloud {
   /** Лайк прямо на SoundCloud. */
   async setLike(t: Track, on: boolean): Promise<void> {
     const me = await this.me(); if (!me) return
-    const token = await this.auth()
+    const token = await this.token()
     if (!token) throw new Error('Войди в SoundCloud во вкладке SoundCloud')
     if (!this.writer) { await this.api(`/users/${me.id}/track_likes/${t.vkId}`, {}, false, on ? 'PUT' : 'DELETE', true); return }
     const u = new URL(`${API}/users/${me.id}/track_likes/${t.vkId}`)

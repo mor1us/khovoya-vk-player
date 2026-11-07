@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { applyReaction, emptyProfile, seedsFor, undoDislike, DAY } from '../src/renderer/wave/profile'
-import { pickBatch } from '../src/renderer/wave/picker'
+import { pickBatch, blend } from '../src/renderer/wave/picker'
 import type { Track } from '../src/shared/types'
 
 const tr = (i: number, artist = 'A' + (i % 10)): Track => ({ id: 't' + i, ownerId: 1, vkId: i, title: 'T' + i, artist, duration: 100, url: 'u', available: true })
@@ -110,5 +110,29 @@ describe('«Не нравится» можно вернуть', () => {
     expect(q.banned).toEqual([])
     expect(q.disliked).toEqual([])
     expect(q.artists['band']).toBe(0)
+  })
+})
+
+describe('blend', () => {
+  const a = Array.from({ length: 10 }, (_, i) => 'v' + i)
+  const b = Array.from({ length: 10 }, (_, i) => 'c' + i)
+
+  it('ничего не теряет и не переставляет внутри списка', () => {
+    const out = blend(a, b, seeded(7))
+    expect(out).toHaveLength(20)
+    expect(out.filter((x) => x.startsWith('v'))).toEqual(a)
+    expect(out.filter((x) => x.startsWith('c'))).toEqual(b)
+  })
+
+  it('не выстраивает вечное «через один»', () => {
+    const pairs = (out: string[]) => out.filter((x, i) => i > 0 && x[0] === out[i - 1][0]).length
+    const runs = [1, 2, 3, 4, 5].map((s) => pairs(blend(a, b, seeded(s))))
+    expect(runs.some((n) => n > 0)).toBe(true)
+  })
+
+  it('пустая сторона не мешает: отдаём второй список как есть', () => {
+    expect(blend(a, [], seeded(3))).toEqual(a)
+    expect(blend([], b, seeded(3))).toEqual(b)
+    expect(blend([], [], seeded(3))).toEqual([])
   })
 })

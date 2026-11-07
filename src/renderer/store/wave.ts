@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { Track, WaveMode, WaveProfile } from '../../shared/types'
 import { applyReaction, decayArtists, emptyProfile, reactionFor, seedsFor, snoozeTrack, undoDislike, type Reaction } from '../wave/profile'
-import { pickBatch } from '../wave/picker'
+import { blend, pickBatch } from '../wave/picker'
 import { cryptoRandom, fisherYates } from '../player/shuffle'
 import { useLibrary } from './library'
 import { useSc } from './sc'
@@ -66,7 +66,8 @@ function topArtists(profile: WaveProfile, mine: Track[], n: number): string[] {
   return [...new Set([...fromWave, ...fromMine])].slice(0, n)
 }
 
-type Pool = { cands: Track[]; source: Map<string, number>; moodHits: Set<string>; artists: Map<string, boolean> }
+/** found — сколько ВК нашёл нового, не считая подмешанной своей музыки. */
+type Pool = { cands: Track[]; source: Map<string, number>; moodHits: Set<string>; found: number; artists: Map<string, boolean> }
 
 /**
  * Кандидаты Волны ВК. Источники:
@@ -121,17 +122,18 @@ async function vkPool(profile: WaveProfile, tune: WaveTune, mode: WaveMode): Pro
     const s = await Promise.allSettled(top.slice(0, 4).map((a) => window.api.invoke('vk:search', a, 0, true)))
     add(s.flatMap((r) => list(r)?.tracks.slice(0, 15) ?? []), SRC.fresh)
   }
+  const found = cands.length // что ВК нашёл нового — до того, как подмешали твою музыку
   if (mode !== 'new') { // своя музыка: для микса — случайная выборка, чтобы не тянуть одно старьё
     const own = mode === 'fav' ? mine : fisherYates(mine, cryptoRandom).slice(0, 300)
     add(own, SRC.mine)
   }
-  return { cands, source, moodHits, artists: artistLangMap([...mine, ...cands]) }
+  return { cands, source, moodHits, found, artists: artistLangMap([...mine, ...cands]) }
 }
 
 const FALLBACK_SC = ['phonk', 'lofi hip hop', 'indie', 'hyperpop', 'drill', 'chill beats', 'russian rap', 'slowed reverb']
 
 /** Кандидаты SoundCloud: похожие на твои лайки SC и текущий трек, любимые артисты, настройки Волны. */
-async function scCandidates(profile: WaveProfile, tune: WaveTune): Promise<{ cands: Track[]; extra: Set<string>; likes: Track[] }> {
+async function scCandidates(profile: WaveProfile, tune: WaveTune): Promise<{ cands: Track[]; extra: Set<string>; likes: Track[]; found: number }> {
   const likes = await useSc.getState().load()
   const cur = player.getState().current
   const seeds = fisherYates(likes, cryptoRandom).slice(0, 4)
@@ -150,11 +152,14 @@ async function scCandidates(profile: WaveProfile, tune: WaveTune): Promise<{ can
   ])
   const ok = (r: PromiseSettledResult<Track[]>[]) => r.flatMap((x) => (x.status === 'fulfilled' ? x.value : []))
   const tuned = ok(byTune)
-  return { cands: [...tuned, ...ok(rel), ...ok(byArtist), ...likes], extra: new Set(tuned.map((t) => t.id)), likes }
+  const found = [...tuned, ...ok(rel), ...ok(byArtist)]
+  return { cands: [...found, ...likes], extra: new Set(tuned.map((t) => t.id)), likes, found: found.length }
 }
 
 async function scBatch(mode: WaveMode, profile: WaveProfile, size = 20, tune: WaveTune = useWave.getState().tune): Promise<Track[]> {
-  const { cands, extra, likes } = await scCandidates(profile, tune)
+  const { cands, extra, likes, found } = await scCandidates(profile, tune)
+  // SoundCloud промолчал (нет связи, устарел вход) — лучше ничего, чем пачка собственных лайков
+  if (!found && mode !== 'fav') return []
   const queued = new Set(player.getState().queue?.list().map((t) => t.id) ?? [])
   const now = Date.now()
   const artists = artistLangMap(cands)
@@ -163,19 +168,13 @@ async function scBatch(mode: WaveMode, profile: WaveProfile, size = 20, tune: Wa
   return pickBatch({ candidates: pool, mine: new Set(likes.map((t) => t.id)), mineKeys: likes.map(trackKey), mode, profile, recent: recent(), recentKeys: recentKeys(), now, rnd: cryptoRandom, size, boost: (t) => tuneBoost(t, tune, { now, moodHits: extra, source }) })
 }
 
-/** ВК и SoundCloud через один. */
-export function interleave<T>(a: T[], b: T[]): T[] {
-  const out: T[] = []
-  for (let i = 0; i < Math.max(a.length, b.length); i++) { if (a[i] !== undefined) out.push(a[i]); if (b[i] !== undefined) out.push(b[i]) }
-  return out
-}
-
 async function batchFor(kind: WaveKind, size = 20): Promise<Track[]> {
   const w = useWave.getState()
   if (kind === 'sc') return scBatch(w.mode, w.profile, size)
   if (kind === 'both') {
-    const [v, c] = await Promise.all([batch(w.mode, w.profile, Math.ceil(size / 2)).catch(() => [] as Track[]), scBatch(w.mode, w.profile, Math.ceil(size / 2)).catch(() => [] as Track[])])
-    return interleave(v, c)
+    // просим у каждой стороны целую пачку и режем после сплетения: если одна промолчала, вторая закроет всю Волну
+    const [v, c] = await Promise.all([batch(w.mode, w.profile, size).catch(() => [] as Track[]), scBatch(w.mode, w.profile, size).catch(() => [] as Track[])])
+    return blend(v, c, cryptoRandom).slice(0, size)
   }
   return batch(w.mode, w.profile, size)
 }
@@ -184,6 +183,8 @@ export const kindOf = (source: string): WaveKind => (source === 'wave:sc' ? 'sc'
 
 async function batch(mode: WaveMode, profile: WaveProfile, size = 20, tune: WaveTune = useWave.getState().tune): Promise<Track[]> {
   const pool = await vkPool(profile, tune, mode)
+  // ВК не дал ничего нового — Волна из твоей же музыки это не Волна, лучше честно сказать «пусто»
+  if (!pool.found && mode !== 'fav') return []
   // «Моя музыка» читается только после vkPool: он сам её дожидается, а до того список пустой
   const mineTracks = useLibrary.getState().mine
   const mine = new Set(mineTracks.map((t) => t.id))

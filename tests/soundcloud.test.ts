@@ -255,3 +255,46 @@ describe('лайк через страницу сайта SoundCloud', () => {
     expect(sc.status().ok).toBe(true)
   })
 })
+
+describe('протухший вход в SoundCloud', () => {
+  it('публичный запрос повторяется без ключа входа, а не гоняет client_id по кругу', async () => {
+    const auth: Array<string | undefined> = []
+    let siteHits = 0
+    const f: Fetch = async (url, init) => {
+      if (url.includes('/search/tracks')) {
+        const a = init?.headers?.Authorization
+        auth.push(a)
+        return a ? res(401, {}) : res(200, { collection: [raw()] })
+      }
+      siteHits++
+      return res(200, '')
+    }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    sc.setAuth(async () => 'STALE')
+    expect((await sc.search('night')).map((t) => t.id)).toEqual(['sc_42'])
+    expect(auth).toEqual(['OAuth STALE', undefined])
+    expect(siteHits).toBe(0) // за новым ключом не ходили: ключ-то рабочий
+  })
+
+  it('после этого вход считается потерянным — окно покажет «войти»', async () => {
+    const f: Fetch = async (url, init) => {
+      if (url.includes('/search/tracks')) return init?.headers?.Authorization ? res(401, {}) : res(200, { collection: [raw()] })
+      if (url.includes('/me')) return res(200, { id: 5, username: 'morius' })
+      return res(200, '')
+    }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    sc.setAuth(async () => 'STALE')
+    expect(await sc.me()).not.toBeNull()
+    await sc.search('night')
+    expect(await sc.me()).toBeNull()
+    sc.setAuth(async () => 'NEW') // вошёл заново — снова работает
+    expect(await sc.me()).not.toBeNull()
+  })
+
+  it('запрос, которому вход обязателен, по-прежнему честно жалуется', async () => {
+    const f: Fetch = async () => res(401, {})
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    sc.setAuth(async () => 'STALE')
+    await expect(sc.me()).rejects.toThrow(/Вход в SoundCloud устарел/)
+  })
+})
