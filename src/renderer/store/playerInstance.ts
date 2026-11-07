@@ -6,8 +6,9 @@ import { bestMatch } from '../../shared/match'
 
 /** Подписчики на события плеера (Волна, Discord, уведомления) подключаются позже — без циклических импортов. */
 export const playerHooks = {
-  trackChange: [] as ((prev: Track | null, next: Track | null, info: { listened: number; manual: boolean }) => void)[],
+  trackChange: [] as ((prev: Track | null, next: Track | null, info: { listened: number; manual: boolean; broken?: boolean }) => void)[],
   queueLow: [] as ((remaining: number) => void)[],
+  failed: [] as ((t: Track) => void)[],
   notice: [] as ((msg: string) => void)[],
   crossfadeSec: 3
 }
@@ -51,7 +52,8 @@ export const player = createPlayer({
   },
   onNotice: (m) => playerHooks.notice.forEach((f) => f(m)),
   onTrackChange: (p, n, i) => playerHooks.trackChange.forEach((f) => f(p, n, i)),
-  onQueueLow: (r) => playerHooks.queueLow.forEach((f) => f(r))
+  onQueueLow: (r) => playerHooks.queueLow.forEach((f) => f(r)),
+  onFailed: (t) => playerHooks.failed.forEach((f) => f(t))
 })
 
 export function usePlayer<T>(sel: (s: PlayerState) => T): T { return useStore(player, sel) }

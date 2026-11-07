@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ScStatus, Track } from '../../shared/types'
 import { useSc } from '../store/sc'
 import { useLibrary } from '../store/library'
@@ -13,6 +13,7 @@ import { ask, confirmAsk } from '../ui/Dialog'
 import { plural } from '../ui/format'
 import * as I from '../ui/icons'
 import { SrcBadge } from '../ui/TrackRow'
+import { useHScroll, Arrows } from '../ui/HScroll'
 
 type Part = 'likes' | 'playlists' | 'feed'
 type Status = ScStatus
@@ -50,6 +51,9 @@ export function SoundCloud() {
   const [part, setPart] = useState<Part>('likes')
   const [q, setQ] = useState('')
   const [st, setSt] = useState<Status | null>(null)
+  const scroll = useRef<HTMLDivElement>(null)
+  const accRow = useHScroll()
+  const khRow = useHScroll()
   const check = () => { setSt(null); window.api.invoke('sc:prepare').then(setSt).catch(() => {}) }
   useEffect(() => {
     void useSc.getState().load()
@@ -81,6 +85,7 @@ export function SoundCloud() {
         <span className="sp" />
         <Account />
       </div>
+      <div className="pagescroll" ref={scroll}>
       {down && <div className="scdown big"><SrcBadge src="sc" /><span><b>{down}</b><br />ВК, лайки SoundCloud и плейлисты Хвои работают и так. Треки SoundCloud, которые не грузятся, Хвоя попробует найти и сыграть из ВК.</span><button className="btn-s" onClick={check}>Проверить снова</button></div>}
       {st?.ok && <div className="scok"><i />SoundCloud работает{st.hasKey ? ' · ключ сохранён на компе — можно без VPN, пока SoundCloud его не сменит' : ''}</div>}
       {!st && <div className="scok wait"><i />Проверяю связь с SoundCloud…</div>}
@@ -91,37 +96,38 @@ export function SoundCloud() {
         <div className="ph" style={{ marginTop: 18 }}>
           <h2 className="sub">Лайки</h2><span className="cnt">{likes.length} {plural(likes.length, 'трек', 'трека', 'треков')}{me ? ` · из аккаунта ${acc.length}` : ''}</span><span className="sp" />
           <input className="filter" placeholder="Поиск в лайках" value={q} onChange={(e) => setQ(e.target.value)} />
-          <button className="btn-s" onClick={() => play(list, false, 'pl:Моё · SoundCloud')}><I.IPlay size={14} />Играть</button>
-          <button className="btn-s sco" onClick={() => play(list, true, 'pl:Моё · SoundCloud')}><I.IShuffle size={14} />Перемешать</button>
+          <button className="btn-s" onClick={() => play(list, false, 'sc:likes')}><I.IPlay size={14} />Играть</button>
+          <button className="btn-s sco" onClick={() => play(list, true, 'sc:likes')}><I.IShuffle size={14} />Перемешать</button>
         </div>
         {list.length
-          ? <VirtualTrackList tracks={list} onPlay={(t) => void player.getState().playList(list, t.id, 'pl:Моё · SoundCloud')} />
+          ? <VirtualTrackList tracks={list} scroller={scroll} onPlay={(t) => void player.getState().playList(list, t.id, 'sc:likes')} />
           : <div className="empty-state">{q ? 'Ничего не нашлось' : me ? 'В аккаунте пока нет лайков. Лайкай треки сердечком в плеере.' : 'Лайкай треки SoundCloud сердечком в плеере — или войди в аккаунт, чтобы подтянуть свои лайки.'}</div>}
       </>}
 
       {part === 'playlists' && <>
         {me && <>
-          <div className="ph" style={{ marginTop: 18 }}><h2 className="sub">Из аккаунта SoundCloud</h2><span className="cnt">{accPl.length}</span></div>
-          {accPl.length ? <Crates list={accPl} /> : <div className="empty-state">В аккаунте нет плейлистов</div>}
+          <div className="ph" style={{ marginTop: 18 }}><h2 className="sub">Из аккаунта SoundCloud</h2><span className="cnt">{accPl.length}</span><span className="sp" /><Arrows s={accRow} /></div>
+          {accPl.length ? <Crates list={accPl} rowRef={accRow.ref} /> : <div className="empty-state">В аккаунте нет плейлистов</div>}
         </>}
         <div className="ph" style={{ marginTop: 18 }}>
           <h2 className="sub">Плейлисты Хвои</h2><span className="hint">Хранятся на компе, в них можно смешивать ВК и SoundCloud</span><span className="sp" />
-          <button className="btn-s sco" onClick={() => void newLocal()}><I.IPlus size={14} />Новый</button>
+          <button className="btn-s sco" onClick={() => void newLocal()}><I.IPlus size={14} />Новый</button><Arrows s={khRow} />
         </div>
-        {khPl.length ? <Crates list={khPl} /> : <div className="empty-state">Пока нет. Создай кнопкой «Новый» или через «…» у трека → «Добавить в плейлист» → «+ Новый плейлист Хвои».</div>}
+        {khPl.length ? <Crates list={khPl} rowRef={khRow.ref} /> : <div className="empty-state">Пока нет. Создай кнопкой «Новый» или через «…» у трека → «Добавить в плейлист» → «+ Новый плейлист Хвои».</div>}
       </>}
 
       {part === 'feed' && <>
         <div className="ph" style={{ marginTop: 18 }}>
           <h2 className="sub">Новое от подписок</h2><span className="sp" />
           {me && <button className="btn-s" onClick={() => void useSc.getState().loadFeed()}>↻ Обновить</button>}
-          {me && !!feed?.length && <button className="btn-s sco" onClick={() => play(feed, false, 'pl:Лента SoundCloud')}><I.IPlay size={14} />Слушать</button>}
+          {me && !!feed?.length && <button className="btn-s sco" onClick={() => play(feed, false, 'sc:feed')}><I.IPlay size={14} />Слушать</button>}
         </div>
         {!me ? <div className="empty-state">Войди в SoundCloud (кнопка справа сверху) — здесь появятся новые треки тех, на кого ты подписан.</div>
           : feed === null ? <div className="rows">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="skeleton" style={{ height: 52, marginBottom: 6 }} />)}</div>
-          : feed.length ? <VirtualTrackList tracks={feed} onPlay={(t) => void player.getState().playList(feed, t.id, 'pl:Лента SoundCloud')} />
+          : feed.length ? <VirtualTrackList tracks={feed} scroller={scroll} onPlay={(t) => void player.getState().playList(feed, t.id, 'sc:feed')} />
           : <div className="empty-state">В ленте пусто — подпишись на артистов на SoundCloud.</div>}
       </>}
+      </div>
     </div>
   )
 }

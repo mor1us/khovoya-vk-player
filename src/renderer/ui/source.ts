@@ -2,7 +2,9 @@ export function sourceLabel(src: string): string {
   if (!src) return ''
   if (src.startsWith('wave:')) return 'Волна / ' + (({ mix: 'Микс', new: 'Новое', fav: 'Любимое', sc: 'SoundCloud', both: 'ВК + SoundCloud' } as Record<string, string>)[src.slice(5)] ?? 'Микс')
   if (src === 'mine') return 'Моя музыка'
-  if (src.startsWith('pl:')) return 'Плейлист / ' + src.slice(3)
+  if (src === 'sc:likes') return 'Лайки SoundCloud'
+  if (src === 'sc:feed') return 'Лента SoundCloud'
+  if (src.startsWith('pl:')) return src.slice(3)
   if (src.startsWith('search:')) return 'Поиск / ' + src.slice(7)
   if (src === 'similar') return 'Похоже на это'
   if (src === 'downloads') return 'Загрузки'
@@ -19,6 +21,8 @@ export function sourceParts(src: string): { kind: string; name: string } {
   if (src === 'wave:both') return { kind: 'Волны', name: 'Волна ВК + SoundCloud' }
   if (src.startsWith('wave:')) return { kind: 'Волны', name: 'Волна' }
   if (src === 'mine') return { kind: 'раздела', name: 'Моя музыка' }
+  if (src === 'sc:likes') return { kind: 'раздела', name: 'Лайки SoundCloud' }
+  if (src === 'sc:feed') return { kind: 'раздела', name: 'Лента SoundCloud' }
   if (src.startsWith('pl:')) return { kind: 'плейлиста', name: after('pl:') }
   if (src.startsWith('search:')) return { kind: 'поиска', name: after('search:') }
   if (src === 'similar') return { kind: 'подборки', name: 'Похожее' }

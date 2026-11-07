@@ -54,7 +54,7 @@ export function TrackRow(p: RowProps) {
         : { label: 'Открыть', run: () => useUi.getState().go(sc ? 'soundcloud' : 'mine') }))
       .catch((er) => useUi.getState().toast((er as Error).message))
   }
-  const cls = 'row' + (isCur ? ' cur' : '') + (p.selected ? ' sel' : '') + (t.available ? '' : ' na')
+  const cls = 'row' + (t.src === 'sc' ? ' sc' : '') + (isCur ? ' cur' : '') + (p.selected ? ' sel' : '') + (t.available ? '' : ' na')
   return (
     <div className={cls} draggable={p.draggable ?? t.available}
       onDragStart={(e) => { e.dataTransfer.setData('text/track-ids', JSON.stringify((p.selected && p.selection?.length ? p.selection : [t]).map((x) => x.id))); p.onDragStart?.(e) }}

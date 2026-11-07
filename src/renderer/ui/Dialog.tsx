@@ -20,11 +20,11 @@ export function DialogHost() {
   return (
     <div className="modal" onMouseDown={(e) => { if (e.target === e.currentTarget) close(d.kind === 'confirm' ? false : null) }}>
       <form className="box" onSubmit={(e) => { e.preventDefault(); close(d.kind === 'prompt' ? v : true) }} onKeyDown={(e) => { if (e.key === 'Escape') close(d.kind === 'confirm' ? false : null) }}>
-        <h3 style={{ font: '800 20px var(--H)', letterSpacing: '-.4px' }}>{d.title}</h3>
+        <h3>{d.title}</h3>
         {d.kind === 'prompt' && <input className="field" autoFocus value={v} onChange={(e) => setV(e.target.value)} />}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div className="ta">
           <button type="button" className="btn-s" onClick={() => close(d.kind === 'confirm' ? false : null)}>Отмена</button>
-          <button className="btn-s g" autoFocus={d.kind === 'confirm'} style={d.danger ? { background: '#ff5c5c', borderColor: '#ff5c5c', color: '#0B0B0B' } : undefined}>{d.ok}</button>
+          <button className={'btn-s ' + (d.danger ? 'bad' : 'g')} autoFocus={d.kind === 'confirm'}>{d.ok}</button>
         </div>
       </form>
     </div>

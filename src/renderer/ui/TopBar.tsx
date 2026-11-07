@@ -79,11 +79,15 @@ export function TopBar({ onLogout }: { onLogout: () => void }) {
         )}
       </div>
       <div className="nodrag" style={{ position: 'relative' }}>
-        <button className="avatar" onClick={() => setMenu(!menu)} title={session?.userName}>{session?.avatar ? <img src={session.avatar} alt="" /> : (session?.userName?.[0] ?? 'Х')}</button>
+        <button className={'avatar' + (tab === 'settings' ? ' on' : '')} onClick={() => setMenu(!menu)} title={session?.userName}>{session?.avatar ? <img src={session.avatar} alt="" /> : (session?.userName?.[0] ?? 'Х')}</button>
         {menu && (
           <div className="menu" style={{ right: 0, top: 40 }} onMouseLeave={() => setMenu(false)}>
             <div className="lbl">{session?.userName}</div>
             <button onClick={() => { setMenu(false); useUi.getState().go('settings') }}>Настройки</button>
+            <div className="sep" />
+            <button onClick={() => { setMenu(false); useUi.getState().go('history') }}>История</button>
+            <button onClick={() => { setMenu(false); useUi.getState().go('similar') }}>Похожее</button>
+            <button onClick={() => { setMenu(false); useUi.getState().go('disliked') }}>Не нравится</button>
             <div className="sep" />
             <button onClick={() => { setMenu(false); onLogout() }}>Выйти из ВК</button>
           </div>

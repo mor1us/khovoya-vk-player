@@ -37,6 +37,16 @@ function trimSnoozed(snoozed: Record<string, number>): Record<string, number> {
   return Object.fromEntries(all.sort((a, b) => b[1] - a[1]).slice(0, SNOOZED_MAX))
 }
 
+/** Трек не сыграл: пусть отдохнёт неделю, чтобы Волна не предлагала его снова и снова. */
+export function snoozeTrack(p: WaveProfile, t: Track, now: number): WaveProfile {
+  const tk = trackKey(t)
+  return {
+    ...p,
+    snoozed: trimSnoozed({ ...p.snoozed, [t.id]: now + 7 * DAY }),
+    snoozedKeys: trimSnoozed({ ...(p.snoozedKeys ?? {}), [tk]: now + 7 * DAY })
+  }
+}
+
 /** Реакция на трек меняет вес артиста. Профиль не мутируется. */
 export function applyReaction(p: WaveProfile, t: Track, r: Reaction, now: number): WaveProfile {
   const key = artistKey(t.artist)
@@ -97,7 +107,9 @@ export const earlyLimit = (duration: number) => (duration > 0 ? Math.min(30, dur
  * Музыка, доигравшая сама в свёрнутом окне, — не твой выбор: вес артисту за неё не идёт,
  * иначе фоновое слушание потихоньку поднимает всех подряд и вкус размывается.
  */
-export function reactionFor(prev: Track, info: { listened: number; manual: boolean; background?: boolean }): Reaction | null {
+export function reactionFor(prev: Track, info: { listened: number; manual: boolean; background?: boolean; broken?: boolean }): Reaction | null {
+  // трек оборвался или не отдался — это проблема сети, а не твой выбор
+  if (info.broken) return null
   if (!info.manual) return info.background ? null : 'finished'
   if (info.listened < earlyLimit(prev.duration)) return 'earlySkip'
   if (prev.duration > 0 && info.listened >= prev.duration - 15) return 'finished'

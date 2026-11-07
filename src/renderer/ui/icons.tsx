@@ -25,6 +25,7 @@ export const ICheck = (p: P) => <S {...p}><path d="M5 12l5 5L20 7" /></S>
 export const IX = (p: P) => <S {...p}><path d="M6 6l12 12M18 6L6 18" /></S>
 export const IFolder = (p: P) => <S {...p}><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></S>
 export const IClock = (p: P) => <S {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></S>
+export const IRefresh = (p: P) => <S {...p}><path d="M20 12a8 8 0 11-2.4-5.7" /><path d="M20 3v4.5h-4.5" /></S>
 export const ITune = (p: P) => <S {...p}><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></S>
 export const ISimilar = (p: P) => <S {...p}><circle cx="9" cy="12" r="5" /><circle cx="15" cy="12" r="5" /></S>
 export const IList = (p: P) => <S {...p}><path d="M9 6h11M9 12h11M9 18h11" /><circle cx="4.5" cy="6" r="1.3" fill="currentColor" stroke="none" /><circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none" /><circle cx="4.5" cy="18" r="1.3" fill="currentColor" stroke="none" /></S>

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Track, WaveMode, WaveProfile } from '../../shared/types'
-import { applyReaction, decayArtists, emptyProfile, reactionFor, seedsFor, undoDislike, type Reaction } from '../wave/profile'
+import { applyReaction, decayArtists, emptyProfile, reactionFor, seedsFor, snoozeTrack, undoDislike, type Reaction } from '../wave/profile'
 import { pickBatch } from '../wave/picker'
 import { cryptoRandom, fisherYates } from '../player/shuffle'
 import { useLibrary } from './library'
@@ -183,9 +183,10 @@ async function batchFor(kind: WaveKind, size = 20): Promise<Track[]> {
 export const kindOf = (source: string): WaveKind => (source === 'wave:sc' ? 'sc' : source === 'wave:both' ? 'both' : 'vk')
 
 async function batch(mode: WaveMode, profile: WaveProfile, size = 20, tune: WaveTune = useWave.getState().tune): Promise<Track[]> {
+  const pool = await vkPool(profile, tune, mode)
+  // «Моя музыка» читается только после vkPool: он сам её дожидается, а до того список пустой
   const mineTracks = useLibrary.getState().mine
   const mine = new Set(mineTracks.map((t) => t.id))
-  const pool = await vkPool(profile, tune, mode)
   const queued = new Set(player.getState().queue?.list().map((t) => t.id) ?? [])
   const now = Date.now()
   const cand = applyTune(pool.cands.filter((t) => !queued.has(t.id) && t.duration < 15 * 60), tune, now, size, pool.artists)
@@ -273,11 +274,17 @@ export const useWave = create<Wave>((set, get) => ({
 /** Подключение Волны к плееру: реакции при смене трека и подгрузка, когда очередь кончается. */
 export function bindWave() {
   return {
-    onTrackChange(prev: Track | null, _next: Track | null, info: { listened: number; manual: boolean }) {
+    onTrackChange(prev: Track | null, _next: Track | null, info: { listened: number; manual: boolean; broken?: boolean }) {
       if (!prev || !isWave()) return
       // в свёрнутом окне музыка играет сама — это не выбор, вес артисту за это не идёт
       const r = reactionFor(prev, { ...info, background: useUi.getState().background })
       if (r) useWave.getState().react(prev, r)
+    },
+    /** Трек не сыграл — убираем его из Волны на неделю, иначе он возвращается в каждой пачке. */
+    onFailed(t: Track) {
+      const profile = snoozeTrack(useWave.getState().profile, t, Date.now())
+      useWave.setState({ profile })
+      void window.api.invoke('wave:set', profile).catch(() => {})
     },
     async onQueueLow(remaining: number) {
       if (!isWave() || remaining > 5 || fetching) return
@@ -290,5 +297,3 @@ export function bindWave() {
   }
 }
 
-/** Подборка по вкусу Волны (для миксов «Для вас»). */
-export function waveBatch(mode: WaveMode, size: number): Promise<Track[]> { return batch(mode, useWave.getState().profile, size, normalizeTune(null)) }
