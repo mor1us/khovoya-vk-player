@@ -200,3 +200,20 @@
 
 /* Перетаскивание окна Electron на телефоне смысла не имеет и мешает жестам */
 .app.phone .drag, .login.phone .drag { -webkit-app-region: no-drag }
+
+/* ── двигаться должен список, а не весь экран ───────────── */
+/* В WebView страница норовит поехать целиком — вместе с шапкой и нижней панелью,
+   ровно как вкладка в браузере. Прибиваем документ гвоздями: ездить могут только
+   внутренние списки, и их прокрутка наружу не передаётся. */
+.phone-root, .phone-root body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.phone-root #root { height: 100dvh }
+.app.phone .page, .app.phone .pagescroll, .app.phone .rows, .app.phone .main {
+  overscroll-behavior: contain;
+}

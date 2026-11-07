@@ -20,6 +20,8 @@ export async function startMobile() {
   // эта сборка существует только для телефона — раскладку объявляем сразу,
   // не дожидаясь, что скажет Capacitor
   setPlatform('android')
+  // прибивает документ: ездить должны списки, а не вся страница целиком
+  document.documentElement.classList.add('phone-root')
   const store = await prefsStore(Preferences)
   const ua = await webUserAgent()
   const vk = makeVkApi({
