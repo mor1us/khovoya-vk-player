@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import type { DownloadJob, Track } from '../../shared/types'
 import { useDownloads } from '../store/downloads'
+import { Cover } from '../ui/Cover'
 import { player } from '../store/playerInstance'
 import * as I from '../ui/icons'
 
@@ -24,6 +25,7 @@ export function Downloads() {
       {live.length > 0 && <><div className="h"><h3>Сейчас</h3></div>
         {live.map((j) => (
           <div key={j.id} className="job">
+            <Cover className="cv" seed={j.id} />
             <div style={{ minWidth: 0 }}><div className="tt">{j.title}</div><div className="ar">{j.artist}</div></div>
             <div>{j.status === 'active' ? <div className="prog"><i style={{ width: `${Math.round(j.progress * 100)}%` }} /></div> : j.error ? <span className="ar">{j.error}</span> : null}</div>
             <div className={'st' + (j.status === 'error' ? ' bad' : '')}>
@@ -35,6 +37,7 @@ export function Downloads() {
       {done.length > 0 && <><div className="h" style={{ marginTop: 18 }}><h3>Скачано</h3></div>
         {done.map((j) => (
           <div key={j.id} className="job" onDoubleClick={() => playDone(j.id)}>
+            <Cover className="cv" seed={j.id} />
             <div style={{ minWidth: 0 }}><div className="tt">{j.title}</div><div className="ar">{j.artist}</div></div>
             <div className="ar" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={j.path}>{j.path}</div>
             <div className="st ok">

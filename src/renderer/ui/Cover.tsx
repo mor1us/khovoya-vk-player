@@ -9,7 +9,7 @@ function placeholder(seed: string): React.CSSProperties {
     { background: G },
     { background: K, boxShadow: `inset 0 0 0 3px ${G}` },
     { background: `linear-gradient(${G} 0 50%, ${K} 50% 100%)` },
-    { background: '#1E1E1E' },
+    { background: `linear-gradient(135deg, #1E1E1E 0 58%, ${G} 58%)` },
     { background: `linear-gradient(90deg, ${G} 0 33%, ${K} 33% 66%, ${G} 66%)` },
     { background: `radial-gradient(circle, ${G} 0 35%, ${K} 35%)` }
   ][h]

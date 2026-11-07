@@ -13,10 +13,27 @@ import { sourceLabel } from './source'
 import { playerHooks } from '../store/playerInstance'
 import * as I from './icons'
 import { openTrackMenu } from './TrackMenu'
+import { SrcBadge } from './TrackRow'
 
 export function usePosition(): number {
   const bg = useUi((s) => s.background)
   return usePlayer((s) => (bg ? 0 : Math.floor(s.position * 2) / 2))
+}
+
+/** Имя исполнителя кликабельно: открывает поиск по нему. Несколько имён через запятую — каждое своё. */
+function Artists({ names, src }: { names: string; src?: string }) {
+  const go = (name: string) => {
+    if (src === 'sc') useUi.getState().setSearchWhere('sc')
+    useUi.getState().submit(name)
+  }
+  const list = names.split(/,\s*/).filter(Boolean)
+  return (
+    <>{list.map((name, i) => (
+      <span key={name + i}>{i > 0 && ', '}
+        <button className="artlink" onClick={(e) => { e.stopPropagation(); go(name) }}>{name}</button>
+      </span>
+    ))}</>
+  )
 }
 
 /** Сердечко и «не то» по краям кнопок, как в Яндекс Музыке. */
@@ -39,7 +56,7 @@ export function LikeBtn() {
       .catch((e) => useUi.getState().toast((e as Error).message))
   }
   return (
-    <button key={pop} className={'ic heart' + (liked ? ' on' : '') + (pop ? ' pop' : '')} disabled={!cur}
+    <button key={pop} className={'ic heart' + (cur?.src === 'sc' ? ' sc' : '') + (liked ? ' on' : '') + (pop ? ' pop' : '')} disabled={!cur}
       title={liked ? 'Убрать лайк' : cur?.src === 'sc' ? 'Нравится — в «Лайки» SoundCloud' : 'Нравится — в «Моё» (твоя музыка ВК)'} onClick={click}>
       <I.IHeart size={20} on={liked} />
     </button>
@@ -48,8 +65,10 @@ export function LikeBtn() {
 
 export function DislikeBtn() {
   const cur = usePlayer((s) => s.current)
+  // перечёркнутое сердце горит, когда открыт список «Не нравится»
+  const on = useUi((s) => s.tab === 'disliked')
   return (
-    <button className="ic" title={'Не нравится — больше не предлагать и включить следующий\nПравая кнопка — список «Не нравится»'}
+    <button className={'ic' + (on ? ' on' : '')} title={'Не нравится — больше не предлагать и включить следующий\nПравая кнопка — список «Не нравится»'}
       onClick={() => cur && void useWave.getState().dislike(cur).then(() => useUi.getState().toast('Больше не предложу. Список — правой кнопкой по сердцу'))}
       onContextMenu={(e) => { e.preventDefault(); useUi.getState().go('disliked') }}>
       <I.IHeartOff size={20} />
@@ -63,13 +82,15 @@ export function Controls({ compact = false, reactions = false }: { compact?: boo
   const repeat = usePlayer((s) => s.repeat)
   const p = player.getState()
   return (
-    <div className="mid">
+    <div className="ctls">
       {reactions && <DislikeBtn />}
+      <div className="mid">
       {!compact && <button className={'ic' + (shuffle ? ' on' : '')} title="Перемешать" onClick={() => player.getState().toggleShuffle()}><I.IShuffle size={18} /></button>}
-      <button className="ic" title="Назад" onClick={() => void p.prev()}><I.IPrev size={22} /></button>
-      <button className="play" title={playing ? 'Пауза' : 'Играть'} onClick={() => void player.getState().toggle()}>{playing ? <I.IPause size={24} /> : <I.IPlay size={24} />}</button>
-      <button className="ic" title="Вперёд" onClick={() => void p.next()}><I.INext size={22} /></button>
+      <button className="ic" aria-label="Назад" onClick={() => void p.prev()}><I.IPrev size={22} /></button>
+      <button className="play" aria-label={playing ? 'Пауза' : 'Играть'} onClick={() => void player.getState().toggle()}>{playing ? <I.IPause size={24} /> : <I.IPlay size={24} />}</button>
+      <button className="ic" aria-label="Вперёд" onClick={() => void p.next()}><I.INext size={22} /></button>
       {!compact && <button className={'ic' + (repeat !== 'off' ? ' on' : '')} title={repeat === 'one' ? 'Повтор трека' : repeat === 'all' ? 'Повтор списка' : 'Повтор выключен'} onClick={() => player.getState().cycleRepeat()}>{repeat === 'one' ? <I.IRepeatOne size={18} /> : <I.IRepeat size={18} />}</button>}
+      </div>
       {reactions && <LikeBtn />}
     </div>
   )
@@ -107,16 +128,18 @@ export function Stage() {
   const volume = usePlayer((s) => s.volume)
   const pos = usePosition()
   const dur = duration || cur?.duration || 0
+  // подпись «кроссфейд» загорается только в те секунды, когда переход и правда идёт
+  const fading = playerHooks.crossfadeSec > 0 && dur > 0 && dur - pos <= playerHooks.crossfadeSec
   return (
     <section className="stage drag">
       <VolHint />
       <div className="top">
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div className="brand"><i />ХВОЯ</div>
-          <button className={'hist nodrag' + (tab === 'history' ? ' on' : '')} title="История прослушивания" onClick={() => useUi.getState().go('history')}><I.IClock size={15} />История</button>
-          <button className={'hist sim nodrag' + (tab === 'similar' ? ' on' : '')} title="Похожее на то, что играет" onClick={() => useUi.getState().go('similar')}><I.ISimilar size={15} />Похожее</button>
+          <button className={'hist nodrag' + (tab === 'history' ? ' on' : '')} onClick={() => useUi.getState().go('history')}><I.IClock size={15} />История</button>
+          <button className={'hist sim nodrag' + (tab === 'similar' ? ' on' : '')} onClick={() => useUi.getState().go('similar')}><I.ISimilar size={15} />Похожее</button>
         </div>
-        {source && <div className="src">Играет из · <b>{sourceLabel(source)}</b></div>}
+        {source && <div className="src" title={'Играет из · ' + sourceLabel(source)}>из · <b>{sourceLabel(source)}</b></div>}
       </div>
       {!cur ? (
         <div className="empty">Ничего не играет.<br />Включи Волну или любой трек справа.</div>
@@ -125,11 +148,11 @@ export function Stage() {
           <div className="nodrag" style={{ display: 'contents' }} onContextMenu={(e) => openTrackMenu(e, [cur])} onWheel={wheelVolume}>
           <Cover className="cover nodrag" url={cur.coverUrl} seed={cur.id} />
           <div className="title nodrag" title={cur.title}>{cur.title}</div>
-          <div className="artist nodrag"><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{cur.artist}</span><span className="chip">{fmtTime(cur.duration)}</span></div>
+          <div className="artist nodrag"><SrcBadge src={cur.src === 'sc' ? 'sc' : 'vk'} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}><Artists names={cur.artist} src={cur.src} /></span></div>
           </div>
           <ScComments track={cur} pos={pos} />
           <Waveform id={cur.id} track={cur} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} className="wf nodrag" />
-          <div className="times"><span>{fmtTime(pos)}</span><b>{playerHooks.crossfadeSec ? `⤨ кроссфейд ${playerHooks.crossfadeSec} с` : 'без кроссфейда'}</b><span>{fmtTime(dur)}</span></div>
+          <div className="times"><span>{fmtTime(pos)}</span><b className={fading ? 'now' : ''}>{playerHooks.crossfadeSec ? `⤨ кроссфейд ${playerHooks.crossfadeSec} с` : 'без кроссфейда'}</b><span>{fmtTime(dur)}</span></div>
           <div className="ctl nodrag"><Controls reactions /></div>
           <div className="vol nodrag">
             <button className="ic" onClick={() => player.getState().setVolume(volume > 0 ? 0 : 0.8)} title="Звук">{volume > 0 ? <I.IVol size={18} /> : <I.IMute size={18} />}</button>
@@ -151,7 +174,7 @@ export function MiniBar() {
   return (
     <div className="minibar">
       <VolHint />
-      <div className="now nodrag" onContextMenu={(e) => cur && openTrackMenu(e, [cur])} onWheel={wheelVolume} title="Колёсико — громкость, правая кнопка — меню трека">{cur && <><Cover className="cv" url={cur.coverUrl} seed={cur.id} /><div style={{ minWidth: 0 }}><div className="tt">{cur.title}</div><div className="ar">{cur.artist}</div></div></>}</div>
+      <div className="now nodrag" onContextMenu={(e) => cur && openTrackMenu(e, [cur])} onWheel={wheelVolume}>{cur && <><Cover className="cv" url={cur.coverUrl} seed={cur.id} /><div style={{ minWidth: 0 }}><div className="tt">{cur.title}</div><div className="ar"><SrcBadge src={cur.src === 'sc' ? 'sc' : 'vk'} /><Artists names={cur.artist} src={cur.src} /></div></div></>}</div>
       <Controls reactions />
       <div className="mright">
         {cur && <><span className="muted" style={{ font: '500 11px var(--M)' }}>{fmtTime(pos)}</span><Waveform id={cur.id} track={cur} n={36} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} /></>}

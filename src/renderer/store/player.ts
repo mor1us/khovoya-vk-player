@@ -24,9 +24,11 @@ export type PlayerDeps = {
   refreshUrl: (t: Track) => Promise<string>
   crossfadeSec: () => number
   onNotice?: (msg: string) => void
-  /** Смена трека: prev — что играло, listened — сколько секунд его слушали, manual — переключил сам. */
-  onTrackChange?: (prev: Track | null, next: Track | null, info: { listened: number; manual: boolean }) => void
+  /** Смена трека: prev — что играло, listened — сколько секунд его слушали, manual — переключил сам, broken — трек оборвался. */
+  onTrackChange?: (prev: Track | null, next: Track | null, info: { listened: number; manual: boolean; broken?: boolean }) => void
   onQueueLow?: (remaining: number) => void
+  /** Трек не удалось сыграть: ни ссылки, ни запасного источника. */
+  onFailed?: (t: Track) => void
 }
 
 export type PlayerState = {
@@ -74,7 +76,7 @@ export function createPlayer(d: PlayerDeps): StoreApi<PlayerState> {
 
   const store = createStore<PlayerState>()((set, get) => {
     /** Запустить трек: manual — 0,3 с, auto — кроссфейд по настройке, first — без перехода. */
-    async function start(target: Track | null, mode: 'first' | 'manual' | 'auto', startAt = 0, prevListened = get().position, skipped = 0): Promise<void> {
+    async function start(target: Track | null, mode: 'first' | 'manual' | 'auto', startAt = 0, prevListened = get().position, skipped = 0, broken = false): Promise<void> {
       const prev = get().current
       if (!target) { d.engine.pause(); set({ playing: false }); return }
       const plan = fadePlan({ duration: prev?.duration ?? 0, crossfadeSec: d.crossfadeSec(), repeat: get().repeat, manual: mode === 'manual' })
@@ -92,17 +94,18 @@ export function createPlayer(d: PlayerDeps): StoreApi<PlayerState> {
           return
         }
         d.onNotice?.(`«${target.title}» сейчас недоступен — пропускаю`)
+        d.onFailed?.(target)
         const q = get().queue
         if (!q) return
         const after = q.next(false)
-        if (after && after.id !== target.id) return start(after, mode === 'first' ? 'first' : mode, 0, prevListened, skipped + 1)
+        if (after && after.id !== target.id) return start(after, mode === 'first' ? 'first' : mode, 0, prevListened, skipped + 1, broken)
         set({ playing: false }); return
       }
       loadedId = target.id
       fadeStartedFor = null
       pushRecent(target)
       set({ current: target, playing: true, position: startAt, duration: target.duration, rev: get().rev + 1 })
-      if (prev?.id !== target.id || mode !== 'first') d.onTrackChange?.(prev ?? null, target, { listened: prevListened, manual: mode !== 'auto' })
+      if (prev?.id !== target.id || mode !== 'first') d.onTrackChange?.(prev ?? null, target, { listened: prevListened, manual: mode !== 'auto', broken })
       const q = get().queue
       if (q) d.onQueueLow?.(q.remaining())
     }
@@ -146,9 +149,11 @@ export function createPlayer(d: PlayerDeps): StoreApi<PlayerState> {
           try { await d.engine.load(fresh, at); if (get().playing) await d.engine.play(); return } catch { /* не вышло — пропускаем */ }
         }
         d.onNotice?.(`«${cur.title}» оборвался — включаю следующий`)
+        d.onFailed?.(cur)
         const nxt = s.queue?.next(false) ?? null
         loadedId = null
-        await start(nxt, 'first', 0, at)
+        // broken: оборвалась сеть, а не ты переключил — Волне это не повод записывать артисту минус
+        await start(nxt, 'first', 0, at, 0, true)
       } finally { busy = false }
     })
 

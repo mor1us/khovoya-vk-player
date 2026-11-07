@@ -19,6 +19,7 @@ import { useSc } from './store/sc'
 import { useHistory } from './store/history'
 import { bindUpdates } from './store/updates'
 import { UpdateBanner } from './ui/UpdateBanner'
+import { Tooltips } from './ui/Tooltip'
 import { bindDownloads } from './store/downloads'
 
 let booted = false
@@ -33,6 +34,7 @@ function boot() {
   const w = bindWave()
   playerHooks.trackChange.push(w.onTrackChange)
   playerHooks.queueLow.push((r) => void w.onQueueLow(r))
+  playerHooks.failed.push(w.onFailed)
   playerHooks.notice.push((m) => useUi.getState().toast(m))
   playerHooks.trackChange.push((_p, n) => { if (n) useHistory.getState().add(n) })
   setInterval(() => { if (player.getState().playing) player.getState().persist() }, 5000)
@@ -54,16 +56,25 @@ function useWide() {
 function CaptchaModal() {
   const [c, setC] = useState<{ sid: string; imageDataUrl: string } | null>(null)
   const [key, setKey] = useState('')
-  useEffect(() => window.api.on('vk:captcha', (x) => { setC(x); setKey('') }), [])
+  useEffect(() => {
+    const off = [
+      window.api.on('vk:captcha', (x) => { setC(x); setKey('') }),
+      // ВК уже не ждёт ответа (таймаут, новая капча, закрытое окно) — убираем картинку
+      window.api.on('vk:captchaDone', () => setC(null))
+    ]
+    return () => off.forEach((f) => f())
+  }, [])
   if (!c) return null
   const send = (k: string) => { void window.api.invoke('vk:captchaAnswer', k); setC(null) }
   return (
     <div className="modal"><form className="box" onSubmit={(e) => { e.preventDefault(); send(key) }}>
-      <h3 style={{ font: '800 20px var(--H)' }}>ВК просит капчу</h3>
-      <img src={c.imageDataUrl} alt="капча" style={{ height: 60, borderRadius: 8, background: '#fff', alignSelf: 'flex-start' }} />
+      <h3>ВК просит капчу</h3>
+      <div className="captcha"><img src={c.imageDataUrl} alt="капча" /></div>
       <input className="field" autoFocus placeholder="Символы с картинки" value={key} onChange={(e) => setKey(e.target.value)} />
-      <button className="btn">Отправить</button>
-      <button type="button" className="btn ghost" onClick={() => send('')}>Отмена</button>
+      <div className="ta">
+        <button type="button" className="btn-s" onClick={() => send('')}>Отмена</button>
+        <button className="btn-s g">Отправить</button>
+      </div>
     </form></div>
   )
 }
@@ -117,7 +128,7 @@ export function App() {
   }
 
   if (checking) return <div style={{ height: '100%' }} />
-  if (!session?.loggedIn) return <><Login onDone={(r) => useUi.getState().setSession({ loggedIn: true, userName: r.userName, avatar: r.avatar })} /><Toasts /><Offline /></>
+  if (!session?.loggedIn) return <><Login onDone={(r) => useUi.getState().setSession({ loggedIn: true, userName: r.userName, avatar: r.avatar })} /><Toasts /><Offline /><Tooltips /></>
 
   if (phone) return (
     <div className="app phone">
@@ -133,7 +144,7 @@ export function App() {
       {wide && <Stage />}
       <main className="main"><TopBar onLogout={logout} /><Pages onLogout={logout} /></main>
       {!wide && hasTrack && <MiniBar />}
-      <Toasts /><Offline /><CaptchaModal /><DialogHost /><UpdateBanner />
+      <Toasts /><Offline /><CaptchaModal /><DialogHost /><UpdateBanner /><Tooltips />
     </div>
   )
 }

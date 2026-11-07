@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Playlist, Track } from '../../shared/types'
 import { useUi } from '../store/ui'
 import { player } from '../store/playerInstance'
@@ -10,6 +10,7 @@ import { KEYWORDS, TAGS, withKeyword, activeKeyword } from '../ui/searchTags'
 import { mergeSources } from '../ui/mergeSearch'
 import { asPlaylist } from '../store/sc'
 import { ScLink, isScUrl } from './ScLink'
+import { useHScroll, Arrows } from '../ui/HScroll'
 
 type Where = 'all' | 'vk' | 'sc'
 
@@ -31,6 +32,9 @@ function SearchResults({ q }: { q: string }) {
   const toggleNoMixes = () => { localStorage.setItem('noMixes', noMixes ? '0' : '1'); setNoMixes(!noMixes) }
   const pickWhere = (w: Where) => useUi.getState().setSearchWhere(w)
   const kw = activeKeyword(q)
+  const scroll = useRef<HTMLDivElement>(null)
+  const vkRow = useHScroll()
+  const scRow = useHScroll()
   useEffect(() => {
     if (!q) return
     let alive = true
@@ -75,6 +79,7 @@ function SearchResults({ q }: { q: string }) {
         <span className={'tag' + (byDate ? ' on' : '')} onClick={() => setByDate(!byDate)}>Сначала новые</span>
         <span className={'tag' + (noMixes ? ' on' : '')} title="Убрать треки длиннее 15 минут (диджей-сеты, миксы)" onClick={toggleNoMixes}>Без миксов</span>
       </div>
+      <div className="pagescroll" ref={scroll}>
       {err && <div className="empty-state">{err}</div>}
       {scErr && where !== 'vk' && <div className="scdown"><SrcBadge src="sc" />{scErr}</div>}
       {!res && !err && [0, 1, 2, 3, 4].map((i) => <div key={i} className="skeleton" />)}
@@ -84,12 +89,13 @@ function SearchResults({ q }: { q: string }) {
             onClick={() => { if (a.src === 'sc') useUi.getState().setSearchWhere('sc'); useUi.getState().submit(a.name) }}>
             <Cover className="av" url={a.cover} seed={a.id} /><SrcBadge src={a.src} />{a.name}
           </button>))}</div>}
-        {where !== 'sc' && res.playlists.length > 0 && <><div className="h"><h3><SrcBadge src="vk" />Плейлисты ВК</h3></div><Crates list={res.playlists} /><div style={{ height: 16 }} /></>}
-        {where !== 'vk' && scPl.length > 0 && <><div className="h"><h3><SrcBadge src="sc" />Плейлисты SoundCloud</h3></div><Crates list={scPl} /><div style={{ height: 16 }} /></>}
+        {where !== 'sc' && res.playlists.length > 0 && <><div className="h"><h3><SrcBadge src="vk" />Плейлисты ВК</h3><Arrows s={vkRow} /></div><Crates list={res.playlists} rowRef={vkRow.ref} /><div style={{ height: 16 }} /></>}
+        {where !== 'vk' && scPl.length > 0 && <><div className="h"><h3><SrcBadge src="sc" />Плейлисты SoundCloud</h3><Arrows s={scRow} /></div><Crates list={scPl} rowRef={scRow.ref} /><div style={{ height: 16 }} /></>}
         <div className="h"><h3>Треки</h3></div>
         {!tracks.length && <div className="tags" style={{ marginBottom: 12 }}>{TAGS.slice(0, 8).map((t) => <span key={t} className="tag" onClick={() => useUi.getState().submit(t)}>#{t}</span>)}</div>}
-        {tracks.length ? <VirtualTrackList tracks={tracks} showSrc onPlay={(t) => void player.getState().playList(tracks, t.id, `search:${q}`)} /> : <div className="empty-state">{where === 'sc' && sc === null ? 'Ищу в SoundCloud…' : where === 'sc' && scErr ? 'В SoundCloud сейчас не поискать — нужен VPN' : 'Ничего не нашлось'}</div>}
+        {tracks.length ? <VirtualTrackList tracks={tracks} showSrc scroller={scroll} onPlay={(t) => void player.getState().playList(tracks, t.id, `search:${q}`)} /> : <div className="empty-state">{where === 'sc' && sc === null ? 'Ищу в SoundCloud…' : where === 'sc' && scErr ? 'В SoundCloud сейчас не поискать — нужен VPN' : 'Ничего не нашлось'}</div>}
       </>}
+      </div>
     </div>
   )
 }

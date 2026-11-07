@@ -1,5 +1,6 @@
 import { useUpdates } from '../store/updates'
 import { updateText } from '../../shared/updates'
+import * as I from './icons'
 
 export function UpdateBanner() {
   const s = useUpdates((x) => x.s)
@@ -11,7 +12,7 @@ export function UpdateBanner() {
       {s.status === 'available' && <button className="btn-s g" onClick={() => void window.api.invoke('upd:download')}>Скачать</button>}
       {s.status === 'downloading' && <div className="prog" style={{ width: 120 }}><i style={{ width: `${Math.round((s.progress ?? 0) * 100)}%` }} /></div>}
       {s.status === 'ready' && <button className="btn-s g" onClick={() => void window.api.invoke('upd:install')}>Перезапустить и обновить</button>}
-      {s.status !== 'downloading' && <button className="ic" title="Позже" onClick={() => useUpdates.getState().hide()}>✕</button>}
+      {s.status !== 'downloading' && <button className="ic" title="Позже" onClick={() => useUpdates.getState().hide()}><I.IX size={14} /></button>}
     </div>
   )
 }

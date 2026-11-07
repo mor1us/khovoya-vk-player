@@ -39,7 +39,7 @@ export function Queue() {
           <div className="rows qcur"><TrackRow track={cur} index={0} why="играет сейчас" onPlay={() => void player.getState().toggle()} /></div>
           <div className="h" style={{ margin: '18px 0 8px' }}><h3>Далее в очереди</h3><span className="muted" style={{ font: '500 11px var(--M)' }}>{next.length} {plural(next.length, 'трек', 'трека', 'треков')}</span></div>
           {next.length
-            ? <VirtualTrackList tracks={next} showSrc={next.some((t) => t.src === 'sc')} onPlay={(t) => void player.getState().jump(t.id)} />
+            ? <VirtualTrackList tracks={next} showSrc onPlay={(t) => void player.getState().jump(t.id)} />
             : <div className="empty-state">Дальше ничего. Включи Волну — она не кончается.</div>}
         </>
       ) : <div className="empty-state">Ничего не играет. Включи Волну или любой трек.</div>}

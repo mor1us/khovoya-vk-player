@@ -21,6 +21,12 @@ function UpdatesRow() {
   )
 }
 
+/** Версия берётся из самого приложения — руками её тут уже один раз забыли обновить. */
+function AboutRow() {
+  const cur = useUpdates((x) => x.s.current)
+  return <div className="item" style={{ border: 0 }}><div className="l"><span>Хвоя {cur ?? ''} · без рекламы · музыка из ВКонтакте</span></div></div>
+}
+
 export function Settings({ onLogout }: { onLogout: () => void }) {
   const [s, setS] = useState<S | null>(null)
   useEffect(() => { window.api.invoke('settings:get').then(setS).catch(() => {}) }, [])
@@ -48,11 +54,11 @@ export function Settings({ onLogout }: { onLogout: () => void }) {
         {!phone && <div className="item"><div className="l"><b>Статус в Discord</b><span>Друзья видят, что ты слушаешь. Нужен ID приложения из Discord Developer Portal — инструкция в файле docs/discord-setup.md.</span></div>
           <Toggle on={s.discordEnabled} onChange={(v) => void save({ discordEnabled: v })} /></div>}
         {!phone && s.discordEnabled && <div className="item"><div className="l"><b>ID приложения Discord</b><span>Только цифры, например 1234567890123456789</span></div>
-          <input className="filter" defaultValue={s.discordAppId} placeholder="Application ID" onBlur={(e) => void save({ discordAppId: e.target.value })} /></div>}
+          <input className="filter wide" defaultValue={s.discordAppId} placeholder="Application ID" onBlur={(e) => void save({ discordAppId: e.target.value })} /></div>}
         <UpdatesRow />
         <div className="item"><div className="l"><b>Аккаунт ВК</b><span>{useUi.getState().session?.userName}</span></div>
           <button className="btn-s" onClick={onLogout}>Выйти</button></div>
-        <div className="item" style={{ border: 0 }}><div className="l"><span>Хвоя 0.4.18 · без рекламы · музыка из ВКонтакте</span></div></div>
+        <AboutRow />
       </div>
     </div>
   )

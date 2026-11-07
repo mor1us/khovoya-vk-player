@@ -25,6 +25,16 @@ export function hashStr(s: string): number {
   return h >>> 0
 }
 
+/** Настоящая волна SoundCloud часто приходит «забором»: всё сжато в верхнюю треть и рисунка не видно.
+ *  Растягиваем от самого тихого места к самому громкому, сохраняя форму. */
+export function stretchBars(bars: number[]): number[] {
+  if (bars.length < 2) return bars
+  let lo = Infinity, hi = -Infinity
+  for (const b of bars) { if (b < lo) lo = b; if (b > hi) hi = b }
+  if (!(hi > lo)) return bars
+  return bars.map((b) => 0.12 + ((b - lo) / (hi - lo)) * 0.88)
+}
+
 /** Форма «звуковой волны» для полосы перемотки — своя у каждого трека, но всегда одинаковая. */
 export function waveBars(id: string, n: number): number[] {
   let s = hashStr(id) || 1

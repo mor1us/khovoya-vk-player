@@ -25,7 +25,7 @@ export function History() {
       {groups.map((g) => (
         <div key={g.label} style={{ marginBottom: 18 }}>
           <div className="h"><h3>{g.label}</h3></div>
-          <div className="rows">{g.items.map((e, i) => <TrackRow key={e.track.id + e.at} track={e.track} why={hhmm(e.at)} index={i} onPlay={() => play(e.track.id)} />)}</div>
+          <div className="rows">{g.items.map((e, i) => <TrackRow key={e.track.id + e.at} track={e.track} showSrc why={hhmm(e.at)} index={i} onPlay={() => play(e.track.id)} />)}</div>
         </div>
       ))}
     </div>

@@ -9,7 +9,7 @@ import * as I from '../ui/icons'
 
 function why(t: Track, base: Track | null, mine: Set<string>, weights: Record<string, number>): string {
   if ((weights[artistKey(t.artist)] ?? 0) >= 3) return 'ты лайкал этого артиста'
-  if (!mine.has(t.id)) return base ? `похоже на «${base.title}»` : 'новое для тебя'
+  if (!mine.has(t.id)) return base ? '' : 'новое для тебя' // «похоже на …» уже написано в заголовке страницы
   return 'из твоей музыки'
 }
 
@@ -50,7 +50,7 @@ export function Similar() {
       </div>
       {list === null && <div className="rows">{Array.from({ length: 8 }, (_, i) => <div key={i} className="skeleton" style={{ height: 52, marginBottom: 6 }} />)}</div>}
       {list?.length === 0 && <div className="empty-state">Рекомендации пока недоступны</div>}
-      {!!list?.length && <div className="rows">{list.map((t, i) => <TrackRow key={t.id} track={t} showSrc={base?.src === 'sc'} why={why(t, base, own, weights)} index={i} onPlay={() => play(t.id)} />)}</div>}
+      {!!list?.length && <div className="rows">{list.map((t, i) => <TrackRow key={t.id} track={t} showSrc why={why(t, base, own, weights)} index={i} onPlay={() => play(t.id)} />)}</div>}
     </div>
   )
 }

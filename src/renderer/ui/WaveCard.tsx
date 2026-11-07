@@ -105,13 +105,18 @@ function WaveColumn({ kind, onTune }: { kind: WaveKind; onTune: () => void }) {
     if (inThis) { void player.getState().toggle(); return }
     void useWave.getState().startKind(kind).catch((e) => useUi.getState().toast((e as Error).message))
   }
+  // пересобрать: та же сборка, что и при запуске, — новые кандидаты и новый порядок
+  const again = () => { void useWave.getState().startKind(kind).catch((e) => useUi.getState().toast((e as Error).message)) }
   return (
     <div className={`wcol ${kind}` + (live ? ' live' : '')}>
       <canvas ref={cv} />
-      <div className="k">{live ? 'В ЭФИРЕ' : inThis ? 'НА ПАУЗЕ' : look.k}</div>
+      <div className="wtop">
+        <div className="k">{live ? 'В ЭФИРЕ' : inThis ? 'НА ПАУЗЕ' : look.k}</div>
+        <button className="wtune wnew" disabled={loading} onClick={again} title="Пересобрать — новая подборка"><I.IRefresh size={15} /></button>
+        <button className="wtune" onClick={onTune} title="Настроить Волну"><I.ITune size={15} /></button>
+      </div>
       <h2>{look.title}</h2>
       <div className="tags">{summary ? summary.split(' · ').map((x) => <span key={x}>{x}</span>) : <span className="soft">под твой вкус</span>}</div>
-      <button className="wtune" onClick={onTune} title="Настроить Волну"><I.ITune size={15} /></button>
       <button className="disc" title={live ? 'Пауза' : 'Слушать'} disabled={loading} onClick={go}>
         <svg className="ring" viewBox="0 0 200 200" aria-hidden>
           <defs><path id={`wr-${kind}`} d="M100,100 m-76,0 a76,76 0 1,1 152,0 a76,76 0 1,1 -152,0" /></defs>

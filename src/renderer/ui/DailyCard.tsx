@@ -8,7 +8,7 @@ const LOOKS: { bg: string; ink: string; line?: boolean }[] = [
   { bg: '#39FF14', ink: '#0B0B0B' },
   { bg: '#141414', ink: '#39FF14', line: true },
   { bg: '#B6FF8A', ink: '#0B0B0B' },
-  { bg: '#2E7D32', ink: '#0B0B0B' },
+  { bg: '#2E7D32', ink: '#F5F5F5' },
   { bg: '#0B0B0B', ink: '#39FF14', line: true }
 ]
 

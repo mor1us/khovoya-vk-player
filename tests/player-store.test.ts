@@ -84,7 +84,7 @@ describe('player store', () => {
     await p.getState().playList(list, 't0', 'mine')
     engine.onTimeUpdate.mock.calls[0][0](12, 200)
     await p.getState().next()
-    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ id: 't0' }), expect.objectContaining({ id: 't1' }), { listened: 12, manual: true })
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ id: 't0' }), expect.objectContaining({ id: 't1' }), { listened: 12, manual: true, broken: false })
   })
   it('stops after 3 dead tracks in a row instead of skipping the whole queue', async () => {
     const onNotice = vi.fn()

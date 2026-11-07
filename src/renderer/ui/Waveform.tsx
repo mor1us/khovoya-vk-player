@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Track } from '../../shared/types'
-import { waveBars } from './format'
+import { stretchBars, waveBars } from './format'
 
 /** Настоящие волны SoundCloud: грузим один раз на трек и помним. */
 const realCache = new Map<string, number[]>()
@@ -14,8 +14,8 @@ function useRealBars(track: Track | undefined, n: number): number[] | null {
     let alive = true
     window.api.invoke('sc:waveform', track, n).then((b) => {
       if (!b?.length) return
-      realCache.set(key, b)
-      if (alive) setBars(b)
+      realCache.set(key, stretchBars(b))
+      if (alive) setBars(realCache.get(key)!)
     }).catch(() => {})
     return () => { alive = false }
   }, [key]) // eslint-disable-line react-hooks/exhaustive-deps

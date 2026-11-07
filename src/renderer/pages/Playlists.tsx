@@ -27,7 +27,7 @@ export function Playlists() {
         <h1>Плейлисты</h1>
         <div className="seg"><button className={which === 'mine' ? 'on' : ''} onClick={() => setWhich('mine')}>Мои</button><button className={which === 'followed' ? 'on' : ''} onClick={() => setWhich('followed')}>Добавленные</button></div>
         <span className="sp" />
-        {hasQueue && <button className="btn-s" onClick={() => void saveQueue()}>Сохранить очередь как плейлист</button>}
+        {hasQueue && <button className="btn-s" onClick={() => void saveQueue()} title="Сохранить то, что сейчас в очереди, отдельным плейлистом">Сохранить очередь</button>}
         <button className="btn-s" title="Хранится на компе, можно смешивать ВК и SoundCloud" onClick={() => void create(true)}><I.IPlus size={14} />Плейлист Хвои</button>
         <button className="btn-s g" onClick={() => void create()}><I.IPlus size={14} />Новый в ВК</button>
       </div>

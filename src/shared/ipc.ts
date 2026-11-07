@@ -126,10 +126,11 @@ export type EventMap = {
   'dl:changed': undefined
   'tray:cmd': 'toggle' | 'next'
   'vk:captcha': { sid: string; imageDataUrl: string }
+  'vk:captchaDone': undefined
   'upd:changed': UpdateState
 }
 
-export const EVENTS = { 'sys:state': true, 'auth:lost': true, 'dl:changed': true, 'tray:cmd': true, 'vk:captcha': true, 'upd:changed': true } as const
+export const EVENTS = { 'sys:state': true, 'auth:lost': true, 'dl:changed': true, 'tray:cmd': true, 'vk:captcha': true, 'vk:captchaDone': true, 'upd:changed': true } as const
 
 export type EventName = keyof EventMap
 

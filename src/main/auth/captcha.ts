@@ -12,12 +12,14 @@ export async function fetchImageDataUrl(f: typeof fetch, url: string): Promise<s
  * а ожидание всегда одно: новая капча закрывает прежнюю пустым ответом, иначе тот
  * запрос к ВК висел бы вечно (его resolve терялся вместе с перерегистрацией канала).
  * Если человек ничего не ввёл, через timeoutMs отвечаем пусто — ВК сам скажет, что капча не та.
+ * Каждое закрытое ожидание отзывается через onDone: окно убирает картинку, чтобы человек не вводил
+ * символы в окошко, ответ из которого уже никому не нужен.
  */
 export class CaptchaGate {
   private resolve: ((key: string) => void) | null = null
   private timer: ReturnType<typeof setTimeout> | null = null
 
-  constructor(private timeoutMs = 3 * 60_000) {}
+  constructor(private timeoutMs = 3 * 60_000, private onDone: () => void = () => {}) {}
 
   get waiting(): boolean { return this.resolve !== null }
 
@@ -36,7 +38,9 @@ export class CaptchaGate {
     const res = this.resolve
     if (this.timer) { clearTimeout(this.timer); this.timer = null }
     this.resolve = null
-    res?.(typeof key === 'string' ? key : '')
+    if (!res) return // никто не ждёт — и окну сообщать нечего
+    res(typeof key === 'string' ? key : '')
+    this.onDone()
   }
 
   /** Окно закрылось — ждать больше нечего. */
