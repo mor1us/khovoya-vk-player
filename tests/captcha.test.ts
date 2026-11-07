@@ -53,3 +53,45 @@ describe('CaptchaGate', () => {
     expect(await p).toBe('')
   })
 })
+describe('CaptchaGate: окно капчи закрывается само', () => {
+  it('по таймауту окно просят закрыть — не ждёт ввода, которого никто не примет', async () => {
+    vi.useFakeTimers()
+    try {
+      const done = vi.fn()
+      const g = new CaptchaGate(1000, done)
+      const p = g.ask(() => {})
+      expect(done).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(1001)
+      expect(await p).toBe('')
+      expect(done).toHaveBeenCalledOnce()
+    } finally { vi.useRealTimers() }
+  })
+
+  it('ответили из окна — закрыть тоже просим', async () => {
+    const done = vi.fn()
+    const g = new CaptchaGate(1000, done)
+    const p = g.ask(() => {})
+    g.answer('abc')
+    expect(await p).toBe('abc')
+    expect(done).toHaveBeenCalledOnce()
+  })
+
+  it('закрыли окно — лишнего сообщения в закрытое окно не шлём', () => {
+    const done = vi.fn()
+    const g = new CaptchaGate(1000, done)
+    g.answer('x')
+    g.cancel()
+    expect(done).not.toHaveBeenCalled()
+  })
+
+  it('вторая капча: сначала убрать прежнюю, потом показать новую', async () => {
+    const order: string[] = []
+    const g = new CaptchaGate(1000, () => order.push('закрыть'))
+    const first = g.ask(() => order.push('показать 1'))
+    const second = g.ask(() => order.push('показать 2'))
+    expect(await first).toBe('')
+    expect(order).toEqual(['показать 1', 'закрыть', 'показать 2'])
+    g.answer('ok')
+    expect(await second).toBe('ok')
+  })
+})

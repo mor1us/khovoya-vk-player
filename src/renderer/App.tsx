@@ -52,7 +52,14 @@ function useWide() {
 function CaptchaModal() {
   const [c, setC] = useState<{ sid: string; imageDataUrl: string } | null>(null)
   const [key, setKey] = useState('')
-  useEffect(() => window.api.on('vk:captcha', (x) => { setC(x); setKey('') }), [])
+  useEffect(() => {
+    const off = [
+      window.api.on('vk:captcha', (x) => { setC(x); setKey('') }),
+      // ВК уже не ждёт ответа (таймаут, новая капча, закрытое окно) — убираем картинку
+      window.api.on('vk:captchaDone', () => setC(null))
+    ]
+    return () => off.forEach((f) => f())
+  }, [])
   if (!c) return null
   const send = (k: string) => { void window.api.invoke('vk:captchaAnswer', k); setC(null) }
   return (

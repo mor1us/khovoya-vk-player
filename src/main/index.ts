@@ -30,7 +30,7 @@ let keeper: TokenKeeper
 /** VK_MOCK_LOGIN=1 — начать разлогиненным, чтобы проверить экран входа. */
 let mockLoggedIn = process.env.VK_MOCK_LOGIN !== '1'
 /** Ожидание ответа на капчу ВК — одно на всё приложение. */
-const captcha = new CaptchaGate()
+const captcha = new CaptchaGate(undefined, () => win?.webContents.send('vk:captchaDone'))
 
 function createWindow(): BrowserWindow {
   const w = new BrowserWindow({
