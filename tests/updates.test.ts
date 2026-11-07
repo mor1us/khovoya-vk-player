@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { updateText, feedFromConfig } from '../src/shared/updates'
+import { updateText, feedFromConfig, updateConfigYaml } from '../src/shared/updates'
 
 describe('updateText', () => {
   it('human texts', () => {
@@ -18,5 +18,18 @@ describe('feedFromConfig', () => {
     expect(feedFromConfig({ owner: 'morius', repo: 'khvoya' })).toEqual({ provider: 'github', owner: 'morius', repo: 'khvoya' })
     expect(feedFromConfig({ owner: '', repo: 'khvoya' })).toBeNull()
     expect(feedFromConfig(undefined)).toBeNull()
+  })
+})
+
+describe('updateConfigYaml', () => {
+  it('описывает тот же репозиторий, что и лента', () => {
+    const y = updateConfigYaml({ provider: 'github', owner: 'mor1us', repo: 'khovoya-vk-player' })
+    expect(y).toContain('provider: github')
+    expect(y).toContain('owner: mor1us')
+    expect(y).toContain('repo: khovoya-vk-player')
+  })
+
+  it('задаёт папку кэша — без неё electron-updater ругается', () => {
+    expect(updateConfigYaml({ provider: 'github', owner: 'a', repo: 'b' })).toContain('updaterCacheDirName: khvoya-updater')
   })
 })

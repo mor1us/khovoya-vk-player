@@ -22,3 +22,18 @@ export function updateText(s: UpdateState): string {
 export function feedFromConfig(c: { owner?: string; repo?: string } | undefined): { provider: 'github'; owner: string; repo: string } | null {
   return c?.owner && c?.repo ? { provider: 'github', owner: c.owner, repo: c.repo } : null
 }
+
+/**
+ * Содержимое app-update.yml. Обычно его кладёт electron-builder, но сборка через `--dir`
+ * (которой проверяют правки) его не получает, и electron-updater падает на чтении файла.
+ * Адрес мы и так знаем — значит можем написать этот файл сами.
+ */
+export function updateConfigYaml(feed: { provider: string; owner: string; repo: string }): string {
+  return [
+    `provider: ${feed.provider}`,
+    `owner: ${feed.owner}`,
+    `repo: ${feed.repo}`,
+    'updaterCacheDirName: khvoya-updater',
+    ''
+  ].join('\n')
+}
