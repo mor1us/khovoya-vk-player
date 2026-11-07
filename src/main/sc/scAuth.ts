@@ -1,4 +1,5 @@
 import { BrowserWindow, session, type Session } from 'electron'
+import { isFreshLogin } from './soundcloud'
 
 /** Вход в SoundCloud: обычный сайт в отдельном разделе, пароль вводится только там. */
 export const scSession = (): Session => session.fromPartition('persist:sc')
@@ -11,7 +12,19 @@ export async function scToken(): Promise<string | null> {
   return v ? decodeURIComponent(v) : null
 }
 
-export function scLoginWindow(parent: BrowserWindow | null, log: (m: string) => void): Promise<{ ok: true } | { error: string }> {
+/** Убрать ключ прошлого входа и вернуть его: иначе сайт считает, что ты уже внутри, и формы входа не покажет. */
+async function dropToken(): Promise<string | null> {
+  const was = await scToken()
+  const cookies = await scSession().cookies.get({ name: 'oauth_token' }).catch(() => [])
+  for (const c of cookies) {
+    const host = (c.domain ?? 'soundcloud.com').replace(/^\./, '')
+    await scSession().cookies.remove(`https://${host}/`, 'oauth_token').catch(() => {})
+  }
+  return was
+}
+
+export async function scLoginWindow(parent: BrowserWindow | null, log: (m: string) => void): Promise<{ ok: true } | { error: string }> {
+  const before = await dropToken()
   return new Promise((resolve) => {
     const s = scSession()
     s.setUserAgent(UA)
@@ -26,7 +39,7 @@ export function scLoginWindow(parent: BrowserWindow | null, log: (m: string) => 
       if (!w.isDestroyed()) w.close()
       resolve(r)
     }
-    const timer = setInterval(async () => { if (await scToken()) { log('soundcloud: вход выполнен'); finish({ ok: true }) } }, 1500)
+    const timer = setInterval(async () => { if (isFreshLogin(before, await scToken())) { log('soundcloud: вход выполнен'); finish({ ok: true }) } }, 1500)
     // «Войти через Google/Apple» открывает своё окно — пускаем его в том же разделе, чтобы вход дошёл до сайта
     w.webContents.setWindowOpenHandler(() => ({ action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, webPreferences: { session: s, contextIsolation: true, sandbox: true } } }))
     w.webContents.on('did-fail-load', (_e, code, desc, url) => {

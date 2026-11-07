@@ -300,7 +300,8 @@ export class SoundCloud {
     this.meCache = { id: Number(j.id), name: String(j.username ?? j.full_name ?? 'SoundCloud'), avatar: j.avatar_url ? String(j.avatar_url).replace('-large.', '-t200x200.') : undefined }
     return this.meCache
   }
-  forgetMe() { this.meCache = null }
+  /** Забыть всё про аккаунт — в том числе то, что прошлый вход протух: сейчас войдут заново. */
+  forgetMe() { this.meCache = null; this.authLost = false }
 
   /** Страницы SoundCloud (next_href) — до max записей. */
   private async pages(path: string, params: Record<string, string | number>, max: number): Promise<any[]> {
@@ -396,4 +397,12 @@ export class SoundCloud {
     if (again) return again
     throw new Error('SoundCloud не отдал этот трек')
   }
+}
+
+/**
+ * Вошли ли заново. Окно входа закрывалось сразу, как только видело cookie oauth_token, —
+ * а она оставалась от прошлого, уже мёртвого входа. Годится только ключ, которого там не было.
+ */
+export function isFreshLogin(before: string | null, now: string | null): boolean {
+  return !!now && now !== before
 }
