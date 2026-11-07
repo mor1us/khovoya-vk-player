@@ -34,7 +34,12 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
+      # Android SDK на машинах GitHub уже стоит: отдельное действие только ломается
+      # на пакете tools, которого в новых инструментах нет.
+      - name: Android SDK
+        run: |
+          echo "SDK: $ANDROID_HOME"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
       - name: Зависимости
         run: npm ci
       - name: Проверки

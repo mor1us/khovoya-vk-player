@@ -40,7 +40,9 @@ export function askCaptcha(sid: string, imageDataUrl: string): Promise<string> {
   })
 }
 
-const SC_OFF = { ok: false, message: 'SoundCloud в телефонной Хвое пока нет', hasKey: false }
+// Экраны SoundCloud на телефоне нарисованы, но не работают: вход и потоки появятся,
+// когда обкатаем ВК. Пока каналы отвечают отказом с понятным текстом.
+const SC_OFF = { ok: false, message: 'SoundCloud на телефоне пока не работает — он появится позже', hasKey: false }
 
 export function installBridge(deps: BridgeDeps) {
   const table = new Map<string, (...a: unknown[]) => unknown>()

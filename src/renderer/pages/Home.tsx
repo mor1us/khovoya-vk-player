@@ -67,11 +67,9 @@ export function Home() {
   const fav = useMixes((s) => s.mixes.find((m) => m.key === 'fav'))
   const row = useHScroll()
   const lead = fav ? <><MixCrate m={fav} /><div className="crsep" aria-hidden /></> : null
-  // на телефоне SoundCloud в ядро не входит — показываем только Волну ВК,
-  // иначе три карточки втискиваются в ширину экрана и становятся нечитаемыми
   return (
     <div className="home">
-      <WaveCard only={isPhone() ? ['vk'] : undefined} />
+      <WaveCard />
       {isPhone() && <MineShort />}
       <DailyRow />
       <div className="h"><h3>Мои плейлисты</h3><span className="hr"><button className="link" onClick={() => useUi.getState().go('playlists')}>Все {playlists.length} →</button><Arrows s={row} /></span></div>

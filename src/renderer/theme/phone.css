@@ -171,3 +171,12 @@
 .app.phone .pblock .h h3{font:800 19px var(--H);letter-spacing:-.5px}
 .app.phone .pblock .link{font:600 14px var(--B);color:var(--g)}
 .app.phone .pblock .row{height:62px}
+
+/* Три Волны лентой: на компьютере они колонками, на телефоне листаются пальцем. */
+.app.phone .waves{
+  display:flex;gap:12px;grid-template-columns:none;
+  overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;
+  margin:0 -14px;padding:0 14px;
+}
+.app.phone .waves::-webkit-scrollbar{display:none}
+.app.phone .waves .wcol{flex:0 0 86%;scroll-snap-align:center;min-height:230px}

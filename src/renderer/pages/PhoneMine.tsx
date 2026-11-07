@@ -37,6 +37,8 @@ export function PhoneMine() {
         <Section icon={<I.IList size={20} />} title="Плейлисты" to="playlists" />
         <Section icon={<I.IQueue size={20} />} title="Очередь" to="queue" />
         <Section icon={<I.IHeartOff size={20} />} title="Не нравится" to="disliked" />
+        <Section icon={<I.IDown size={20} />} title="Загрузки" to="downloads" />
+        <Section icon={<I.ITune size={20} />} title="SoundCloud" to="soundcloud" />
       </div>
 
       <div className="pmh">
