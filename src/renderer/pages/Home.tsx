@@ -12,6 +12,7 @@ import { BigCard } from '../ui/BigCard'
 import { DailyCard } from '../ui/DailyCard'
 import { dailyOnly } from '../store/dailyLogic'
 import { useHScroll, Arrows } from '../ui/HScroll'
+import { isPhone } from '../ui/layout'
 
 /** «Забытое любимое» и др. миксы — отдельной карточкой-стопкой из 4 обложек. */
 function MixCrate({ m }: { m: Mix }) {
@@ -56,9 +57,11 @@ export function Home() {
   const fav = useMixes((s) => s.mixes.find((m) => m.key === 'fav'))
   const row = useHScroll()
   const lead = fav ? <><MixCrate m={fav} /><div className="crsep" aria-hidden /></> : null
+  // на телефоне SoundCloud в ядро не входит — показываем только Волну ВК,
+  // иначе три карточки втискиваются в ширину экрана и становятся нечитаемыми
   return (
     <div className="home">
-      <WaveCard />
+      <WaveCard only={isPhone() ? ['vk'] : undefined} />
       <DailyRow />
       <div className="h"><h3>Мои плейлисты</h3><span className="hr"><button className="link" onClick={() => useUi.getState().go('playlists')}>Все {playlists.length} →</button><Arrows s={row} /></span></div>
       {playlists.length || fav ? <Crates list={playlists.slice(0, 12)} lead={lead} rowRef={row.ref} /> : <div className="empty-state">Плейлистов пока нет</div>}

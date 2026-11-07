@@ -121,3 +121,12 @@
 .login.phone .right h2{font:800 24px var(--H);letter-spacing:-.6px;margin-bottom:4px}
 .login.phone .right>div{max-width:none !important}
 .login.phone .btn{height:56px;font-size:17px;border-radius:16px}
+
+/* ── Волна на телефоне ──────────────────────────────────── */
+/* Карточка одна и во всю ширину: три колонки на 412 точках читать невозможно. */
+.app.phone .waves{grid-template-columns:1fr}
+.app.phone .waves .wcol{min-height:230px}
+.app.phone .home .bigrow,.app.phone .home .crates{overflow-x:auto;scrollbar-width:none}
+.app.phone .home .bigrow::-webkit-scrollbar,.app.phone .home .crates::-webkit-scrollbar{display:none}
+/* стрелки прокрутки мышиные — пальцем листают сам ряд */
+.app.phone .hr .arrows{display:none}
