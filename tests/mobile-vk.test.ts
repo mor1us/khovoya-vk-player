@@ -70,6 +70,14 @@ describe('ВК на телефоне', () => {
     expect(toToken.headers['User-Agent']).toBe(ua)
   })
 
+  it('ссылки на треки поднимаются до https', async () => {
+    // WebView открыт по https и молча режет http — трек не включился бы без объяснений
+    const { f } = net([TOKEN, ok({ count: 1, items: [{ id: 1, owner_id: 2, title: 'Т', artist: 'А', duration: 10, url: 'http://cs1.vkuseraudio.net/a.mp3' }] })])
+    const { api } = makeVkApi({ fetch: f, onCaptcha: async () => '', onAuthLost: () => {}, log: () => {} })
+    const [t] = await api.myTracks()
+    expect(t.url.startsWith('https://')).toBe(true)
+  })
+
   it('сессия отвечает «не вошёл», пока ключа нет', async () => {
     const { f } = net([{ type: 'error' }])
     const { session } = makeVkApi({ fetch: f, onCaptcha: async () => '', onAuthLost: () => {}, log: () => {} })

@@ -2,7 +2,7 @@ import { VkClient } from '../main/vk/client'
 import { VkAudioApi, type AudioApi } from '../main/vk/audio'
 import { TokenKeeper, parseWebToken, webTokenRequest, SessionLostError } from '../main/auth/webToken'
 import { VK_UA, API_VERSION } from '../main/vk/client'
-import type { Session } from '../shared/types'
+import type { Session, Track } from '../shared/types'
 
 export type VkDeps = {
   /** Запрос уходит через нативную сторону: только там можно поставить настоящий User-Agent. */
@@ -42,7 +42,7 @@ export function makeVkApi(deps: VkDeps): { api: AudioApi; keeper: TokenKeeper; s
     onCaptcha: deps.onCaptcha
   })
 
-  const api = new VkAudioApi(client, () => keeper.userId(), deps.log)
+  const api = secure(new VkAudioApi(client, () => keeper.userId(), deps.log))
 
   const session = async (): Promise<Session> => {
     const t = await keeper.get()
@@ -52,6 +52,30 @@ export function makeVkApi(deps: VkDeps): { api: AudioApi; keeper: TokenKeeper; s
   }
 
   return { api, keeper, session }
+}
+
+/**
+ * WebView открыт по https и молча режет содержимое по http: трек бы просто не включился,
+ * без объяснения. Поэтому все ссылки, что приходят от ВК, поднимаем до https.
+ */
+const up = (u?: string) => (u && u.startsWith('http://') ? 'https://' + u.slice(7) : u)
+
+function secureTrack<T extends { url?: string; coverUrl?: string }>(t: T): T {
+  return { ...t, url: up(t.url) ?? '', coverUrl: up(t.coverUrl) }
+}
+
+function secure(api: AudioApi): AudioApi {
+  const list = (f: () => Promise<Track[]>) => async () => (await f()).map(secureTrack)
+  return {
+    ...api,
+    myTracks: list(() => api.myTracks()),
+    playlistTracks: (p) => api.playlistTracks(p).then((xs) => xs.map(secureTrack)),
+    recommendations: (t, n) => api.recommendations(t, n).then((xs) => xs.map(secureTrack)),
+    popular: () => api.popular().then((xs) => xs.map(secureTrack)),
+    byId: (ids) => api.byId(ids).then((xs) => xs.map(secureTrack)),
+    artistTracks: (a) => api.artistTracks(a).then((xs) => xs.map(secureTrack)),
+    search: (q, o, d) => api.search(q, o, d).then((r) => ({ ...r, tracks: r.tracks.map(secureTrack) }))
+  }
 }
 
 /** Имя и аватар для шапки. Не вышло — не беда, покажем «Ты». */
