@@ -24,9 +24,24 @@ npm test                      # тесты
 npm run dist                  # установщик локально (на Linux нужен wine и ffmpeg.exe в node_modules/ffmpeg-static/)
 ```
 
-## Выпуск обновлений
-Поднять `version` в `package.json` и запушить `master` — GitHub Actions соберёт установщик под Windows и опубликует выпуск. Установленная Хвоя сама предложит обновиться.
+## Скачать
 
-Скачать: https://github.com/mor1us/khovoya-vk-player/releases/latest
+Всё лежит в одном месте — https://github.com/mor1us/khovoya-vk-player/releases/latest
+
+| Куда | Файл |
+|---|---|
+| Windows, установить | `Khvoya-Setup-<версия>.exe` |
+| Windows, с флешки | `Khvoya-Portable-<версия>.exe` |
+| Телефон на Android 13+ | `Khvoya-<версия>.apk` |
+
+## Выпуск обновлений
+Поднять `version` в `package.json` и запушить `master` — GitHub Actions соберёт установщик под Windows,
+портативную версию и apk для Android и положит их в один выпуск. Установленная Хвоя на компьютере сама
+предложит обновиться; apk обновляется установкой поверх.
+
+**Подпись apk.** Пока в секретах репозитория нет ключа, apk подписывается отладочным — ставится, но
+подписанная версия потом поверх него не встанет. Чтобы завести ключ: создать его `keytool`, положить в
+секреты `ANDROID_KEYSTORE` (файл в base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+`ANDROID_KEY_PASSWORD`. **Ключ нельзя терять** — с другим ключом обновление поверх не встанет.
 
 Документы: `docs/superpowers/specs` (спецификация), `docs/first-run-check.md`, `docs/discord-setup.md`.
