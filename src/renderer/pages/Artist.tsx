@@ -44,8 +44,12 @@ export function Artist() {
       const on = !info.followed
       if (sc) await window.api.invoke('scacc:artistFollow', a.name, on)
       else await window.api.invoke('vk:artistFollow', { id: a.id, name: a.name }, on)
-      setInfo({ ...info, followed: on })
-      useUi.getState().toast(on ? `Подписался на ${a.name}` : `Отписался от ${a.name}`)
+      // не верим себе на слово: спрашиваем, что там теперь на самом деле
+      const fresh = sc ? await window.api.invoke('scacc:artistInfo', a.name) : await window.api.invoke('vk:artistInfo', { id: a.id, name: a.name })
+      setInfo(fresh)
+      const who = sc ? 'SoundCloud' : 'ВК'
+      if (fresh.followed === on) useUi.getState().toast(on ? `Слежу за ${a.name}` : `Больше не слежу за ${a.name}`)
+      else useUi.getState().toast(on ? `${who} не дал подписаться` : `${who} не дал отписаться`)
     } catch (e) { useUi.getState().toast((e as Error).message) } finally { setBusy(false) }
   }
 

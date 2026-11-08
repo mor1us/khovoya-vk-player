@@ -92,3 +92,31 @@ describe('листание страниц', () => {
     expect(got.length).toBe(1)
   })
 })
+
+describe('подписка на исполнителя', () => {
+  it('подписка — один простой вызов', async () => {
+    const { calls, client } = fakeClient(() => ({}))
+    await new VkAudioApi(client as any, () => 7).followArtist({ id: 'a1', name: 'Heronwater' }, true)
+    expect(calls).toEqual([{ m: 'audio.followArtist', p: { artist_id: 'a1' } }])
+  })
+
+  it('отписка: если ВК не знает unfollowArtist, пробуем второй способ', async () => {
+    const { calls, client } = fakeClient((m, p) => {
+      if (m === 'audio.unfollowArtist') throw new Error('Unknown method passed')
+      if (m === 'audio.followArtist' && p.unfollow) return {}
+      throw new Error('не ждали такого вызова')
+    })
+    await new VkAudioApi(client as any, () => 7).followArtist({ id: 'a1', name: 'Heronwater' }, false)
+    expect(calls.map((c) => c.m)).toEqual(['audio.unfollowArtist', 'audio.followArtist'])
+  })
+
+  it('все способы отказали — говорим об этом, а не молчим', async () => {
+    const { client } = fakeClient(() => { throw new Error('Access denied') })
+    await expect(new VkAudioApi(client as any, () => 7).followArtist({ id: 'a1', name: 'X' }, false)).rejects.toThrow(/Access denied/)
+  })
+
+  it('без id подписка невозможна', async () => {
+    const { client } = fakeClient(() => ({}))
+    await expect(new VkAudioApi(client as any, () => 7).followArtist({ name: 'X' }, true)).rejects.toThrow(/не знает/)
+  })
+})

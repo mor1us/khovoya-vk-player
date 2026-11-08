@@ -57,10 +57,26 @@ export class VkAudioApi implements AudioApi {
     return { followed: !!(r?.is_followed ?? r?.artist?.is_followed), cover: best ? String(best) : undefined, can: true }
   }
 
-  /** Подписка на исполнителя — то же, что сердечко у артиста на сайте ВК. */
+  /**
+   * Подписка на исполнителя — то же, что сердечко у артиста на сайте ВК.
+   * Отписку разные версии приложения ВК делают по-разному, и какой метод жив сегодня — заранее не скажешь.
+   * Поэтому пробуем известные по очереди и пишем в журнал, что ответил каждый.
+   */
   async followArtist(a: ArtistRef, on: boolean): Promise<void> {
     if (!a.id) throw new Error('ВК не знает такого исполнителя')
-    await this.vk.call(on ? 'audio.followArtist' : 'audio.unfollowArtist', { artist_id: a.id })
+    if (on) { await this.vk.call('audio.followArtist', { artist_id: a.id }); return }
+    const ways: Array<[string, Record<string, string | number>]> = [
+      ['audio.unfollowArtist', { artist_id: a.id }],
+      ['audio.followArtist', { artist_id: a.id, unfollow: 1 }]
+    ]
+    let last: Error | null = null
+    for (const [method, params] of ways) {
+      try { await this.vk.call(method, params); return } catch (e) {
+        last = e as Error
+        this.log(`${method}: ${last.message}`)
+      }
+    }
+    throw last ?? new Error('ВК не дал отписаться')
   }
 
   /** Подборки «для вас» из каталога ВК (плейлисты дня и т.п.). */

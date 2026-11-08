@@ -1,5 +1,6 @@
 import { cleanQuery } from '../ui/searchTags'
 import { readJson, writeJson } from './json'
+import { pushSpot, stepBack, stepForward, type Spot } from './navLogic'
 import { create } from 'zustand'
 import type { ArtistRef, Playlist, Session } from '../../shared/types'
 
@@ -8,7 +9,9 @@ export type Tab = 'home' | 'mine' | 'playlists' | 'downloads' | 'search' | 'sett
 
 type Ui = {
   tab: Tab
-  history: Tab[]
+  /** Где был и куда можно вернуться «вперёд» — как кнопки браузера и боковые кнопки мыши. */
+  history: Spot[]
+  ahead: Spot[]
   playlist: Playlist | null
   /** Кого показывает экран исполнителя. */
   artist: (ArtistRef & { cover?: string; src?: 'vk' | 'sc' }) | null
@@ -20,8 +23,10 @@ type Ui = {
   background: boolean
   session: Session | null
   toasts: { id: number; text: string; action?: ToastAction }[]
+  move(to: Spot): void
   go(t: Tab): void
   back(): void
+  forward(): void
   openPlaylist(p: Playlist): void
   openArtist(a: ArtistRef & { cover?: string; src?: 'vk' | 'sc' }): void
   setQuery(q: string): void
@@ -31,21 +36,33 @@ type Ui = {
   setSession(s: Session | null): void
 }
 
+/** Снимок того, где человек сейчас. */
+const here = (s: { tab: Tab; playlist: Playlist | null; artist: Spot['artist']; submitted: string }): Spot => ({ tab: s.tab, playlist: s.playlist, artist: s.artist, submitted: s.submitted })
+
 let tid = 0
 export const useUi = create<Ui>((set, get) => ({
-  tab: 'home', history: [], searchWhere: ((localStorage.getItem('searchWhere') as 'all' | 'vk' | 'sc') || 'all'),
+  tab: 'home', history: [], ahead: [], searchWhere: ((localStorage.getItem('searchWhere') as 'all' | 'vk' | 'sc') || 'all'),
   setSearchWhere(w) { localStorage.setItem('searchWhere', w); set({ searchWhere: w }) }, playlist: null, artist: null, query: '', submitted: '', background: false, session: null, toasts: [],
-  go(t) { if (t !== get().tab) set({ history: [...get().history.slice(-20), get().tab], tab: t }) },
-  back() { const h = get().history; if (h.length) set({ tab: h[h.length - 1], history: h.slice(0, -1) }) },
-  openPlaylist(p) { set({ playlist: p }); get().go('playlist') },
-  openArtist(a) { set({ artist: a }); if (get().tab === 'artist') set({ tab: 'home' }); get().go('artist') },
+  go(t) { get().move({ ...here(get()), tab: t }) },
+  /** Перейти в место целиком: вкладка вместе с тем, что на ней показано. */
+  move(to) {
+    const g = get()
+    const step = pushSpot(g.history, here(g), to)
+    if (!step) return
+    set({ ...step, tab: to.tab as Tab, playlist: to.playlist, artist: to.artist, submitted: to.submitted })
+  },
+  back() { const g = get(); const r = stepBack(g.history, g.ahead, here(g)); if (r) set({ history: r.history, ahead: r.ahead, tab: r.spot.tab as Tab, playlist: r.spot.playlist, artist: r.spot.artist, submitted: r.spot.submitted }) },
+  forward() { const g = get(); const r = stepForward(g.history, g.ahead, here(g)); if (r) set({ history: r.history, ahead: r.ahead, tab: r.spot.tab as Tab, playlist: r.spot.playlist, artist: r.spot.artist, submitted: r.spot.submitted }) },
+  openPlaylist(p) { get().move({ ...here(get()), tab: 'playlist', playlist: p }) },
+  openArtist(a) { get().move({ ...here(get()), tab: 'artist', artist: a }) },
   setQuery(q) { set({ query: q }) },
   submit(q) {
     const s = cleanQuery(q ?? get().query)
     if (!s) return
     const hist = readJson<string[]>('searchHistory', [])
     writeJson('searchHistory', [s, ...hist.filter((x) => x !== s)].slice(0, 10))
-    set({ submitted: s, query: s }); get().go('search')
+    set({ query: s })
+    get().move({ ...here(get()), tab: 'search', submitted: s })
   },
   toast(text, action) {
     const id = ++tid

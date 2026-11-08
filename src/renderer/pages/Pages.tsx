@@ -14,6 +14,7 @@ import { Queue } from './Queue'
 import { Disliked } from './Disliked'
 import { SoundCloud } from './SoundCloud'
 import { TrackMenu } from '../ui/TrackMenu'
+import { PullRefresh } from '../ui/PullRefresh'
 import { isPhone } from '../ui/layout'
 
 export function Pages({ onLogout }: { onLogout: () => void }) {
@@ -34,6 +35,7 @@ export function Pages({ onLogout }: { onLogout: () => void }) {
       {tab === 'disliked' && <Disliked />}
       {tab === 'soundcloud' && <SoundCloud />}
       <TrackMenu />
+      <PullRefresh />
     </>
   )
 }

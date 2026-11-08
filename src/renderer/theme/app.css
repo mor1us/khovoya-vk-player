@@ -168,6 +168,8 @@
 .ph h1{font:800 28px var(--H);letter-spacing:-1px}
 .ph .cnt{font:500 12px var(--M);color:var(--t3)}
 .ph .av{width:56px;height:56px;border-radius:50%;flex:none}
+/* Подсказка «потяни, чтобы обновить» — висит над страницей, окну не мешает */
+.pullr{position:fixed;left:50%;top:8px;z-index:60;-webkit-app-region:no-drag;display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;background:var(--p2);border:1px solid var(--ln);color:var(--t2);font:500 11px var(--M);text-transform:uppercase;letter-spacing:.6px;pointer-events:none}
 .ph .sp{flex:1}
 .btn-s{height:36px;padding:0 14px;border-radius:10px;font:600 13px var(--B);border:1px solid var(--ln);color:var(--text);display:inline-flex;align-items:center;gap:8px}
 .btn-s:hover{border-color:#3a3a3a}
