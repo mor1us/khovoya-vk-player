@@ -232,6 +232,25 @@ export class SoundCloud {
     return (j?.collection ?? []).map(mapScTrack).filter((x: Track | null): x is Track => !!x)
   }
 
+  /**
+   * Треки артиста SoundCloud: сначала ищем его страницу по имени и берём оттуда загрузки, новые сверху.
+   * Страницы нет (или имя написано иначе) — ищем треки по имени и оставляем только его.
+   */
+  async artistTracks(name: string, limit = 40): Promise<Track[]> {
+    const key = name.trim().toLowerCase()
+    const byDate = (ts: Track[]) => ts.sort((x, y) => (y.addedAt ?? 0) - (x.addedAt ?? 0))
+    const j = await this.api('/search/users', { q: name, limit: 3 }).catch(() => null)
+    const users: any[] = j?.collection ?? []
+    const u = users.find((x) => String(x?.username ?? '').trim().toLowerCase() === key) ?? users[0]
+    if (u?.id) {
+      const r = await this.api(`/users/${u.id}/tracks`, { limit, linked_partitioning: 1 }).catch(() => null)
+      const ts = (r?.collection ?? []).map(mapScTrack).filter((t: Track | null): t is Track => !!t)
+      if (ts.length) return byDate(ts)
+    }
+    const found = await this.search(name, limit)
+    return byDate(found.filter((t) => t.artist.trim().toLowerCase() === key))
+  }
+
   /** Плейлисты SoundCloud по запросу (для поиска). */
   async searchPlaylists(q: string, limit = 20): Promise<ScPlaylistRef[]> {
     const j = await this.api('/search/playlists_without_albums', { q, limit })
@@ -357,6 +376,44 @@ export class SoundCloud {
   /** Как отправлять изменения: SoundCloud принимает их только со своего сайта (см. scWrite). */
   private writer: ((method: 'PUT' | 'DELETE', url: string, token: string) => Promise<number>) | null = null
   setWriter(f: (method: 'PUT' | 'DELETE', url: string, token: string) => Promise<number>) { this.writer = f }
+
+  /** Страница артиста SoundCloud по имени: нужен его номер, чтобы подписываться. */
+  private async userByName(name: string): Promise<{ id: number; avatar?: string } | null> {
+    const key = name.trim().toLowerCase()
+    const j = await this.api('/search/users', { q: name, limit: 3 }).catch(() => null)
+    const users: any[] = j?.collection ?? []
+    const u = users.find((x) => String(x?.username ?? '').trim().toLowerCase() === key) ?? users[0]
+    return u?.id ? { id: Number(u.id), avatar: u.avatar_url ? String(u.avatar_url).replace('-large.', '-t200x200.') : undefined } : null
+  }
+
+  /** Подписан ли ты на артиста SoundCloud. Без входа вопрос не имеет смысла. */
+  async artistInfo(name: string): Promise<{ followed: boolean; cover?: string; can: boolean }> {
+    const u = await this.userByName(name)
+    if (!u) return { followed: false, can: false }
+    const me = await this.me()
+    if (!me) return { followed: false, cover: u.avatar, can: false }
+    const j = await this.api(`/users/${me.id}/followings/ids`, { limit: 5000 }, false, 'GET', true).catch(() => null)
+    const ids: number[] = j?.collection ?? []
+    return { followed: ids.includes(u.id), cover: u.avatar, can: true }
+  }
+
+  /** Подписка на артиста SoundCloud — то же, что Follow на сайте. */
+  async followArtist(name: string, on: boolean): Promise<void> {
+    const token = await this.token()
+    if (!token) throw new ScAuthLost('Войди в SoundCloud во вкладке SoundCloud')
+    const u = await this.userByName(name)
+    if (!u) throw new Error(`На SoundCloud не нашёлся ${name}`)
+    const url = new URL(`${API}/me/followings/${u.id}`)
+    url.searchParams.set('client_id', await this.clientId())
+    if (!this.writer) { await this.api(`/me/followings/${u.id}`, {}, false, on ? 'PUT' : 'DELETE', true); return }
+    const status = await this.writer(on ? 'PUT' : 'DELETE', url.toString(), token)
+    if (status >= 200 && status < 300) return
+    if (!on && status === 404) return // подписки и так нет
+    this.log(`soundcloud: ${on ? 'подписка' : 'отписка'} → ${status || 'нет связи'}`)
+    if (status === 0) throw new ScUnavailable('SoundCloud не ответил — проверь VPN')
+    if (status === 401) throw new ScAuthLost('Вход в SoundCloud устарел — войди заново во вкладке SoundCloud')
+    throw new Error(`SoundCloud не принял ${on ? 'подписку' : 'отписку'} (ответ ${status})`)
+  }
 
   /** Лайк прямо на SoundCloud. */
   async setLike(t: Track, on: boolean): Promise<void> {

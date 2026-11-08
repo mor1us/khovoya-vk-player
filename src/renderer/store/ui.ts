@@ -11,7 +11,7 @@ type Ui = {
   history: Tab[]
   playlist: Playlist | null
   /** Кого показывает экран исполнителя. */
-  artist: (ArtistRef & { cover?: string }) | null
+  artist: (ArtistRef & { cover?: string; src?: 'vk' | 'sc' }) | null
   query: string
   /** Где искать: везде, только ВК или только SoundCloud. */
   searchWhere: 'all' | 'vk' | 'sc'
@@ -23,7 +23,7 @@ type Ui = {
   go(t: Tab): void
   back(): void
   openPlaylist(p: Playlist): void
-  openArtist(a: ArtistRef & { cover?: string }): void
+  openArtist(a: ArtistRef & { cover?: string; src?: 'vk' | 'sc' }): void
   setQuery(q: string): void
   submit(q?: string): void
   /** Подсказка внизу справа; action — кнопка (например, «Открыть»). */

@@ -89,6 +89,8 @@ export function TopBar({ onLogout }: { onLogout: () => void }) {
             <button onClick={() => { setMenu(false); useUi.getState().go('similar') }}>Похожее</button>
             <button onClick={() => { setMenu(false); useUi.getState().go('disliked') }}>Не нравится</button>
             <div className="sep" />
+            <button onClick={() => location.reload()}>Обновить страницу <span className="hint">F5</span></button>
+            <div className="sep" />
             <button onClick={() => { setMenu(false); onLogout() }}>Выйти из ВК</button>
           </div>
         )}

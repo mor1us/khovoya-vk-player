@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { useEffect, useState } from 'react'
 import { usePlayer, player } from '../store/playerInstance'
 import { useUi } from '../store/ui'
+import { Artists } from './Artists'
 import { useLibrary } from '../store/library'
 import { useWave } from '../store/wave'
 import { useSc } from '../store/sc'
@@ -18,22 +19,6 @@ import { SrcBadge } from './TrackRow'
 export function usePosition(): number {
   const bg = useUi((s) => s.background)
   return usePlayer((s) => (bg ? 0 : Math.floor(s.position * 2) / 2))
-}
-
-/** Имя исполнителя кликабельно: открывает поиск по нему. Несколько имён через запятую — каждое своё. */
-function Artists({ names, src }: { names: string; src?: string }) {
-  const go = (name: string) => {
-    if (src === 'sc') useUi.getState().setSearchWhere('sc')
-    useUi.getState().submit(name)
-  }
-  const list = names.split(/,\s*/).filter(Boolean)
-  return (
-    <>{list.map((name, i) => (
-      <span key={name + i}>{i > 0 && ', '}
-        <button className="artlink" onClick={(e) => { e.stopPropagation(); go(name) }}>{name}</button>
-      </span>
-    ))}</>
-  )
 }
 
 /** Сердечко и «не то» по краям кнопок, как в Яндекс Музыке. */

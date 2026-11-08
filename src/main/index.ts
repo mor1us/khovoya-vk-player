@@ -121,6 +121,9 @@ async function setup() {
   const scLog = (what: string) => (e: unknown) => { if (!(e instanceof ScUnavailable)) log(`soundcloud: ${what} — ${(e as Error)?.message ?? e}`); throw e }
   handle('sc:search', (q: string) => scSearch(q).catch(scLog('поиск')))
   handle('sc:related', (t: Track) => (MOCK ? scSearch(t.artist) : sc.related(t)))
+  handle('sc:artistTracks', (name: string) => (MOCK ? scSearch(name) : sc.artistTracks(name)))
+  handle('scacc:artistInfo', (name: string) => (MOCK ? { followed: false, can: false } : sc.artistInfo(name)))
+  handle('scacc:artistFollow', (name: string, on: boolean) => (MOCK ? undefined : sc.followArtist(name, on)))
   handle('sc:stream', (t: Track) => scStream(t).catch(scLog('поток')))
   handle('sc:waveform', (t: Track, n?: number) => (MOCK ? [] : sc.waveform(t, n).catch(() => [])))
   handle('sc:resolve', async (url: string) => {

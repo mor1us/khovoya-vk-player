@@ -1,4 +1,4 @@
-import type { Track, Playlist, ArtistRef } from '../../shared/types'
+import type { Track, Playlist, ArtistRef, ArtistInfo } from '../../shared/types'
 import { mapTrack, mapPlaylist } from './models'
 import { catalogSummary, parseCatalog, type ForYouBlock } from './catalog'
 
@@ -22,7 +22,11 @@ export interface AudioApi {
   reorder(t: Track, before?: string, after?: string, playlist?: Playlist): Promise<void>
   forYou(): Promise<ForYouBlock[]>
   artistTracks(a: ArtistRef): Promise<Track[]>
+  artistInfo(a: ArtistRef): Promise<ArtistInfo>
+  followArtist(a: ArtistRef, on: boolean): Promise<void>
 }
+
+export type { ArtistInfo }
 
 const PAGE = 1000
 const vkId = (id: string) => Number(id.split('_')[1])
@@ -42,6 +46,21 @@ export class VkAudioApi implements AudioApi {
     const r = await this.vk.call<{ items: any[] }>('audio.search', { q: a.name, count: 60, sort: 0, performer_only: 1 })
     const name = a.name.trim().toLowerCase()
     return byDate(r.items.map(mapTrack).filter((t) => t.artist.toLowerCase().split(/\s+(?:feat\.?|ft\.?|x|&)\s+|,/)[0].trim() === name))
+  }
+
+  /** Подписан ли ты на исполнителя и его фотография. Без id ВК про него ничего не знает. */
+  async artistInfo(a: ArtistRef): Promise<ArtistInfo> {
+    if (!a.id) return { followed: false, can: false }
+    const r = await this.vk.call<any>('audio.getArtistById', { artist_id: a.id, extended: 1 })
+    const photo: any[] = r?.photo ?? r?.artist?.photo ?? []
+    const best = photo.length ? photo[photo.length - 1]?.url : undefined
+    return { followed: !!(r?.is_followed ?? r?.artist?.is_followed), cover: best ? String(best) : undefined, can: true }
+  }
+
+  /** Подписка на исполнителя — то же, что сердечко у артиста на сайте ВК. */
+  async followArtist(a: ArtistRef, on: boolean): Promise<void> {
+    if (!a.id) throw new Error('ВК не знает такого исполнителя')
+    await this.vk.call(on ? 'audio.followArtist' : 'audio.unfollowArtist', { artist_id: a.id })
   }
 
   /** Подборки «для вас» из каталога ВК (плейлисты дня и т.п.). */

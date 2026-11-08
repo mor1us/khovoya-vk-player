@@ -298,3 +298,28 @@ describe('протухший вход в SoundCloud', () => {
     await expect(sc.me()).rejects.toThrow(/Вход в SoundCloud устарел/)
   })
 })
+
+describe('треки артиста SoundCloud', () => {
+  it('берёт страницу артиста и отдаёт свежее сверху', async () => {
+    const f: Fetch = async (url) => {
+      if (url.includes('/search/users')) return res(200, { collection: [{ id: 9, username: 'other' }, { id: 7, username: 'synthboy' }] })
+      if (url.includes('/users/7/tracks')) return res(200, { collection: [
+        raw({ id: 1, title: 'Старое', created_at: '2026-01-01T00:00:00Z' }),
+        raw({ id: 2, title: 'Новое', created_at: '2026-10-01T00:00:00Z' })
+      ] })
+      return res(200, {})
+    }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    expect((await sc.artistTracks('synthboy')).map((t) => t.title)).toEqual(['Новое', 'Старое'])
+  })
+
+  it('нет страницы — ищем треки по имени и чужое не берём', async () => {
+    const f: Fetch = async (url) => {
+      if (url.includes('/search/users')) return res(200, { collection: [] })
+      if (url.includes('/search/tracks')) return res(200, { collection: [raw(), raw({ id: 5, user: { username: 'кто-то ещё' } })] })
+      return res(200, {})
+    }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    expect((await sc.artistTracks('synthboy')).map((t) => t.id)).toEqual(['sc_42'])
+  })
+})

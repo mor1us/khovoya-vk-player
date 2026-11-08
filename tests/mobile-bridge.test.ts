@@ -19,6 +19,7 @@ function stubApi(over: Partial<AudioApi> = {}): AudioApi {
     createPlaylist: async () => pl(2), editPlaylist: async () => {}, addToPlaylist: async () => {},
     removeFromPlaylist: async () => {}, deletePlaylist: async () => {}, reorder: async () => {},
     forYou: async () => [], artistTracks: async () => [],
+    artistInfo: async () => ({ followed: false, can: false }), followArtist: async () => {},
     ...over
   }
 }

@@ -90,6 +90,10 @@ export function installBridge(deps: BridgeDeps) {
   handle('sc:related', () => [])
   handle('sc:stream', () => '')
   handle('sc:resolve', () => ({ kind: 'playlist' as const, title: 'SoundCloud недоступен', author: '', tracks: [] }))
+  handle('sc:artistTracks', () => [])
+  // can: false — окно просто не покажет кнопку подписки, пока SoundCloud на телефоне не работает
+  handle('scacc:artistInfo', () => ({ followed: false, can: false }))
+  handle('scacc:artistFollow', () => {})
   handle('sc:suggest', () => [])
   handle('sc:users', () => [])
   handle('sc:searchPlaylists', () => [])

@@ -1,5 +1,5 @@
 import type {
-  ArtistRef, DiscordUpdate, DownloadJob, ForYouBlock, LocalPl, LoginStep, Playlist, ScArtist, ScComment,
+  ArtistInfo, ArtistRef, DiscordUpdate, DownloadJob, ForYouBlock, LocalPl, LoginStep, Playlist, ScArtist, ScComment,
   ScMe, ScPlaylistRef, ScResolved, ScStatus, Session, Settings, Track, WaveProfile
 } from './types'
 import type { UpdateState } from './updates'
@@ -25,6 +25,8 @@ export type IpcMap = {
   'vk:popular': () => Track[]
   'vk:forYou': () => ForYouBlock[]
   'vk:artistTracks': (a: ArtistRef) => Track[]
+  'vk:artistInfo': (a: ArtistRef) => ArtistInfo
+  'vk:artistFollow': (a: ArtistRef, on: boolean) => void
   'vk:byId': (ids: string[]) => Track[]
   'vk:add': (t: Track) => void
   'vk:remove': (t: Track) => void
@@ -42,6 +44,9 @@ export type IpcMap = {
   // SoundCloud без входа
   'sc:search': (q: string) => Track[]
   'sc:related': (t: Track) => Track[]
+  'sc:artistTracks': (name: string) => Track[]
+  'scacc:artistInfo': (name: string) => ArtistInfo
+  'scacc:artistFollow': (name: string, on: boolean) => void
   /** Ссылка на поток живёт недолго — берётся прямо перед прослушиванием. */
   'sc:stream': (t: Track) => string
   'sc:resolve': (url: string) => ScResolved
@@ -104,10 +109,10 @@ export type IpcResult<C extends Channel> = Awaited<ReturnType<IpcMap[C]>>
 export const IPC = {
   'auth:browser': true, 'auth:logout': true, 'auth:session': true,
   'vk:myTracks': true, 'vk:search': true, 'vk:playlists': true, 'vk:playlistTracks': true,
-  'vk:recommendations': true, 'vk:popular': true, 'vk:forYou': true, 'vk:artistTracks': true, 'vk:byId': true, 'vk:add': true, 'vk:remove': true,
+  'vk:recommendations': true, 'vk:popular': true, 'vk:forYou': true, 'vk:artistTracks': true, 'vk:artistInfo': true, 'vk:artistFollow': true, 'vk:byId': true, 'vk:add': true, 'vk:remove': true,
   'vk:captchaAnswer': true,
   'pl:create': true, 'pl:edit': true, 'pl:addTracks': true, 'pl:removeTracks': true, 'pl:delete': true, 'pl:reorder': true,
-  'sc:search': true, 'sc:related': true, 'sc:stream': true, 'sc:resolve': true, 'sc:suggest': true, 'sc:users': true, 'sc:searchPlaylists': true, 'sc:status': true, 'sc:prepare': true,
+  'sc:search': true, 'sc:related': true, 'sc:artistTracks': true, 'scacc:artistInfo': true, 'scacc:artistFollow': true, 'sc:stream': true, 'sc:resolve': true, 'sc:suggest': true, 'sc:users': true, 'sc:searchPlaylists': true, 'sc:status': true, 'sc:prepare': true,
   'sc:waveform': true, 'sc:comments': true,
   'scacc:me': true, 'scacc:login': true, 'scacc:logout': true, 'scacc:likes': true, 'scacc:playlists': true, 'scacc:playlistTracks': true, 'scacc:feed': true, 'scacc:like': true,
   'scl:get': true, 'scl:set': true, 'lpl:get': true, 'lpl:set': true,

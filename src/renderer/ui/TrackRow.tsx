@@ -10,6 +10,7 @@ import { useLibrary } from '../store/library'
 import { useSc } from '../store/sc'
 import { useWave } from '../store/wave'
 import { useUi } from '../store/ui'
+import { Artists } from './Artists'
 import { isPhone } from './layout'
 
 export type RowProps = {
@@ -83,7 +84,7 @@ export function TrackRow(p: RowProps) {
       <Cover className="cv" url={t.coverUrl} seed={t.id} onClick={() => t.available && p.onPlay()} />
       <div style={{ minWidth: 0 }}>
         <div className="tt">{p.showSrc && <SrcBadge src={t.src === 'sc' ? 'sc' : 'vk'} />}{t.title}</div>
-        <div className="ar">{t.artist}</div>
+        <div className="ar"><Artists names={t.artist} src={t.src} id={t.artists?.[0]?.id} /></div>
         {p.why && <div className="why">{p.why}</div>}
       </div>
       {!p.compact && <div className={'acts' + (done || isLiked ? ' keep' : '')}>

@@ -23,6 +23,8 @@ export function coverSvg(seed: number): string {
 export class MockAudioApi implements AudioApi {
   private all: Track[]
   private mine: Track[]
+  /** Подписки на артистов живут только пока открыто окно — для проверок этого хватает. */
+  private followed = new Set<string>()
   private pls: { p: Playlist; ids: string[] }[]
   private nextPl = 100
 
@@ -62,6 +64,8 @@ export class MockAudioApi implements AudioApi {
     const now = Date.now() / 1000
     return this.all.filter((t) => t.artist === a.name).slice(0, 12).map((t, i) => ({ ...t, addedAt: a.name.length % 2 ? now - (i + 1) * 86400 : now - (30 + i) * 86400 }))
   }
+  async artistInfo(a: { name: string }) { return { followed: this.followed.has(a.name), can: true } }
+  async followArtist(a: { name: string }, on: boolean) { if (on) this.followed.add(a.name); else this.followed.delete(a.name) }
   async myTracks() { return [...this.mine] }
   async search(q: string) {
     const s = q.toLowerCase()

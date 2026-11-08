@@ -4,6 +4,7 @@ import { create } from 'zustand'
 import type { Playlist, Track } from '../../shared/types'
 import { useLibrary } from '../store/library'
 import { useUi } from '../store/ui'
+import { mainName } from './Artists'
 import { useDownloads } from '../store/downloads'
 import { player } from '../store/playerInstance'
 import { addToPlaylist, createPlaylistWith } from '../store/playlists'
@@ -66,7 +67,7 @@ export function TrackMenu() {
       {one?.link && <button onClick={() => run(() => { window.open(one.link, '_blank') })}><span className="ico"><SrcBadge src="sc" /></span>Открыть на SoundCloud</button>}
       {one?.album && <button onClick={() => run(() => useUi.getState().openPlaylist({ id: one.album!.id, ownerId: one.album!.ownerId, accessKey: one.album!.accessKey, title: one.album!.title, count: 0, coverUrls: one.coverUrl ? [one.coverUrl] : [], isMine: false, updatedAt: 0 }))}><span className="ico"><I.IList size={15} /></span>Перейти к альбому «{one.album.title}»</button>}
       {one && isCurrent && canOpenSource(source) && <button onClick={() => run(() => openSource(source))}><span className="ico"><I.IBack size={15} /></span>Перейти туда, откуда играет: {sourceParts(source).name}</button>}
-      {one && <button onClick={() => run(() => useUi.getState().submit(one.artist))}><span className="ico"><I.IUser size={15} /></span>Найти ещё у «{one.artist}»</button>}
+      {one && <button onClick={() => run(() => useUi.getState().openArtist({ name: mainName(one.artist), id: one.artists?.[0]?.id, src: one.src === 'sc' ? 'sc' : 'vk' }))}><span className="ico"><I.IUser size={15} /></span>Открыть «{mainName(one.artist)}»</button>}
     </div>
   )
 }
