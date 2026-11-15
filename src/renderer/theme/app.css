@@ -179,6 +179,9 @@
 .btn-s.g{background:var(--g);color:var(--k);border-color:var(--g)}
 .filter{height:36px;border-radius:10px;background:var(--p1);border:1px solid var(--ln);padding:0 12px;outline:0;font-size:13px;width:180px}
 .filter.wide{width:240px}
+.filter.shortcut{width:190px;text-align:center;font:600 12px var(--M);cursor:pointer}
+.filter.shortcut.listening{border-color:var(--g);color:var(--g)}
+.settings-tabs{width:max-content;margin-bottom:18px}
 .filter:focus{border-color:var(--g)}
 select.filter{width:auto}
 .empty-state{color:var(--t2);padding:40px 0;text-align:center;line-height:1.6}

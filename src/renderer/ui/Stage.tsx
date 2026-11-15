@@ -22,6 +22,23 @@ export function usePosition(): number {
 }
 
 /** Сердечко и «не то» по краям кнопок, как в Яндекс Музыке. */
+export function toggleCurrentLike() {
+  const cur = player.getState().current
+  if (!cur) return
+  const sc = cur.src === 'sc'
+  const was = useWave.getState().isLiked(cur)
+  void useWave.getState().toggleLike(cur)
+    .then((m) => useUi.getState().toast(m, was
+      ? { label: 'Вернуть', run: () => void useWave.getState().toggleLike(cur).then((x) => useUi.getState().toast(x)).catch(() => {}) }
+      : { label: 'Открыть', run: () => useUi.getState().go(sc ? 'soundcloud' : 'mine') }))
+    .catch((e) => useUi.getState().toast((e as Error).message))
+}
+
+export function dislikeCurrentTrack() {
+  const cur = player.getState().current
+  if (cur) void useWave.getState().dislike(cur).then(() => useUi.getState().toast('Больше не предложу. Список — правой кнопкой по сердцу'))
+}
+
 export function LikeBtn() {
   const cur = usePlayer((s) => s.current)
   const inMine = useLibrary((s) => (cur && cur.src !== 'sc' ? s.mine.some((t) => t.id === cur.id) : false))
@@ -31,14 +48,7 @@ export function LikeBtn() {
   const click = () => {
     if (!cur) return
     setPop(Date.now()) // сердечко подпрыгивает — видно, что нажал
-    const sc = cur.src === 'sc'
-    const was = useWave.getState().isLiked(cur)
-    const t = cur
-    void useWave.getState().toggleLike(cur)
-      .then((m) => useUi.getState().toast(m, was
-        ? { label: 'Вернуть', run: () => void useWave.getState().toggleLike(t).then((x) => useUi.getState().toast(x)).catch(() => {}) }
-        : { label: 'Открыть', run: () => useUi.getState().go(sc ? 'soundcloud' : 'mine') }))
-      .catch((e) => useUi.getState().toast((e as Error).message))
+    toggleCurrentLike()
   }
   return (
     <button key={pop} className={'ic heart' + (cur?.src === 'sc' ? ' sc' : '') + (liked ? ' on' : '') + (pop ? ' pop' : '')} disabled={!cur}
@@ -54,7 +64,7 @@ export function DislikeBtn() {
   const on = useUi((s) => s.tab === 'disliked')
   return (
     <button className={'ic' + (on ? ' on' : '')} title={'Не нравится — больше не предлагать и включить следующий\nПравая кнопка — список «Не нравится»'}
-      onClick={() => cur && void useWave.getState().dislike(cur).then(() => useUi.getState().toast('Больше не предложу. Список — правой кнопкой по сердцу'))}
+      onClick={dislikeCurrentTrack}
       onContextMenu={(e) => { e.preventDefault(); useUi.getState().go('disliked') }}>
       <I.IHeartOff size={20} />
     </button>

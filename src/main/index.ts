@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, session, dialog, net } from 'electron'
+import { app, BrowserWindow, shell, session, dialog, net, globalShortcut } from 'electron'
 import { createDownloads, registerMediaScheme, MEDIA_SCHEME } from './downloads/runtime'
 import type { LocalPl, ScComment, ScMe, ScPlaylistRef, Settings, Track, WaveProfile } from '../shared/types'
 import { settings } from './system/settings'
@@ -39,6 +39,12 @@ function createWindow(): BrowserWindow {
     webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   })
   w.once('ready-to-show', () => w.show())
+  w.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.key === 'F5' && !input.isAutoRepeat) {
+      event.preventDefault()
+      w.webContents.reload()
+    }
+  })
   w.webContents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//.test(url)) shell.openExternal(url); return { action: 'deny' } })
   w.webContents.on('will-navigate', (e) => e.preventDefault())
   if (process.env.ELECTRON_RENDERER_URL) w.loadURL(process.env.ELECTRON_RENDERER_URL)
@@ -247,8 +253,32 @@ async function setup() {
   }
   applyDiscord()
   settings.onChange(applyDiscord)
+  let shortcuts: string[] = []
+  const applyShortcuts = () => {
+    shortcuts.forEach((accelerator) => globalShortcut.unregister(accelerator))
+    shortcuts = []
+    const bindings = [
+      [settings.get().previousTrackShortcut, 'previous'],
+      [settings.get().nextTrackShortcut, 'next'],
+      [settings.get().pauseTrackShortcut, 'pause'],
+      [settings.get().likeTrackShortcut, 'like'],
+      [settings.get().dislikeTrackShortcut, 'dislike']
+    ] as const
+    for (const [accelerator, command] of bindings) {
+      if (!accelerator || shortcuts.includes(accelerator)) continue
+      try {
+        if (globalShortcut.register(accelerator, () => win?.webContents.send('tray:cmd', command))) shortcuts.push(accelerator)
+        else log(`Не удалось включить сочетание клавиш «${accelerator}»`)
+      } catch (e) {
+        log(`Не удалось включить сочетание клавиш «${accelerator}»: ${(e as Error).message}`)
+      }
+    }
+  }
+  applyShortcuts()
+  settings.onChange(applyShortcuts)
   handle('discord:update', (u: DiscordUpdate) => { lastU = { u, at: Date.now() }; if (settings.get().discordEnabled) discord.update(activityNow()) })
   app.on('before-quit', () => discord.stop())
+  app.on('will-quit', () => globalShortcut.unregisterAll())
   const wave = jsonFile<WaveProfile | null>('wave-profile.json', () => null)
   handle('wave:get', () => wave.read())
   handle('wave:set', (p: WaveProfile) => wave.write(p))

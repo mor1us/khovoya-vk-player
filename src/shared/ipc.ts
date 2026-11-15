@@ -129,7 +129,7 @@ export type EventMap = {
   'sys:state': { background: boolean }
   'auth:lost': undefined
   'dl:changed': undefined
-  'tray:cmd': 'toggle' | 'next'
+  'tray:cmd': 'toggle' | 'next' | 'previous' | 'pause' | 'like' | 'dislike'
   'vk:captcha': { sid: string; imageDataUrl: string }
   'vk:captchaDone': undefined
   'upd:changed': UpdateState

@@ -4,7 +4,7 @@ import { useLibrary } from './store/library'
 import { useWave, bindWave } from './store/wave'
 import { player, playerHooks, usePlayer } from './store/playerInstance'
 import { bindMedia } from './player/media'
-import { Stage, MiniBar } from './ui/Stage'
+import { Stage, MiniBar, toggleCurrentLike, dislikeCurrentTrack } from './ui/Stage'
 import { TopBar, searchRef } from './ui/TopBar'
 import { BottomBar } from './ui/BottomBar'
 import { PhoneHeader } from './ui/PhoneHeader'
@@ -44,7 +44,7 @@ function boot() {
     document.documentElement.classList.toggle('paused-ui', s.background)
   })
   window.api.invoke('settings:get').then(applySettings).catch(() => {})
-  window.api.on('tray:cmd', (c: string) => { if (c === 'toggle') void player.getState().toggle(); if (c === 'next') void player.getState().next() })
+  window.api.on('tray:cmd', (c: string) => { if (c === 'toggle') void player.getState().toggle(); if (c === 'next') void player.getState().next(); if (c === 'previous') void player.getState().prev(); if (c === 'pause') player.getState().pause(); if (c === 'like') toggleCurrentLike(); if (c === 'dislike') dislikeCurrentTrack() })
 }
 
 function useWide() {

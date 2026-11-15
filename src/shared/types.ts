@@ -51,6 +51,11 @@ export type Settings = {
   crossfadeSec: number // 0..12
   /** Комментарии SoundCloud по ходу трека. */
   scComments: boolean
+  previousTrackShortcut: string
+  nextTrackShortcut: string
+  pauseTrackShortcut: string
+  likeTrackShortcut: string
+  dislikeTrackShortcut: string
 }
 
 export type LoginStep =

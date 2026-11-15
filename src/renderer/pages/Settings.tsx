@@ -10,6 +10,26 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
   return <button className={'tg' + (on ? ' on' : '')} role="switch" aria-checked={on} onClick={() => onChange(!on)} />
 }
 
+function ShortcutRow({ title, value, onChange }: { title: string; value: string; onChange: (value: string) => void }) {
+  const [listening, setListening] = useState(false)
+  const keyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.key === 'Escape') { setListening(false); return }
+    if (e.key === 'Backspace' || e.key === 'Delete') { onChange(''); setListening(false); return }
+    const key = ({ ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', ' ': 'Space', Enter: 'Enter' } as Record<string, string>)[e.key]
+      ?? (/^(Key|Digit)(.)$/.exec(e.code)?.[2])
+      ?? (/^F(?:[1-9]|1[0-9]|2[0-4])$/.test(e.key) ? e.key : '')
+    if (!key) return
+    const parts = [e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', e.metaKey && 'Super', key].filter(Boolean)
+    onChange(parts.join('+'))
+    setListening(false)
+  }
+  return <div className="item"><div className="l"><b>{title}</b><span>Работает в игре, когда Хвоя свёрнута или в трее. Нажми поле и клавишу или сочетание. Delete — очистить.</span></div>
+    <input className={'filter shortcut' + (listening ? ' listening' : '')} readOnly value={listening ? 'Нажми клавиши…' : value} placeholder="Не задано" onFocus={() => setListening(true)} onClick={() => setListening(true)} onBlur={() => setListening(false)} onKeyDown={keyDown} />
+  </div>
+}
+
 function UpdatesRow() {
   const u = useUpdates((x) => x.s)
   return (
@@ -29,6 +49,7 @@ function AboutRow() {
 
 export function Settings({ onLogout }: { onLogout: () => void }) {
   const [s, setS] = useState<S | null>(null)
+  const [section, setSection] = useState<'general' | 'keys'>('general')
   useEffect(() => { window.api.invoke('settings:get').then(setS).catch(() => {}) }, [])
   if (!s) return <div className="page" />
   const save = async (patch: Partial<S>) => {
@@ -40,7 +61,12 @@ export function Settings({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="page">
       <div className="ph"><h1>Настройки</h1></div>
+      <div className="seg settings-tabs">
+        <button className={section === 'general' ? 'on' : ''} onClick={() => setSection('general')}>Общие</button>
+        <button className={section === 'keys' ? 'on' : ''} onClick={() => setSection('keys')}>Клавиши</button>
+      </div>
       <div className="set">
+        {section === 'general' && <>
         <div className="item"><div className="l"><b>Кроссфейд</b><span>Плавный переход между треками. 0 — выключен.</span></div>
           <div className="range"><input type="range" min={0} max={12} step={1} value={s.crossfadeSec} onChange={(e) => void save({ crossfadeSec: +e.target.value })} /><b>{s.crossfadeSec} с</b></div></div>
         {!phone && <div className="item"><div className="l"><b>Папка для скачанной музыки</b><span>{s.downloadDir}</span></div>
@@ -59,6 +85,14 @@ export function Settings({ onLogout }: { onLogout: () => void }) {
         <div className="item"><div className="l"><b>Аккаунт ВК</b><span>{useUi.getState().session?.userName}</span></div>
           <button className="btn-s" onClick={onLogout}>Выйти</button></div>
         <AboutRow />
+        </>}
+        {section === 'keys' && (!phone ? <>
+          <ShortcutRow title="Предыдущий трек" value={s.previousTrackShortcut} onChange={(previousTrackShortcut) => void save({ previousTrackShortcut })} />
+          <ShortcutRow title="Следующий трек" value={s.nextTrackShortcut} onChange={(nextTrackShortcut) => void save({ nextTrackShortcut })} />
+          <ShortcutRow title="Пауза" value={s.pauseTrackShortcut} onChange={(pauseTrackShortcut) => void save({ pauseTrackShortcut })} />
+          <ShortcutRow title="Лайк" value={s.likeTrackShortcut} onChange={(likeTrackShortcut) => void save({ likeTrackShortcut })} />
+          <ShortcutRow title="Дизлайк" value={s.dislikeTrackShortcut} onChange={(dislikeTrackShortcut) => void save({ dislikeTrackShortcut })} />
+        </> : <div className="item"><div className="l"><b>Горячие клавиши</b><span>Настройка доступна в компьютерной версии Хвои</span></div></div>)}
       </div>
     </div>
   )

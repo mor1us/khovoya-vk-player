@@ -27,8 +27,7 @@ export function bindMedia(p: StoreApi<PlayerState>, focusSearch: () => void) {
     const el = e.target as HTMLElement
     const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
     if (e.ctrlKey && e.code === 'KeyF') { e.preventDefault(); focusSearch(); return }
-    // F5 и Ctrl+R — как в браузере: перечитать всё с нуля, когда данные протухли или что-то залипло
-    if (e.code === 'F5' || (e.ctrlKey && e.code === 'KeyR')) { e.preventDefault(); location.reload(); return }
+    if (e.ctrlKey && e.code === 'KeyR') { e.preventDefault(); location.reload(); return }
     if (e.altKey && e.code === 'ArrowLeft') { e.preventDefault(); useUi.getState().back(); return }
     if (e.altKey && e.code === 'ArrowRight') { e.preventDefault(); useUi.getState().forward(); return }
     if (typing) return
