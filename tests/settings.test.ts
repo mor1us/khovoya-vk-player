@@ -4,7 +4,11 @@ import { normalizeSettings, defaultSettings } from '../src/main/system/settingsL
 describe('settings', () => {
   const d = defaultSettings('/music/Хвоя')
   it('defaults', () => {
-    expect(d).toEqual({ downloadDir: '/music/Хвоя', closeToTray: true, animations: true, discordEnabled: true, discordAppId: '', crossfadeSec: 3, scComments: true })
+    expect(d).toEqual({
+      downloadDir: '/music/Хвоя', closeToTray: true, animations: true, discordEnabled: true,
+      discordAppId: '', crossfadeSec: 3, scComments: true,
+      previousTrackShortcut: '', nextTrackShortcut: '', pauseTrackShortcut: '', likeTrackShortcut: '', dislikeTrackShortcut: ''
+    })
   })
   it('drops unknown fields and wrong types', () => {
     const s = normalizeSettings({ hacker: 1, closeToTray: 'yes', crossfadeSec: '9' } as any, d)
