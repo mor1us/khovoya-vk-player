@@ -65,6 +65,8 @@ export function installBridge(deps: BridgeDeps) {
     window: { min: () => {}, max: () => {}, close: () => {} }
   }
   registerCore(core, handle)
+  handle('win:reload', () => window.location.reload())
+  handle('screamer:play', () => { throw new Error('Скример доступен только в компьютерной Хвое') })
 
   handle('auth:browser', () => deps.login())
   handle('vk:captchaAnswer', (key: string) => { captchaWaiting?.(key); captchaWaiting = null })

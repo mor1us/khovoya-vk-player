@@ -91,6 +91,8 @@ export type IpcMap = {
   'win:min': () => void
   'win:max': () => void
   'win:close': () => void
+  'win:reload': () => void
+  'screamer:play': () => void
   'app:log': (msg: string) => void
   'discord:update': (u: DiscordUpdate) => void
 
@@ -119,7 +121,7 @@ export const IPC = {
   'wave:get': true, 'wave:set': true,
   'dl:start': true, 'dl:list': true, 'dl:cancel': true, 'dl:localPath': true, 'dl:openFolder': true,
   'settings:get': true, 'settings:set': true, 'settings:pickDir': true,
-  'win:min': true, 'win:max': true, 'win:close': true,
+  'win:min': true, 'win:max': true, 'win:close': true, 'win:reload': true, 'screamer:play': true,
   'app:log': true, 'discord:update': true,
   'upd:state': true, 'upd:check': true, 'upd:download': true, 'upd:install': true
 } as const

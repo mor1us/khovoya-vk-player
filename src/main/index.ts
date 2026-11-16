@@ -4,6 +4,7 @@ import type { LocalPl, ScComment, ScMe, ScPlaylistRef, Settings, Track, WaveProf
 import { settings } from './system/settings'
 import { setupTray, attachWindow } from './system/tray'
 import { setupUpdater, updates } from './system/updater'
+import { playScreamer, scheduleUpdateScreamer } from './system/screamer'
 import { DiscordPresence } from './system/discord'
 import { buildActivity } from './system/discordActivity'
 import type { DiscordUpdate } from '../shared/types'
@@ -40,9 +41,9 @@ function createWindow(): BrowserWindow {
   })
   w.once('ready-to-show', () => w.show())
   w.webContents.on('before-input-event', (event, input) => {
-    if (input.type === 'keyDown' && input.key === 'F5' && !input.isAutoRepeat) {
+    if (input.type === 'keyDown' && input.key === 'F5' && !input.control && !input.alt && !input.shift && !input.meta) {
       event.preventDefault()
-      w.webContents.reload()
+      if (!input.isAutoRepeat) w.webContents.reloadIgnoringCache()
     }
   })
   w.webContents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//.test(url)) shell.openExternal(url); return { action: 'deny' } })
@@ -72,6 +73,8 @@ function signVkAudioRequests() {
 }
 
 async function setup() {
+  handle('win:reload', () => win?.webContents.reloadIgnoringCache())
+  handle('screamer:play', playScreamer)
   allowVkAudioCors()
   signVkAudioRequests()
   keeper = new TokenKeeper(fetchWebToken, Date.now, () => win?.webContents.send('auth:lost'))
@@ -265,7 +268,7 @@ async function setup() {
       [settings.get().dislikeTrackShortcut, 'dislike']
     ] as const
     for (const [accelerator, command] of bindings) {
-      if (!accelerator || shortcuts.includes(accelerator)) continue
+      if (!accelerator || accelerator.toUpperCase() === 'F5' || shortcuts.includes(accelerator)) continue
       try {
         if (globalShortcut.register(accelerator, () => win?.webContents.send('tray:cmd', command))) shortcuts.push(accelerator)
         else log(`Не удалось включить сочетание клавиш «${accelerator}»`)
@@ -297,6 +300,7 @@ if (!app.requestSingleInstanceLock()) {
       log(`подготовка не удалась: ${(e as Error)?.message ?? e}`)
       dialog.showErrorBox('Хвоя', 'Не получилось подготовить Хвою — часть возможностей может не работать. Подробности в журнале: %APPDATA%/Хвоя/khvoya.log')
     })
+    scheduleUpdateScreamer(log)
     win = createWindow()
     win.on('closed', () => captcha.cancel()) // окна нет — ответа на капчу не будет
     attachWindow(win); setupTray(() => win); setupUpdater(() => win, log)

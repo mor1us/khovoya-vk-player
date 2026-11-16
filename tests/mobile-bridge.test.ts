@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { installBridge } from '../src/mobile/bridge'
 import { memStore } from '../src/mobile/storage'
 import { IPC, type Channel } from '../src/shared/ipc'
@@ -33,12 +33,16 @@ const deps = (over = {}) => ({
   ...over
 })
 
-beforeEach(() => { delete (globalThis as { window?: unknown }).window; (globalThis as { window: unknown }).window = {} })
+const reload = vi.fn()
+beforeEach(() => {
+  reload.mockClear()
+  Object.assign(globalThis, { window: { location: { reload } } })
+})
 
 describe('мобильный мост', () => {
   it('отвечает на каждый канал из белого списка', async () => {
     installBridge(deps())
-    const skip = new Set<Channel>(['auth:browser']) // открывает экран входа, проверяется отдельно
+    const skip = new Set<Channel>(['auth:browser', 'screamer:play']) // отдельные проверки входа и отказа на телефоне
     for (const ch of Object.keys(IPC) as Channel[]) {
       if (skip.has(ch)) continue
       const invoke = window.api.invoke as (c: string, ...a: unknown[]) => Promise<unknown>
@@ -51,8 +55,15 @@ describe('мобильный мост', () => {
     await expect(window.api.invoke('upd:state')).resolves.toMatchObject({ status: 'disabled' })
     await expect(window.api.invoke('sc:status')).resolves.toMatchObject({ ok: false, hasKey: false })
     await expect(window.api.invoke('win:close')).resolves.toBeUndefined()
+    await expect(window.api.invoke('screamer:play')).rejects.toThrow('Скример доступен только в компьютерной Хвое')
     await expect(window.api.invoke('settings:pickDir')).resolves.toBeNull()
     await expect(window.api.invoke('dl:list')).resolves.toEqual([])
+  })
+
+  it('обновляет страницу в мобильном окне', async () => {
+    installBridge(deps())
+    await window.api.invoke('win:reload')
+    expect(reload).toHaveBeenCalledOnce()
   })
 
   it('обрыв сети превращается в понятную фразу без кодов', async () => {

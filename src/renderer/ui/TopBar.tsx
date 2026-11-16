@@ -26,6 +26,20 @@ export function TopBar({ onLogout }: { onLogout: () => void }) {
   const query = useUi((s) => s.query)
   const session = useUi((s) => s.session)
   const [menu, setMenu] = useState(false)
+  const profile = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!menu) return
+    const closeOutside = (event: PointerEvent) => {
+      if (!profile.current?.contains(event.target as Node)) setMenu(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setMenu(false) }
+    document.addEventListener('pointerdown', closeOutside)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [menu])
   const [focus, setFocus] = useState(false)
   const input = useRef<HTMLInputElement>(null)
   useEffect(() => { searchRef.current = input.current }, [])
@@ -78,10 +92,10 @@ export function TopBar({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
       </div>
-      <div className="nodrag" style={{ position: 'relative' }}>
-        <button className={'avatar' + (tab === 'settings' ? ' on' : '')} onClick={() => setMenu(!menu)} title={session?.userName}>{session?.avatar ? <img src={session.avatar} alt="" /> : (session?.userName?.[0] ?? 'Х')}</button>
+      <div className="nodrag" ref={profile} style={{ position: 'relative' }}>
+        <button className={'avatar' + (tab === 'settings' ? ' on' : '')} onClick={() => setMenu(!menu)} aria-expanded={menu} title={session?.userName}>{session?.avatar ? <img src={session.avatar} alt="" /> : (session?.userName?.[0] ?? 'Х')}</button>
         {menu && (
-          <div className="menu" style={{ right: 0, top: 40 }} onMouseLeave={() => setMenu(false)}>
+          <div className="menu" style={{ right: 0, top: 40 }}>
             <div className="lbl">{session?.userName}</div>
             <button onClick={() => { setMenu(false); useUi.getState().go('settings') }}>Настройки</button>
             <div className="sep" />
@@ -89,7 +103,10 @@ export function TopBar({ onLogout }: { onLogout: () => void }) {
             <button onClick={() => { setMenu(false); useUi.getState().go('similar') }}>Похожее</button>
             <button onClick={() => { setMenu(false); useUi.getState().go('disliked') }}>Не нравится</button>
             <div className="sep" />
-            <button onClick={() => location.reload()}>Обновить страницу <span className="hint">F5</span></button>
+            <button onClick={() => {
+              setMenu(false)
+              void window.api.invoke('win:reload').catch(() => useUi.getState().toast('Не получилось обновить страницу'))
+            }}>Обновить страницу <span className="hint">F5</span></button>
             <div className="sep" />
             <button onClick={() => { setMenu(false); onLogout() }}>Выйти из ВК</button>
           </div>
