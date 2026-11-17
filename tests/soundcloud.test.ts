@@ -351,20 +351,20 @@ describe('треки артиста SoundCloud', () => {
     const f: Fetch = async (url) => {
       calls.push(url)
       if (url.includes('/me?')) return res(200, { id: 9, username: 'morius' })
-      if (url.includes('/me/followings/7')) return res(200, { id: 7 })
+      if (url.includes('/users/9/followings/ids')) return res(200, { collection: ['7'] })
       return res(200, {})
     }
     const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
     sc.setAuth(async () => 'TOKEN')
     expect(await sc.artistInfo('synthboy', '7')).toMatchObject({ followed: true, can: true })
-    expect(calls.some((url) => url.includes('/me/followings/7'))).toBe(true)
+    expect(calls.some((url) => url.includes('/users/9/followings/ids'))).toBe(true)
   })
 })
 
 describe('подписка на артиста SoundCloud', () => {
   it('показывает возможность подписаться, если связи с профилем ещё нет', async () => {
     const sc = new SoundCloud(async (url) => {
-      return new URL(url).pathname === '/me' ? res(200, { id: 9, username: 'morius' }) : res(404, {})
+      return new URL(url).pathname === '/me' ? res(200, { id: 9, username: 'morius' }) : res(200, { collection: [8] })
     }, { get: () => CID, set: () => {} })
     sc.setAuth(async () => 'TOKEN')
     expect(await sc.artistInfo('synthboy', '7')).toMatchObject({ id: '7', followed: false, can: true })

@@ -426,9 +426,10 @@ html.no-anim *{animation:none!important;transition:none!important}
 .search svg{flex:none}
 .search input{width:0;flex:1 1 0;opacity:0;transition:opacity .15s}
 .search:hover{border-color:#3a3a3a;color:var(--text)}
-.search:focus-within,.search.filled{width:230px;gap:10px;cursor:text;overflow:visible}
+.search:focus-within,.search.filled{width:clamp(112px,23%,230px);gap:10px;cursor:text;overflow:visible}
 .search:focus-within input,.search.filled input{opacity:1}
-.tabs{overflow:hidden;flex:0 1 auto}
+.tabs{overflow-x:auto;flex:0 1 auto;scrollbar-width:thin;scrollbar-color:var(--ln) transparent}
+.tabs button{flex:none}
 .tabs{gap:11px;font-size:18px}
 .bar{padding-left:28px}
 /* подсказки поиска */

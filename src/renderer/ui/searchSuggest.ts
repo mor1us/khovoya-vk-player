@@ -17,8 +17,14 @@ export function buildSuggest(q: string, vk: Track[], sc: string[], history: stri
   const out: Suggest[] = [{ kind: 'search', q: q.trim() }]
   const artists = new Map<string, Track>()
   for (const t of vk) {
-    const names = t.artists?.length ? t.artists.map((a) => a.name) : [t.artist]
-    for (const n of names) if (n.toLowerCase().includes(low) && !artists.has(n.toLowerCase())) artists.set(n.toLowerCase(), { ...t, artist: n })
+    const refs = t.artists?.length ? t.artists : t.artist.split(/,\s*|\s+(?:feat\.?|ft\.?)\s+/i).map((name) => ({ name, id: undefined }))
+    for (const ref of refs) {
+      const name = ref.name.trim()
+      const key = name.toLowerCase()
+      if (!key.includes(low)) continue
+      const previous = artists.get(key)
+      if (!previous || (ref.id && !previous.artists?.length)) artists.set(key, { ...t, artist: name, artists: ref.id ? [{ id: ref.id, name }] : undefined })
+    }
   }
   for (const t of [...artists.values()].slice(0, 2)) {
     const id = t.artists?.find((a) => a.name.toLowerCase() === t.artist.toLowerCase())?.id

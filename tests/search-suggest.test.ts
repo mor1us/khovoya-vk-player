@@ -8,7 +8,7 @@ describe('подсказки поиска', () => {
   it('сначала «искать», потом артисты, треки и варианты запроса', () => {
     const r = buildSuggest('форту', [t('1', 'FORTUNA 812', 'A'), t('2', 'ПАПА, фортуна 812', 'B'), t('3', 'FORTUNA 812', 'C'), t('4', 'Фортуна', 'D')], ['фортуна 812', 'фортуна', 'форту'], ['фортуна 2'])
     expect(r[0]).toEqual({ kind: 'search', q: 'форту' })
-    expect(r.filter((x) => x.kind === 'artist').map((x) => (x as { name: string }).name)).toEqual(['ПАПА, фортуна 812', 'Фортуна'])
+    expect(r.filter((x) => x.kind === 'artist').map((x) => (x as { name: string }).name)).toEqual(['фортуна 812', 'Фортуна'])
     expect(r.filter((x) => x.kind === 'track')).toHaveLength(3)
     expect(r.filter((x) => x.kind === 'query').map((x) => (x as { q: string }).q)).toEqual(['фортуна 2', 'фортуна 812', 'фортуна'])
   })

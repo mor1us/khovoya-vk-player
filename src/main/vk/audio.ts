@@ -41,12 +41,25 @@ export class VkAudioApi implements AudioApi {
       try {
         const r = await this.vk.call<{ items: any[] }>('audio.getAudiosByArtist', { artist_id: a.id, count: 30, ...(offset ? { offset } : {}) })
         return byDate(r.items.map(mapTrack))
-      } catch (e) { if (offset) throw e; this.log(`getAudiosByArtist: ${(e as Error).message}`) }
+      } catch (e) { this.log(`getAudiosByArtist: ${(e as Error).message}`) }
     }
-    if (offset) return []
-    const r = await this.vk.call<{ items: any[] }>('audio.search', { q: a.name, count: 60, sort: 0, performer_only: 1 })
     const name = a.name.trim().toLowerCase()
-    return byDate(r.items.map(mapTrack).filter((t) => t.artist.toLowerCase().split(/\s+(?:feat\.?|ft\.?|x|&)\s+|,/)[0].trim() === name))
+    const found = new Map<string, Track>()
+    const scanned = new Set<string>()
+    // Смещение в выдаче ВК включает чужие треки, а смещение страницы — только совпадения.
+    const batch = 60
+    for (let start = 0; start < 1200 && found.size < offset + 30; start += batch) {
+      const r = await this.vk.call<{ items: any[] }>('audio.search', { q: a.name, count: batch, sort: 0, performer_only: 1, ...(start ? { offset: start } : {}) })
+      const before = scanned.size
+      for (const t of r.items.map(mapTrack)) {
+        scanned.add(t.id)
+        const matches = t.artists?.some((artist) => a.id ? artist.id === a.id : artist.name.trim().toLowerCase() === name)
+          ?? t.artist.toLowerCase().split(/\s+(?:feat\.?|ft\.?|x|&)\s+|,/).some((artist) => artist.trim() === name)
+        if (matches) found.set(t.id, t)
+      }
+      if (r.items.length < batch || scanned.size === before) break
+    }
+    return byDate([...found.values()]).slice(offset, offset + 30)
   }
 
   /** Подписан ли ты на исполнителя и его фотография. Без id ВК про него ничего не знает. */
@@ -59,11 +72,17 @@ export class VkAudioApi implements AudioApi {
       if (ids.length !== 1) return { missing: true, followed: false, can: false }
       id = ids[0]
     }
-    const r = await this.vk.call<any>('audio.getArtistById', { artist_id: id, extended: 1 })
+    const r = await this.vk.call<any>('audio.getArtistById', { artist_id: id, extended: 1 }).catch((e: unknown) => {
+      this.log(`getArtistById: ${(e as Error).message}`)
+      return null
+    })
     const photo: any[] = r?.photo ?? r?.artist?.photo ?? []
     const best = photo.length ? photo[photo.length - 1]?.url : undefined
     const followed = r?.is_followed ?? r?.artist?.is_followed
-    if (![true, false, 0, 1, '0', '1'].includes(followed)) throw new Error('ВК не вернул состояние подписки')
+    if (![true, false, 0, 1, '0', '1'].includes(followed)) {
+      if (r) this.log('getArtistById: ВК не вернул состояние подписки')
+      return { id, followed: false, statusUnknown: true, cover: best ? String(best) : undefined, can: true }
+    }
     return { id, followed: followed === true || followed === 1 || followed === '1', cover: best ? String(best) : undefined, can: true }
   }
 

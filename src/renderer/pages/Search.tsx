@@ -64,7 +64,7 @@ function SearchResults({ q }: { q: string }) {
   // артисты из выдачи: у каждого значок, откуда он — ВК или SoundCloud
   const profiles = tracks.flatMap((t) => {
     const src: 'vk' | 'sc' = t.src ?? 'vk'
-    const refs = src === 'sc' ? [{ name: t.artistProfileName || t.artist, id: t.artistId }] : t.artists?.length ? t.artists : [{ name: t.artist, id: undefined }]
+    const refs = src === 'sc' ? [{ name: t.artistProfileName || t.artist, id: t.artistId }] : t.artists?.length ? t.artists : t.artist.split(/,\s*|\s+(?:feat\.?|ft\.?)\s+/i).map((name) => ({ name: name.trim(), id: undefined }))
     return refs.map((a) => ({ ...a, src, cover: t.coverUrl, key: src + ':' + (a.id ?? a.name.toLowerCase()) }))
   })
   const artists = [...new Map(profiles.map((a) => [a.key, a])).values()].slice(0, 10)
