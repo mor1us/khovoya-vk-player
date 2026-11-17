@@ -416,6 +416,10 @@ export class SoundCloud {
   async artistInfo(name: string, userId?: string): Promise<import('../../shared/types').ArtistInfo> {
     const u = await this.userByName(name, userId)
     if (!u) return { missing: true, followed: false, can: false }
+    if (!u.link && userId) {
+      const profile = await this.api(`/users/${u.id}`).catch(() => null)
+      if (isScUrl(String(profile?.permalink_url ?? ''))) u.link = profile.permalink_url
+    }
     const me = await this.me()
     if (!me) return { id: String(u.id), followed: false, cover: u.avatar, can: false, followers: u.followers, link: u.link }
     // Адрес проверки одной подписки на API сайта возвращает 404 даже для подписанного аккаунта.
@@ -431,19 +435,31 @@ export class SoundCloud {
     if (!token) throw new ScAuthLost('Войди в SoundCloud во вкладке SoundCloud')
     const u = await this.userByName(name, userId)
     if (!u) throw new Error(`На SoundCloud не нашёлся ${name}`)
-    const me = on ? await this.me() : null
-    if (on && !me) throw new ScAuthLost('Войди в SoundCloud во вкладке SoundCloud')
-    const path = me ? `/users/${me.id}/followings/${u.id}` : `/me/followings/${u.id}`
+    if (on) {
+      // Публичный API использует URN. API сайта требует отдельную подпись на создание подписки.
+      const urn = encodeURIComponent(`soundcloud:users:${u.id}`)
+      const response = await this.get(`https://api.soundcloud.com/me/followings/${urn}`, {
+        Accept: 'application/json',
+        Authorization: `OAuth ${token}`,
+        'User-Agent': SC_UA
+      }, 'PUT')
+      if (response.ok) return
+      this.log(`soundcloud: подписка через публичный API → ${response.status}`)
+      if (response.status === 401 || response.status === 403) throw new Error('SoundCloud не принял этот вход для подписки. Открой профиль и подпишись на сайте')
+      if (response.status === 422) throw new Error('SoundCloud отклонил подписку. Проверь её на странице артиста')
+      throw new Error('Не удалось подписаться через Хвою. Открой профиль артиста на SoundCloud')
+    }
+    const path = `/me/followings/${u.id}`
     const url = new URL(API + path)
     url.searchParams.set('client_id', await this.clientId())
-    if (!this.writer) { await this.api(path, {}, false, on ? 'PUT' : 'DELETE', true); return }
-    const status = await this.writer(on ? 'PUT' : 'DELETE', url.toString(), token)
+    if (!this.writer) { await this.api(path, {}, false, 'DELETE', true); return }
+    const status = await this.writer('DELETE', url.toString(), token)
     if (status >= 200 && status < 300) return
-    if (!on && status === 404) return // подписки и так нет
-    this.log(`soundcloud: ${on ? 'подписка' : 'отписка'} → ${status || 'нет связи'}`)
+    if (status === 404) return // состояние проверяется по списку подписок после запроса
+    this.log(`soundcloud: отписка → ${status || 'нет связи'}`)
     if (status === 0) throw new ScUnavailable('SoundCloud не ответил — проверь VPN')
     if (status === 401) throw new ScAuthLost('Вход в SoundCloud устарел — войди заново во вкладке SoundCloud')
-    throw new Error(`SoundCloud не принял ${on ? 'подписку' : 'отписку'} (ответ ${status})`)
+    throw new Error(`SoundCloud не принял отписку (ответ ${status})`)
   }
 
   /** Лайк прямо на SoundCloud. */

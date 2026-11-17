@@ -383,11 +383,14 @@ describe('подписка на артиста SoundCloud', () => {
 
   it('подписывается и отписывается по сохранённому id профиля', async () => {
     const calls: string[] = []
-    const sc = new SoundCloud(async (url) => url.includes('/me?') ? res(200, { id: 9 }) : res(200, {}), { get: () => CID, set: () => {} })
+    const sc = new SoundCloud(async (url, options) => {
+      calls.push(`${options?.method} ${new URL(url).host}${decodeURIComponent(new URL(url).pathname)}`)
+      return res(200, {})
+    }, { get: () => CID, set: () => {} })
     sc.setAuth(async () => 'TOKEN')
     sc.setWriter(async (method, url) => { calls.push(`${method} ${new URL(url).pathname}`); return 200 })
     await sc.followArtist('synthboy', true, '7')
     await sc.followArtist('synthboy', false, '7')
-    expect(calls).toEqual(['PUT /users/9/followings/7', 'DELETE /me/followings/7'])
+    expect(calls).toEqual(['PUT api.soundcloud.com/me/followings/soundcloud:users:7', 'DELETE /me/followings/7'])
   })
 })

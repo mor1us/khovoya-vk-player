@@ -2,11 +2,15 @@ import type { ArtistSubscription, ForYouBlock } from '../../shared/types'
 
 /** Идентификатор раздела приходит из каталога текущего аккаунта. */
 export function subscriptionSection(payload: any): string | undefined {
-  const entries = [...(payload?.catalog?.sections ?? []), ...(payload?.section?.blocks ?? []), ...(payload?.links ?? [])]
+  const sections = payload?.catalog?.sections ?? []
+  const blocks = payload?.section?.blocks ?? payload?.blocks ?? []
+  const entries = [...sections, ...blocks, ...blocks.flatMap((block: any) => block?.actions ?? []), ...(payload?.links ?? [])]
+  const titles = /^(?:подписки|мои подписки|артисты и кураторы|мои артисты|подписки на артистов|following|subscriptions)$/i
   for (const entry of entries) {
-    const title = String(entry?.title ?? entry?.layout?.title ?? '').trim()
-    if (!/^(?:артисты и кураторы|мои артисты|подписки на артистов)$/i.test(title)) continue
-    const id = entry.section_id ?? entry.action?.section_id ?? entry.default_section ?? (payload?.catalog?.sections?.includes(entry) ? entry.id : undefined)
+    const title = String(entry?.title ?? entry?.layout?.title ?? entry?.text ?? '').trim()
+    if (!titles.test(title)) continue
+    const id = entry.section_id ?? entry.action?.section_id ?? entry.meta?.show_all_info?.section_id ?? entry.default_section
+      ?? entry.actions?.find((a: any) => a?.action?.type === 'open_section')?.section_id ?? (sections.includes(entry) ? entry.id : undefined)
     if (typeof id === 'string' && id) return id
   }
 }
@@ -15,10 +19,27 @@ export function subscriptionArtists(payload: any): ArtistSubscription[] {
   const artists: ArtistSubscription[] = []
   for (const artist of Array.isArray(payload?.artists) ? payload.artists : []) {
     if (artist?.id == null || typeof artist?.name !== 'string' || !artist.name.trim()) continue
+    if ([false, 0, '0'].includes(artist.is_following)) continue
     const cover = Array.isArray(artist.photo) ? artist.photo.at(-1)?.url : undefined
     artists.push({ id: String(artist.id), name: artist.name.trim(), cover })
   }
+  for (const link of Array.isArray(payload?.links) ? payload.links : []) {
+    const id = link?.artist_id ?? link?.action?.artist_id
+    if (link?.content_type !== 'artist' || id == null || typeof link.title !== 'string' || !link.title.trim()) continue
+    if ([false, 0, '0'].includes(link.is_following)) continue
+    artists.push({ id: String(id), name: link.title.trim(), cover: link.images?.at(-1)?.url })
+  }
   return artists
+}
+
+export function artistSubscriptionState(payload: any, artistId: string): boolean | undefined {
+  const blocks = payload?.section?.blocks ?? payload?.blocks ?? []
+  const toggle = blocks.flatMap((block: any) => block?.actions ?? []).find((action: any) => (
+    action?.action?.type === 'toggle_artist_subscription' && String(action.artist_id ?? action.entity_id) === artistId
+  ))
+  const value = toggle?.is_following ?? payload?.is_followed ?? payload?.artist?.is_followed ?? payload?.artist?.is_subscribed
+  if (value === true || value === 1 || value === '1') return true
+  if (value === false || value === 0 || value === '0') return false
 }
 
 export type { ForYouBlock }

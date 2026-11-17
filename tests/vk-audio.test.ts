@@ -66,6 +66,29 @@ describe('MockAudioApi', () => {
 })
 
 describe('artistTracks', () => {
+  it('открывает раздел «Подписки» и вложенную страницу артистов через кнопку ВК', async () => {
+    const { calls, client } = fakeClient((method, params) => {
+      if (method === 'catalog.getAudio') return { catalog: { sections: [{ id: 'following', title: 'Подписки' }] } }
+      if (params.section_id === 'following') return {
+        section: { blocks: [{ actions: [{ title: 'Артисты и кураторы', section_id: 'artists', action: { type: 'open_section' } }] }] }
+      }
+      return { section: {}, links: [{ content_type: 'artist', artist_id: '123', title: 'Юпи' }] }
+    })
+    expect(await new VkAudioApi(client as any, () => 7).artistSubscriptions()).toMatchObject([{ id: '123', name: 'Юпи' }])
+    expect(calls.slice(1).map((call) => call.p.section_id)).toEqual(['following', 'artists'])
+  })
+
+  it('сверяет статус подписки с кнопкой на странице конкретного артиста', async () => {
+    const { client } = fakeClient((method) => method === 'catalog.getAudioArtist'
+      ? { catalog: { default_section: 'artist-page' } }
+      : { section: { blocks: [{ actions: [
+        { action: { type: 'toggle_artist_subscription' }, artist_id: 'other', is_following: true },
+        { action: { type: 'toggle_artist_subscription' }, artist_id: '123', is_following: 0 }
+      ] }] } })
+    expect(await new VkAudioApi(client as any, () => 7).artistInfo({ id: '123', name: 'Юпи' }))
+      .toMatchObject({ id: '123', followed: false, can: true })
+  })
+
   it('берёт подписки из отдельной секции каталога и дочитывает страницы', async () => {
     const { client } = fakeClient((m, p) => {
       if (m === 'catalog.getAudio') return { catalog: { sections: [{ id: 'follows', title: 'Артисты и кураторы' }] } }
