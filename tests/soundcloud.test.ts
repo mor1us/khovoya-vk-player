@@ -362,6 +362,18 @@ describe('треки артиста SoundCloud', () => {
 })
 
 describe('подписка на артиста SoundCloud', () => {
+  it('ищет артиста в полном списке, если список ID неполный', async () => {
+    const sc = new SoundCloud(async (url) => {
+      const path = new URL(url).pathname
+      if (path === '/me') return res(200, { id: 9 })
+      if (path.endsWith('/ids')) return res(200, { collection: [8], next_href: 'есть продолжение' })
+      if (path.endsWith('/followings')) return res(200, { collection: [{ id: 7, username: 'synthboy' }] })
+      return res(200, {})
+    }, { get: () => CID, set: () => {} })
+    sc.setAuth(async () => 'TOKEN')
+    expect(await sc.artistInfo('synthboy', '7')).toMatchObject({ followed: true, statusUnknown: false })
+  })
+
   it('загружает аккаунты из списка подписок, включая следующую страницу', async () => {
     const sc = new SoundCloud(async (url) => {
       const u = new URL(url)

@@ -136,10 +136,15 @@ export class VkAudioApi implements AudioApi {
   /** Подписан ли ты на исполнителя и его фотография. Без id ВК про него ничего не знает. */
   async artistInfo(a: ArtistRef): Promise<ArtistInfo> {
     let id = a.id
+    const searchArtistRefs = async () => {
+      const response = await this.vk.call<{ items: unknown[] }>('audio.search', { q: a.name, count: 60, performer_only: 1 })
+      return response.items.flatMap((item) => mapTrack(item).artists ?? [])
+    }
+    let refs: Awaited<ReturnType<typeof searchArtistRefs>> | undefined
     if (!id) {
-      const { tracks } = await this.search(a.name)
+      refs = await searchArtistRefs()
       const name = a.name.trim().toLowerCase()
-      const ids = [...new Set(tracks.flatMap((t) => t.artists ?? []).filter((x) => x.name.trim().toLowerCase() === name).map((x) => x.id))]
+      const ids = [...new Set(refs.filter((x) => x.name.trim().toLowerCase() === name).map((x) => x.id))]
       if (ids.length !== 1) return { missing: true, followed: false, can: false }
       id = ids[0]
     }
@@ -158,6 +163,9 @@ export class VkAudioApi implements AudioApi {
     if (followed === undefined) {
       const subscription = await this.artistSubscriptions(false).then((list) => list.find((artist) => artist.id === id)).catch(() => undefined)
       if (subscription) return { id, followed: true, cover: subscription.cover ?? best, can: true }
+      refs ??= await searchArtistRefs().catch(() => [])
+      const states = new Set(refs.filter((artist) => artist.id === id && artist.followed !== undefined).map((artist) => artist.followed))
+      if (states.size === 1) return { id, followed: states.has(true), cover: best, can: true }
       if (r) this.log('getAudioArtist: ВК не вернул состояние подписки')
       return { id, followed: false, statusUnknown: true, cover: best ? String(best) : undefined, can: true }
     }

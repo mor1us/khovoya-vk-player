@@ -48,6 +48,7 @@ export type IpcMap = {
   'sc:artistTracks': (name: string, id?: string, offset?: number) => Track[]
   'scacc:artistInfo': (name: string, id?: string) => ArtistInfo
   'scacc:artistFollow': (name: string, on: boolean, id?: string) => void
+  'scacc:openArtistProfile': (url: string) => void
   /** Ссылка на поток живёт недолго — берётся прямо перед прослушиванием. */
   'sc:stream': (t: Track) => string
   'sc:resolve': (url: string) => ScResolved
@@ -110,6 +111,7 @@ export type IpcResult<C extends Channel> = Awaited<ReturnType<IpcMap[C]>>
 
 /** Что пропускает мост (`src/preload/index.ts`). Всё, чего здесь нет, окно даже не отправит. */
 export const IPC = {
+  'scacc:openArtistProfile': true,
   'artists:subscriptions': true,
   'auth:browser': true, 'auth:logout': true, 'auth:session': true,
   'vk:myTracks': true, 'vk:search': true, 'vk:playlists': true, 'vk:playlistTracks': true,

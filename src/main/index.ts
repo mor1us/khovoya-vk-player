@@ -20,7 +20,7 @@ import { registerCore, handle } from './ipc/handlers'
 import { bootSafely } from './system/boot'
 import { jsonFile } from './system/jsonFile'
 import { SoundCloud, SC_DOWN, SC_NEED_KEY, ScUnavailable, type Fetch } from './sc/soundcloud'
-import { scLoginWindow, scLogout, scToken, scWrite } from './sc/scAuth'
+import { scLoginWindow, scLogout, scProfileWindow, scToken, scWrite } from './sc/scAuth'
 import type { Session } from '../shared/types'
 
 const MOCK = process.env.VK_MOCK === '1'
@@ -131,6 +131,7 @@ async function setup() {
   handle('sc:artistTracks', (name: string, id?: string, offset?: number) => (MOCK ? (offset ? [] : scSearch(name)) : sc.artistTracks(name, 40, id, offset)))
   handle('scacc:artistInfo', (name: string, id?: string) => (MOCK ? { followed: false, can: false } : sc.artistInfo(name, id)))
   handle('scacc:artistFollow', (name: string, on: boolean, id?: string) => (MOCK ? undefined : sc.followArtist(name, on, id)))
+  handle('scacc:openArtistProfile', (url: string) => scProfileWindow(win, url))
   handle('sc:stream', (t: Track) => scStream(t).catch(scLog('поток')))
   handle('sc:waveform', (t: Track, n?: number) => (MOCK ? [] : sc.waveform(t, n).catch(() => [])))
   handle('sc:resolve', async (url: string) => {

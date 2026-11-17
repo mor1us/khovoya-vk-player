@@ -425,8 +425,16 @@ export class SoundCloud {
     // Адрес проверки одной подписки на API сайта возвращает 404 даже для подписанного аккаунта.
     const page = await this.api(`/users/${me.id}/followings/ids`, { limit: 5000 }, false, 'GET', true)
     if (!Array.isArray(page?.collection)) throw new Error('SoundCloud не вернул список подписок')
-    const followed = page.collection.some((id: unknown) => String(id) === String(u.id))
-    return { id: String(u.id), followed, statusUnknown: !followed && (!!page.next_href || page.collection.length >= 5000), cover: u.avatar, can: true, followers: u.followers, link: u.link }
+    let followed = page.collection.some((id: unknown) => String(id) === String(u.id))
+    let statusUnknown = !followed && (!!page.next_href || page.collection.length >= 5000)
+    if (statusUnknown) {
+      const subscriptions = await this.artistSubscriptions().catch(() => null)
+      if (subscriptions) {
+        followed = subscriptions.some((artist) => artist.id === String(u.id))
+        statusUnknown = false
+      }
+    }
+    return { id: String(u.id), followed, statusUnknown, cover: u.avatar, can: true, followers: u.followers, link: u.link }
   }
 
   /** Подписка на артиста SoundCloud — то же, что Follow на сайте. */

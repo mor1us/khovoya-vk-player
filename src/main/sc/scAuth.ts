@@ -57,6 +57,29 @@ export async function scLogout() {
   await scSession().clearStorageData().catch(() => {})
 }
 
+export async function scProfileWindow(parent: BrowserWindow | null, rawUrl: string): Promise<void> {
+  const allowed = (value: string) => {
+    try { return ['https://soundcloud.com', 'https://www.soundcloud.com', 'https://m.soundcloud.com'].includes(new URL(value).origin) }
+    catch { return false }
+  }
+  if (!allowed(rawUrl)) throw new Error('Не удалось открыть профиль SoundCloud')
+  const w = new BrowserWindow({
+    width: 980, height: 760, parent: parent ?? undefined, modal: !!parent, title: 'Профиль SoundCloud', autoHideMenuBar: true,
+    webPreferences: { session: scSession(), contextIsolation: true, nodeIntegration: false, sandbox: true }
+  })
+  w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  w.webContents.on('will-navigate', (event, url) => { if (!allowed(url)) event.preventDefault() })
+  w.webContents.on('will-redirect', (event, url) => { if (!allowed(url)) event.preventDefault() })
+  const closed = new Promise<void>((resolve) => w.once('closed', resolve))
+  try { await w.loadURL(rawUrl, { userAgent: UA }) }
+  catch {
+    if (w.isDestroyed()) return
+    w.destroy()
+    throw new Error('Сайт SoundCloud не открылся. Проверь VPN и попробуй снова')
+  }
+  await closed
+}
+
 /**
  * Изменения (лайк, снятие лайка) SoundCloud принимает только от своего сайта.
  * Поэтому шлём их из невидимой страницы soundcloud.com — с теми же cookie, что после входа. Возвращает HTTP-статус (0 — нет связи).

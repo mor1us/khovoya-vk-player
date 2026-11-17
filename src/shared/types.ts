@@ -11,7 +11,7 @@ export type Track = {
   addedAt?: number
   available: boolean
   /** Основные исполнители из ВК (main_artists), если есть. */
-  artists?: { id: string; name: string }[]
+  artists?: { id: string; name: string; followed?: boolean }[]
   /** ID автора SoundCloud, чтобы открывать и подписывать именно его профиль. */
   artistId?: string
   /** Имя аккаунта, с которого загружен трек SoundCloud. */

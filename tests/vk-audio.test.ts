@@ -66,6 +66,18 @@ describe('MockAudioApi', () => {
 })
 
 describe('artistTracks', () => {
+  it('использует статус из main_artists только для совпадающего ID', async () => {
+    const { client } = fakeClient((method) => {
+      if (method !== 'audio.search') throw new Error('Каталог недоступен')
+      return { items: [{ ...raw(1), main_artists: [
+        { id: 'other', name: 'Юпи', is_followed: 0 },
+        { id: '123', name: 'Юпи', is_followed: 1 }
+      ] }] }
+    })
+    expect(await new VkAudioApi(client as any, () => 7).artistInfo({ id: '123', name: 'Юпи' }))
+      .toMatchObject({ id: '123', followed: true, can: true })
+  })
+
   it('открывает раздел «Подписки» и вложенную страницу артистов через кнопку ВК', async () => {
     const { calls, client } = fakeClient((method, params) => {
       if (method === 'catalog.getAudio') return { catalog: { sections: [{ id: 'following', title: 'Подписки' }] } }

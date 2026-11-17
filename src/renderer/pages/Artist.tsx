@@ -28,6 +28,7 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
   const [infoLoading, setInfoLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [showFollowActions, setShowFollowActions] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   const [moreBusy, setMoreBusy] = useState(false)
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(false)
@@ -63,6 +64,17 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
   const own = new Set(mine.map((t) => t.id))
   const can = list?.filter((t) => t.available) ?? []
   const source = artistSource({ ...a, id: info.id ?? a.id })
+  const profileLink = info.link ?? a.link
+  const openProfile = async () => {
+    if (!profileLink || profileOpen) return
+    if (!sc) { window.open(profileLink, '_blank'); return }
+    setProfileOpen(true)
+    try {
+      await window.api.invoke('scacc:openArtistProfile', profileLink)
+      if (useUi.getState().artist === a && useUi.getState().tab === 'artist') refresh()
+    } catch (e) { useUi.getState().toast((e as Error).message) }
+    finally { setProfileOpen(false) }
+  }
   const play = (id: string) => void player.getState().playList(can, id, source)
   const loadMore = async () => {
     if (moreBusy || !list || !hasMore) return
@@ -104,7 +116,8 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
       else useUi.getState().toast(on ? `${who} не дал подписаться` : `${who} не дал отписаться`)
     } catch (e) {
       if (sent) setInfo((previous) => ({ ...previous, statusUnknown: true }))
-      useUi.getState().toast(sent ? 'Запрос принят, но статус подписки пока не удалось проверить' : (e as Error).message)
+      useUi.getState().toast(sent ? 'Запрос принят, но статус подписки пока не удалось проверить' : (e as Error).message,
+        !sent && sc && profileLink ? { label: 'Открыть профиль', run: () => void openProfile() } : undefined)
     } finally { setBusy(false) }
   }
 
@@ -134,7 +147,7 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
               <button className="btn-s" onClick={() => void follow(true)}>Подписаться</button>
               <button className="btn-s" onClick={() => void follow(false)}>Отписаться</button>
             </>}
-            {(info.link ?? a.link) && <button className="btn-s" onClick={() => window.open(info.link ?? a.link, '_blank')}><I.IExternal size={14} />Открыть профиль</button>}
+            {profileLink && <button className="btn-s" disabled={profileOpen} onClick={() => void openProfile()}><I.IExternal size={14} />Открыть профиль</button>}
             <button className="btn-s" title="Загрузить заново" onClick={refresh} disabled={list === null || busy}><I.IRefresh size={14} />Обновить</button>
           </div>
         </div>

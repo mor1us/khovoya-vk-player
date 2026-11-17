@@ -3,6 +3,11 @@ import type { Track, Playlist } from '../../shared/types'
 type Thumb = { photo_300?: string; photo_600?: string; photo_1200?: string; photo_270?: string; photo_135?: string }
 const best = (t?: Thumb) => t && (t.photo_600 ?? t.photo_1200 ?? t.photo_300 ?? t.photo_270 ?? t.photo_135)
 
+export function vkFlag(value: unknown): boolean | undefined {
+  if (value === true || value === 1 || value === '1') return true
+  if (value === false || value === 0 || value === '0') return false
+}
+
 export function mapTrack(r: any): Track {
   return {
     id: `${r.owner_id}_${r.id}`,
@@ -18,7 +23,10 @@ export function mapTrack(r: any): Track {
     // Список может не отдать ссылку. В таком случае получим её отдельно при запуске.
     available: !r.content_restricted,
     ...(r.album?.id && r.album?.owner_id ? { album: { id: Number(r.album.id), ownerId: Number(r.album.owner_id), accessKey: r.album.access_key, title: String(r.album.title ?? 'Альбом') } } : {}),
-    ...(Array.isArray(r.main_artists) && r.main_artists.length ? { artists: r.main_artists.filter((a: any) => a?.id && a?.name).map((a: any) => ({ id: String(a.id), name: String(a.name) })) } : {})
+    ...(Array.isArray(r.main_artists) && r.main_artists.length ? { artists: r.main_artists.filter((a: any) => a?.id && a?.name).map((a: any) => {
+      const followed = vkFlag(a.is_followed ?? a.is_following)
+      return { id: String(a.id), name: String(a.name), ...(followed !== undefined ? { followed } : {}) }
+    }) } : {})
   }
 }
 
