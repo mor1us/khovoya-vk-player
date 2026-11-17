@@ -11,6 +11,8 @@ import { useUi } from './ui'
 import { trackKey } from '../../shared/match'
 import { readJson, writeJson } from './json'
 import { useStats } from './stats'
+import { useLocalArtists } from './localArtists'
+import { artistKey } from '../wave/profile'
 
 export type WaveKind = 'vk' | 'sc' | 'both'
 
@@ -106,7 +108,8 @@ async function vkPool(profile: WaveProfile, tune: WaveTune, mode: WaveMode): Pro
   const cur = player.getState().current
   if (cur && cur.src !== 'sc' && !seeds.includes(cur.id) && (!lang.length || matchLangs(cur, lang, mineArtists))) seeds.unshift(cur.id)
   // любимые артисты под выбранный язык — у них берём свежее
-  let top = topArtists(profile, mine, 12)
+  const followed = useLocalArtists.getState().artists.filter((artist) => artist.source === 'vk').map((artist) => artist.name)
+  let top = [...new Set([...followed, ...topArtists(profile, mine, 12)])].slice(0, 12)
   const words = lang.filter((l) => l !== 'none')
   if (words.length) top = top.filter((a) => { const ru = mineArtists.get(a); return ru === undefined || words.some((w) => (w === 'ru') === ru) })
   const qs = tuneQueries(tune, top)
@@ -150,7 +153,8 @@ async function scCandidates(profile: WaveProfile, tune: WaveTune): Promise<{ can
   const cur = player.getState().current
   const seeds = fisherYates(likes, cryptoRandom).slice(0, 4)
   if (cur?.src === 'sc' && !seeds.some((t) => t.id === cur.id)) seeds.unshift(cur)
-  let top = Object.entries(profile.artists).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([a]) => a)
+  const followed = useLocalArtists.getState().artists.filter((artist) => artist.source === 'sc').map((artist) => artist.name)
+  let top = [...new Set([...followed, ...Object.entries(profile.artists).sort((a, b) => b[1] - a[1]).map(([a]) => a)])].slice(0, 8)
   if (!top.length) { // новичок: берём артистов из «Моей музыки»
     const cnt = new Map<string, number>()
     for (const t of useLibrary.getState().mine.slice(0, 300)) cnt.set(t.artist, (cnt.get(t.artist) ?? 0) + 1)
@@ -177,7 +181,8 @@ async function scBatch(mode: WaveMode, profile: WaveProfile, size = 20, tune: Wa
   const artists = artistLangMap(cands)
   const pool = applyTune(cands.filter((t) => !queued.has(t.id) && t.duration < 15 * 60), tune, now, size, artists)
   const source = new Map(cands.map((t) => [t.id, extra.has(t.id) ? 1 : 2]))
-  return pickBatch({ candidates: pool, mine: new Set(likes.map((t) => t.id)), mineKeys: likes.map(trackKey), mode, profile, recent: recent(), recentKeys: recentKeys(), now, rnd: cryptoRandom, size, boost: (t) => tuneBoost(t, tune, { now, moodHits: extra, source }) })
+  const followedArtists = new Set(useLocalArtists.getState().artists.filter((artist) => artist.source === 'sc').map((artist) => artistKey(artist.name)))
+  return pickBatch({ candidates: pool, mine: new Set(likes.map((t) => t.id)), mineKeys: likes.map(trackKey), mode, profile, recent: recent(), recentKeys: recentKeys(), now, rnd: cryptoRandom, size, followedArtists, boost: (t) => tuneBoost(t, tune, { now, moodHits: extra, source }) })
 }
 
 async function batchFor(kind: WaveKind, size = 20): Promise<Track[]> {
@@ -209,7 +214,8 @@ async function batch(mode: WaveMode, profile: WaveProfile, size = 20, tune: Wave
   const queued = new Set(player.getState().queue?.list().map((t) => t.id) ?? [])
   const now = Date.now()
   const cand = applyTune(pool.cands.filter((t) => !queued.has(t.id) && t.duration < 15 * 60), tune, now, size, pool.artists)
-  return pickBatch({ candidates: cand, mine, mineKeys: mineTracks.map(trackKey), mode, profile, recent: recent(), recentKeys: recentKeys(), now, rnd: cryptoRandom, size, boost: (t) => tuneBoost(t, tune, { now, moodHits: pool.moodHits, source: pool.source }) })
+  const followedArtists = new Set(useLocalArtists.getState().artists.filter((artist) => artist.source === 'vk').map((artist) => artistKey(artist.name)))
+  return pickBatch({ candidates: cand, mine, mineKeys: mineTracks.map(trackKey), mode, profile, recent: recent(), recentKeys: recentKeys(), now, rnd: cryptoRandom, size, followedArtists, boost: (t) => tuneBoost(t, tune, { now, moodHits: pool.moodHits, source: pool.source }) })
 }
 
 export const useWave = create<Wave>((set, get) => ({

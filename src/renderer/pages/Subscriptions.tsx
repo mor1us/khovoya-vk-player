@@ -1,63 +1,44 @@
-import { useEffect, useState } from 'react'
-import type { ArtistSubscription } from '../../shared/types'
+import { useState } from 'react'
 import { useUi } from '../store/ui'
+import { useLocalArtists } from '../store/localArtists'
 import { Cover } from '../ui/Cover'
 import { SrcBadge } from '../ui/TrackRow'
-import * as I from '../ui/icons'
 
 type Source = 'vk' | 'sc'
 
 export function Subscriptions() {
-  const [revision, setRevision] = useState(0)
   return (
     <div className="page">
-      <div className="ph">
-        <h1>Мои подписки</h1><span className="sp" />
-        <button className="btn-s" onClick={() => setRevision((n) => n + 1)}><I.IRefresh size={14} />Обновить</button>
-      </div>
-      <SubscriptionGroup source="vk" revision={revision} />
-      <SubscriptionGroup source="sc" revision={revision} />
+      <div className="ph"><h1>Мои подписки</h1></div>
+      <SubscriptionGroup source="vk" />
+      <SubscriptionGroup source="sc" />
     </div>
   )
 }
 
-function SubscriptionGroup({ source, revision }: { source: Source; revision: number }) {
-  const [artists, setArtists] = useState<ArtistSubscription[] | null>()
-  const [failed, setFailed] = useState(false)
+function SubscriptionGroup({ source }: { source: Source }) {
+  const local = useLocalArtists((s) => s.artists.filter((artist) => artist.source === source))
+  const [busy, setBusy] = useState(false)
   const service = source === 'sc' ? 'SoundCloud' : 'ВК'
-  useEffect(() => {
-    let active = true
-    let pending = false
-    const load = async () => {
-      if (pending) return
-      pending = true
-      try {
-        const next = await window.api.invoke('artists:subscriptions', source)
-        if (active) { setArtists(next); setFailed(false) }
-      } catch { if (active) setFailed(true) }
-      finally { pending = false }
-    }
-    const sync = () => { if (!document.hidden && document.hasFocus()) void load() }
-    void load()
-    window.addEventListener('focus', sync)
-    document.addEventListener('visibilitychange', sync)
-    const timer = window.setInterval(sync, 60_000)
-    return () => {
-      active = false
-      window.removeEventListener('focus', sync)
-      document.removeEventListener('visibilitychange', sync)
-      window.clearInterval(timer)
-    }
-  }, [source, revision])
+  const importArtists = async () => {
+    if (busy) return
+    setBusy(true)
+    try {
+      const imported = await window.api.invoke('artists:subscriptions', source)
+      if (imported === null) useUi.getState().toast(`Войди в ${service}, чтобы импортировать артистов`)
+      else {
+        const count = useLocalArtists.getState().import(source, imported)
+        useUi.getState().toast(count ? `В Хвою добавлено: ${count}` : `Новых артистов в ${service} нет`)
+      }
+    } catch { useUi.getState().toast(`Не удалось импортировать артистов из ${service}`) }
+    finally { setBusy(false) }
+  }
   return (
     <section className="box">
-      <h3><SrcBadge src={source} />{service}</h3>
-      {failed && <div className="empty-state">{artists?.length ? `Не удалось обновить подписки ${service}. Показан последний загруженный список.` : `Не удалось загрузить подписки ${service}. Попробуй обновить список.`}</div>}
-      {artists === undefined ? !failed && <div className="skeleton" aria-label="Загружаю подписки" />
-        : artists === null ? !failed && <div className="empty-state">Войди в {service}, чтобы увидеть подписки.</div>
-        : !artists.length ? !failed && <div className="empty-state">Подписок на артистов пока нет.</div>
-        : <div className="artgrid">{artists.map((artist) => (
-          <button key={artist.id} className="art" title={`${artist.name} · ${service}`} onClick={() => useUi.getState().openArtist({ ...artist, src: source })}>
+      <div className="ph"><h3><SrcBadge src={source} />{service}</h3><span className="sp" /><button className={'btn-s' + (source === 'sc' ? ' sco' : '')} disabled={busy} onClick={() => void importArtists()}>{busy ? 'Импортирую…' : `Импортировать из ${service}`}</button></div>
+      {!local.length ? <div className="empty-state">Добавь артистов в Хвою на странице исполнителя или импортируй их из {service}.</div>
+        : <div className="artgrid">{local.map((artist) => (
+          <button key={`${source}:${artist.id}`} className="art" title={`${artist.name} · подписка Хвои · ${service}`} onClick={() => useUi.getState().openArtist({ ...artist, src: source })}>
             <span className="avw"><Cover className="av" url={artist.cover} seed={source + artist.id} /></span>
             <span className="nm"><SrcBadge src={source} />{artist.name}</span>
           </button>

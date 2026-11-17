@@ -1,5 +1,5 @@
 import type { Track, Playlist, ArtistRef, ArtistInfo } from '../../shared/types'
-import { mapTrack, mapPlaylist } from './models'
+import { mapTrack, mapPlaylist, vkFlag } from './models'
 import { artistSubscriptionState, catalogSummary, parseCatalog, subscriptionArtists, subscriptionSection, type ForYouBlock } from './catalog'
 
 type Caller = { call<T = any>(method: string, params: Record<string, string | number | undefined>): Promise<T> }
@@ -29,11 +29,17 @@ export interface AudioApi {
 export type { ArtistInfo }
 
 const PAGE = 1000
+// Каталог и аудио используют внутреннюю версию VK Music, она не совпадает с публичной v=5.x.
+const MUSIC_API_VERSION = '8.154'
 const vkId = (id: string) => Number(id.split('_')[1])
 
 export class VkAudioApi implements AudioApi {
   constructor(private vk: Caller, private me: () => number, private log: (m: string) => void = () => {}) {}
   private subscriptions?: { user: number; expires: number; request: ReturnType<VkAudioApi['fetchArtistSubscriptions']> }
+
+  private async musicCall<T = any>(method: string, params: Record<string, string | number | undefined>): Promise<T> {
+    return this.vk.call<T>(method, { ...params, v: MUSIC_API_VERSION })
+  }
 
   artistSubscriptions(force = true) {
     const user = this.me()
@@ -49,32 +55,47 @@ export class VkAudioApi implements AudioApi {
   }
 
   private async fetchArtistSubscriptions() {
-    const params = { need_blocks: 1, extended: 1, v: '5.215' }
-    const root = await this.vk.call<any>('catalog.getAudio', params)
-    let sectionId = subscriptionSection(root)
-    const librarySection = root?.catalog?.sections?.find((section: any) => /^(?:моя музыка|my music)$/i.test(String(section?.title ?? '').trim()))
-    const librarySectionId = librarySection?.section_id ?? librarySection?.id
-    if (!sectionId && typeof librarySectionId === 'string' && librarySectionId) {
-      const library = await this.vk.call<any>('catalog.getSection', { ...params, section_id: librarySectionId })
-      sectionId = subscriptionSection(library)
-    }
-    if (!sectionId) {
-      const library = await this.vk.call<any>('catalog.getAudio', { ...params, url: `https://vk.com/audios${this.me()}` })
-      sectionId = subscriptionSection(library)
-      const libraryId = library?.catalog?.default_section
-      if (!sectionId && typeof libraryId === 'string') {
-        const home = await this.vk.call<any>('catalog.getSection', { ...params, section_id: libraryId })
-        sectionId = subscriptionSection(home)
+    let sectionId: string | undefined
+    let diagnostic: any
+    {
+      const params = { need_blocks: 1, extended: 1, v: MUSIC_API_VERSION }
+      try {
+        const root = await this.vk.call<any>('catalog.getAudio', params)
+        diagnostic = root
+        sectionId = subscriptionSection(root)
+        const librarySection = root?.catalog?.sections?.find((section: any) => /^(?:моя музыка|my music)$/i.test(String(section?.title ?? '').trim()))
+        const librarySectionId = librarySection?.section_id ?? librarySection?.id
+        if (!sectionId && typeof librarySectionId === 'string' && librarySectionId) {
+          const library = await this.vk.call<any>('catalog.getSection', { ...params, section_id: librarySectionId })
+          sectionId = subscriptionSection(library)
+        }
+        if (!sectionId) {
+          const library = await this.vk.call<any>('catalog.getAudio', { ...params, url: `https://vk.com/audios${this.me()}` })
+          diagnostic = library
+          sectionId = subscriptionSection(library)
+          const libraryId = library?.catalog?.default_section
+          if (!sectionId && typeof libraryId === 'string') {
+            const home = await this.vk.call<any>('catalog.getSection', { ...params, section_id: libraryId })
+            sectionId = subscriptionSection(home)
+          }
+        }
+        if (!sectionId) {
+          const index = await this.vk.call<any>('catalog.getAudio', { ...params, need_blocks: 0 })
+          diagnostic = index
+          sectionId = subscriptionSection(index)
+        }
+      } catch (error) {
+        const code = (error as { code?: unknown })?.code
+        this.log(`подписки ВК: catalog.getAudio завершился ошибкой${typeof code === 'number' ? ` (код ВК ${code})` : ''}`)
+        throw error
       }
     }
     if (!sectionId) {
-      const index = await this.vk.call<any>('catalog.getAudio', { ...params, need_blocks: 0 })
-      sectionId = subscriptionSection(index)
-    }
-    if (!sectionId) {
-      this.log('подписки ВК: каталог не прислал ссылку на раздел')
+      const titles = (diagnostic?.catalog?.sections ?? []).map((section: any) => String(section?.title ?? section?.layout?.title ?? '')).filter(Boolean).slice(0, 12)
+      this.log(`подписки ВК: раздел не найден; версия API ${MUSIC_API_VERSION}; разделы: ${titles.join(' | ') || 'пусто'}`)
       throw new Error('ВК не открыл раздел подписок на артистов')
     }
+    const params = { need_blocks: 1, extended: 1, v: MUSIC_API_VERSION }
     const result = new Map<string, ReturnType<typeof subscriptionArtists>[number]>()
     const seen = new Set<string>()
     let cursor: string | undefined
@@ -110,7 +131,7 @@ export class VkAudioApi implements AudioApi {
     const byDate = (xs: Track[]) => xs.sort((x, y) => (y.addedAt ?? 0) - (x.addedAt ?? 0))
     if (a.id) {
       try {
-        const r = await this.vk.call<{ items: any[] }>('audio.getAudiosByArtist', { artist_id: a.id, count: 30, ...(offset ? { offset } : {}) })
+        const r = await this.musicCall<{ items: any[] }>('audio.getAudiosByArtist', { artist_id: a.id, count: 30, ...(offset ? { offset } : {}) })
         return byDate(r.items.map(mapTrack))
       } catch (e) { this.log(`getAudiosByArtist: ${(e as Error).message}`) }
     }
@@ -148,28 +169,29 @@ export class VkAudioApi implements AudioApi {
       if (ids.length !== 1) return { missing: true, followed: false, can: false }
       id = ids[0]
     }
-    const r = await this.vk.call<any>('catalog.getAudioArtist', { artist_id: id, extended: 1, v: '5.215' }).catch((e: unknown) => {
+    const r = await this.musicCall<any>('catalog.getAudioArtist', { artist_id: id, extended: 1 }).catch((e: unknown) => {
       this.log(`getAudioArtist: ${(e as Error).message}`)
       return null
     })
     const photo: any[] = r?.photo ?? r?.artist?.photo ?? []
     const best = photo.length ? photo[photo.length - 1]?.url : undefined
+    const canFollow = vkFlag(r?.artist?.can_follow ?? r?.can_follow) ?? true
     let followed = artistSubscriptionState(r, id)
     const section = r?.catalog?.default_section
     if (followed === undefined && typeof section === 'string' && section) {
-      const page = await this.vk.call<any>('catalog.getSection', { section_id: section, need_blocks: 1, extended: 1, v: '5.215' }).catch(() => null)
+      const page = await this.musicCall<any>('catalog.getSection', { section_id: section, need_blocks: 1, extended: 1 }).catch(() => null)
       followed = artistSubscriptionState(page, id)
     }
     if (followed === undefined) {
       const subscription = await this.artistSubscriptions(false).then((list) => list.find((artist) => artist.id === id)).catch(() => undefined)
-      if (subscription) return { id, followed: true, cover: subscription.cover ?? best, can: true }
+      if (subscription) return { id, followed: true, cover: subscription.cover ?? best, can: canFollow }
       refs ??= await searchArtistRefs().catch(() => [])
       const states = new Set(refs.filter((artist) => artist.id === id && artist.followed !== undefined).map((artist) => artist.followed))
-      if (states.size === 1) return { id, followed: states.has(true), cover: best, can: true }
+      if (states.size === 1) return { id, followed: states.has(true), cover: best, can: canFollow }
       if (r) this.log('getAudioArtist: ВК не вернул состояние подписки')
-      return { id, followed: false, statusUnknown: true, cover: best ? String(best) : undefined, can: true }
+      return { id, followed: false, statusUnknown: true, cover: best ? String(best) : undefined, can: canFollow }
     }
-    return { id, followed, cover: best ? String(best) : undefined, can: true }
+    return { id, followed, cover: best ? String(best) : undefined, can: canFollow }
   }
 
   /**
@@ -179,29 +201,43 @@ export class VkAudioApi implements AudioApi {
    */
   async followArtist(a: ArtistRef, on: boolean): Promise<void> {
     if (!a.id) throw new Error('ВК не знает такого исполнителя')
-    const target = { artist_id: a.id, ref: 'audio_player' }
-    if (on) { await this.vk.call('audio.followArtist', target); this.subscriptions = undefined; return }
+    const target = { artist_id: a.id, ref: 'audio_player', v: MUSIC_API_VERSION }
+    if (on) {
+      const response = await this.musicCall<unknown>('audio.followArtist', target)
+      this.log(`audio.followArtist: ответ ${JSON.stringify(response).slice(0, 120)}`)
+      if (response === 0 || response === false || response === '0') throw new Error('ВК не принял подписку на этого артиста')
+      this.subscriptions = undefined
+      return
+    }
     const ways: Array<[string, Record<string, string | number>]> = [
       ['audio.unfollowArtist', target],
       ['audio.followArtist', { ...target, unfollow: 1 }]
     ]
     let last: Error | null = null
     for (const [method, params] of ways) {
-      try { await this.vk.call(method, params); this.subscriptions = undefined; return } catch (e) {
+      let response: unknown
+      try { response = await this.musicCall<unknown>(method, params) } catch (e) {
         last = e as Error
         this.log(`${method}: ${last.message}`)
+        const code = (e as { code?: unknown })?.code
+        if (method === 'audio.unfollowArtist' && (code === 3 || /unknown method/i.test(last.message))) continue
+        throw e
       }
+      this.log(`${method}: ответ ${JSON.stringify(response).slice(0, 120)}`)
+      if (response === 0 || response === false || response === '0') throw new Error('ВК не принял отписку от этого артиста')
+      this.subscriptions = undefined
+      return
     }
     throw last ?? new Error('ВК не дал отписаться')
   }
 
   /** Подборки «для вас» из каталога ВК (плейлисты дня и т.п.). */
   async forYou(): Promise<ForYouBlock[]> {
-    const r = await this.vk.call<any>('catalog.getAudio', { need_blocks: 1, v: '5.215' })
+    const r = await this.musicCall<any>('catalog.getAudio', { need_blocks: 1, extended: 1 })
     let blocks = parseCatalog(r, this.me())
     const sec = r?.catalog?.default_section
     if (!blocks.length && sec) {
-      const s = await this.vk.call<any>('catalog.getSection', { section_id: sec, v: '5.215' })
+      const s = await this.musicCall<any>('catalog.getSection', { section_id: sec, need_blocks: 1, extended: 1 })
       blocks = parseCatalog({ ...s, blocks: s?.section?.blocks ?? s?.blocks }, this.me())
     }
     if (!blocks.length) this.log(`каталог без подборок: ключи ${Object.keys(r ?? {}).join(',')}`)

@@ -8,6 +8,7 @@ import { Cover } from '../ui/Cover'
 import { artistWhy } from '../store/artistsLogic'
 import * as I from '../ui/icons'
 import { artistSource } from '../ui/source'
+import { useLocalArtists } from '../store/localArtists'
 
 const NO_INFO: ArtistInfo = { followed: false, can: false }
 
@@ -21,13 +22,12 @@ export function Artist() {
 
 function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.getState>['artist']>; refresh: () => void }) {
   const mine = useLibrary((s) => s.mine)
+  const localFollowed = useLocalArtists((s) => s.has({ source: a.src === 'sc' ? 'sc' : 'vk', id: a.id, name: a.name }))
   const [list, setList] = useState<Track[] | null>(null)
   const [info, setInfo] = useState<ArtistInfo>(NO_INFO)
-  const [failed, setFailed] = useState(false)
   const [infoFailed, setInfoFailed] = useState(false)
-  const [infoLoading, setInfoLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [showFollowActions, setShowFollowActions] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [moreBusy, setMoreBusy] = useState(false)
   const [offset, setOffset] = useState(0)
@@ -55,7 +55,7 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
       if (!alive) return
       setInfo(r)
       if (r.missing) useUi.getState().toast(`Профиль «${a.name}» не найден. Поискать треки?`, { label: 'Искать', run: searchArtist, dismissLabel: 'Не сейчас' })
-    }).catch(() => { if (alive) setInfoFailed(true) }).finally(() => { if (alive) setInfoLoading(false) })
+    }).catch(() => { if (alive) setInfoFailed(true) })
     return () => { alive = false }
   }, [a, sc, searchArtist, pageSize])
   useEffect(load, [load])
@@ -97,28 +97,12 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
       useUi.getState().toast('Не удалось загрузить ещё треки. Попробуй снова')
     } finally { setMoreBusy(false) }
   }
-  const follow = async (on: boolean) => {
-    if (busy || infoLoading || infoFailed || !info.can) return
+  const follow = () => {
+    if (busy) return
     setBusy(true)
-    setShowFollowActions(false)
-    const id = info.id ?? a.id
-    let sent = false
-    try {
-      if (sc) await window.api.invoke('scacc:artistFollow', a.name, on, id)
-      else await window.api.invoke('vk:artistFollow', { id, name: a.name }, on)
-      sent = true
-      // не верим себе на слово: спрашиваем, что там теперь на самом деле
-      const fresh = sc ? await window.api.invoke('scacc:artistInfo', a.name, id) : await window.api.invoke('vk:artistInfo', { id, name: a.name })
-      setInfo(fresh)
-      const who = sc ? 'SoundCloud' : 'ВК'
-      if (fresh.statusUnknown || !fresh.can) useUi.getState().toast(`Запрос принят. ${who} не подтвердил состояние подписки`)
-      else if (fresh.followed === on) useUi.getState().toast(on ? `Слежу за ${a.name}` : `Больше не слежу за ${a.name}`)
-      else useUi.getState().toast(on ? `${who} не дал подписаться` : `${who} не дал отписаться`)
-    } catch (e) {
-      if (sent) setInfo((previous) => ({ ...previous, statusUnknown: true }))
-      useUi.getState().toast(sent ? 'Запрос принят, но статус подписки пока не удалось проверить' : (e as Error).message,
-        !sent && sc && profileLink ? { label: 'Открыть профиль', run: () => void openProfile() } : undefined)
-    } finally { setBusy(false) }
+    const added = useLocalArtists.getState().toggle({ id: info.id ?? a.id ?? '', name: a.name, cover: info.cover ?? a.cover, link: profileLink, source: sc ? 'sc' : 'vk' })
+    useUi.getState().toast(added ? `Добавлен в подписки Хвои: ${a.name}` : `Удалён из подписок Хвои: ${a.name}`)
+    setBusy(false)
   }
 
   return (
@@ -131,22 +115,16 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
           <h1>{a.name}</h1>
           <div className="artist-meta">
             {list && <span>Треков в списке: {list.length}</span>}
-            {info.followers != null && <span>{info.followers.toLocaleString('ru-RU')} подписчиков</span>}
-            {infoFailed && <span className="artist-muted">Не удалось загрузить подписку</span>}
-            {info.statusUnknown && <span className="artist-muted">Сервис не показал состояние подписки</span>}
+            {info.followers != null && <span>{info.followers.toLocaleString('ru-RU')} подписчиков на платформе</span>}
+            {infoFailed && <span className="artist-muted">Не удалось загрузить сведения профиля</span>}
             {info.missing && <span className="artist-muted">Профиль артиста не найден</span>}
-            {!infoLoading && !infoFailed && !info.can && !info.missing && <span className="artist-muted">{sc ? 'Войди в SoundCloud, чтобы подписаться' : 'Подписка ВК недоступна для этой страницы'}</span>}
           </div>
           <div className="artist-actions">
             {info.missing && <button className="btn-s" onClick={searchArtist}>Искать треки</button>}
             {!!can.length && <button className="btn-s g" onClick={() => play(can[0].id)}><I.IPlay size={14} />Слушать</button>}
-            {!info.missing && <button className="btn-s" disabled={busy || infoLoading || infoFailed || !info.can} aria-expanded={info.statusUnknown ? showFollowActions : undefined} onClick={() => info.statusUnknown ? setShowFollowActions((open) => !open) : void follow(!info.followed)}>
-              <I.IHeart size={14} on={info.followed} />{busy ? 'Сохраняю…' : infoLoading || infoFailed || info.statusUnknown ? 'Подписка' : info.followed ? 'Отписаться' : 'Подписаться'} в {sc ? 'SoundCloud' : 'ВК'}
+            {!info.missing && <button className={'btn-s' + (sc ? ' sco' : '')} disabled={busy} onClick={follow}>
+              <I.IHeart size={14} on={localFollowed} />{busy ? 'Сохраняю…' : localFollowed ? 'Отписаться в Хвое' : 'Подписаться в Хвое'}
             </button>}
-            {showFollowActions && info.statusUnknown && <>
-              <button className="btn-s" onClick={() => void follow(true)}>Подписаться</button>
-              <button className="btn-s" onClick={() => void follow(false)}>Отписаться</button>
-            </>}
             {profileLink && <button className="btn-s" disabled={profileOpen} onClick={() => void openProfile()}><I.IExternal size={14} />Открыть профиль</button>}
             <button className="btn-s" title="Загрузить заново" onClick={refresh} disabled={list === null || busy}><I.IRefresh size={14} />Обновить</button>
           </div>

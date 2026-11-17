@@ -103,6 +103,11 @@ describe('pickBatch', () => {
     for (let k = 0; k < 50; k++) if (pickBatch({ ...base, profile: p, mode: 'new', rnd: seeded(k + 10), size: 5 }).some((t) => t.artist === 'N5')) hits++
     expect(hits).toBeGreaterThan(45)
   })
+  it('подписка Хвои добавляет артиста в выдачу и повышает его приоритет', () => {
+    const followedArtists = new Set(['n5'])
+    const out = pickBatch({ ...base, candidates: fresh.slice(0, 20), followedArtists, mode: 'new', size: 5, rnd: seeded(80) })
+    expect(out.some((t) => t.artist === 'N5')).toBe(true)
+  })
   it('skips unavailable tracks and duplicates', () => {
     const bad = { ...tr(500, 'Z'), available: false }
     const out = pickBatch({ ...base, candidates: [bad, ...candidates, ...candidates], mode: 'mix', rnd: seeded(8) })

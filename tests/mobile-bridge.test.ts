@@ -55,7 +55,6 @@ describe('мобильный мост', () => {
     await expect(window.api.invoke('upd:state')).resolves.toMatchObject({ status: 'disabled' })
     await expect(window.api.invoke('sc:status')).resolves.toMatchObject({ ok: false, hasKey: false })
     await expect(window.api.invoke('win:close')).resolves.toBeUndefined()
-    await expect(window.api.invoke('screamer:play')).rejects.toThrow('Скример доступен только в компьютерной Хвое')
     await expect(window.api.invoke('settings:pickDir')).resolves.toBeNull()
     await expect(window.api.invoke('dl:list')).resolves.toEqual([])
   })

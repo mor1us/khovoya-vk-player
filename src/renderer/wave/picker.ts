@@ -20,6 +20,8 @@ type Opts = {
   now: number
   rnd: () => number
   size?: number
+  /** Подписки Хвои — самостоятельный положительный сигнал отбора. */
+  followedArtists?: Set<string>
   /** Доп. очки кандидата (источник, свежесть, настроение) — прибавляются к весу артиста. */
   boost?: (t: Track) => number
 }
@@ -43,12 +45,13 @@ export function pickBatch(o: Opts): Track[] {
     if (!t.available || banned.has(t.id) || bannedKeys.has(k)) return false
     const until = Math.max(o.profile.snoozed[t.id] ?? 0, snoozedKeys[k] ?? 0)
     if (until > o.now) return false
-    if ((o.profile.artists[artistKey(t.artist)] ?? 0) < MIN_ARTIST_WEIGHT) return false
+    const key = artistKey(t.artist)
+    if ((o.profile.artists[key] ?? 0) < MIN_ARTIST_WEIGHT && !o.followedArtists?.has(key)) return false
     seen.add(k)
     return true
   })
   /** Вкус: разница между весом 3 и 15 не должна быть решающей — иначе выдача упирается в одних артистов. */
-  const taste = (t: Track) => TASTE_MAX * Math.tanh((o.profile.artists[artistKey(t.artist)] ?? 0) / TASTE_MAX)
+  const taste = (t: Track) => TASTE_MAX * Math.tanh((o.profile.artists[artistKey(t.artist)] ?? 0) / TASTE_MAX) + (o.followedArtists?.has(artistKey(t.artist)) ? 5 : 0)
   const score = (t: Track) => taste(t) + (o.boost?.(t) ?? 0) + o.rnd() * 4
   const rank = (xs: Track[]) => xs.map((t) => ({ t, s: score(t) })).sort((a, b) => b.s - a.s).map((x) => x.t)
 

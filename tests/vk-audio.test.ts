@@ -88,6 +88,13 @@ describe('artistTracks', () => {
     })
     expect(await new VkAudioApi(client as any, () => 7).artistSubscriptions()).toMatchObject([{ id: '123', name: 'Юпи' }])
     expect(calls.slice(1).map((call) => call.p.section_id)).toEqual(['following', 'artists'])
+    expect(calls.every((call) => call.p.v === '8.154')).toBe(true)
+  })
+
+  it('передаёт версии API ВК, а не номер версии приложения VK Music', async () => {
+    const { calls, client } = fakeClient(() => ({ catalog: { sections: [] }, blocks: [], playlists: [] }))
+    await new VkAudioApi(client as any, () => 7).forYou()
+    expect(calls[0]).toMatchObject({ m: 'catalog.getAudio', p: { v: '8.154', need_blocks: 1, extended: 1 } })
   })
 
   it('сверяет статус подписки с кнопкой на странице конкретного артиста', async () => {
@@ -99,6 +106,14 @@ describe('artistTracks', () => {
       ] }] } })
     expect(await new VkAudioApi(client as any, () => 7).artistInfo({ id: '123', name: 'Юпи' }))
       .toMatchObject({ id: '123', followed: false, can: true })
+  })
+
+  it('не показывает подписку, если страница артиста запрещает её', async () => {
+    const { client } = fakeClient((method) => method === 'catalog.getAudioArtist'
+      ? { artist: { id: '123', can_follow: false, is_followed: false } }
+      : {})
+    expect(await new VkAudioApi(client as any, () => 7).artistInfo({ id: '123', name: 'Юпи' }))
+      .toMatchObject({ id: '123', followed: false, can: false })
   })
 
   it('берёт подписки из отдельной секции каталога и дочитывает страницы', async () => {
@@ -141,7 +156,14 @@ describe('подписка на исполнителя', () => {
   it('подписка — один простой вызов', async () => {
     const { calls, client } = fakeClient(() => ({}))
     await new VkAudioApi(client as any, () => 7).followArtist({ id: 'a1', name: 'Heronwater' }, true)
-    expect(calls).toEqual([{ m: 'audio.followArtist', p: { artist_id: 'a1', ref: 'audio_player' } }])
+    expect(calls).toEqual([{ m: 'audio.followArtist', p: { artist_id: 'a1', ref: 'audio_player', v: '8.154' } }])
+  })
+
+  it('ответ ВК 0 считается отказом, а не успешной подпиской', async () => {
+    const { calls, client } = fakeClient(() => 0)
+    await expect(new VkAudioApi(client as any, () => 7).followArtist({ id: 'a1', name: 'Heronwater' }, true))
+      .rejects.toThrow(/ВК не принял подписку/)
+    expect(calls).toHaveLength(1)
   })
 
   it('отписка: если ВК не знает unfollowArtist, пробуем второй способ', async () => {
@@ -152,6 +174,13 @@ describe('подписка на исполнителя', () => {
     })
     await new VkAudioApi(client as any, () => 7).followArtist({ id: 'a1', name: 'Heronwater' }, false)
     expect(calls.map((c) => c.m)).toEqual(['audio.unfollowArtist', 'audio.followArtist'])
+  })
+
+  it('ответ 0 отписки не запускает второй запрос с изменением состояния', async () => {
+    const { calls, client } = fakeClient(() => 0)
+    await expect(new VkAudioApi(client as any, () => 7).followArtist({ id: 'a1', name: 'Heronwater' }, false))
+      .rejects.toThrow(/ВК не принял отписку/)
+    expect(calls.map((c) => c.m)).toEqual(['audio.unfollowArtist'])
   })
 
   it('все способы отказали — говорим об этом, а не молчим', async () => {

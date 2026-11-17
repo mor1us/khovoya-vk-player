@@ -35,7 +35,7 @@ export function ArtistsBox() {
   useEffect(() => { void useArtists.getState().load() }, [])
   return (
     <div className="box">
-      <h3>Новое у твоих артистов <button onClick={() => { void useArtists.getState().load(true); if (useSc.getState().me) void useSc.getState().loadFeed() }}>Обновить</button></h3>
+      <h3>Новое у артистов из «Моего» <button onClick={() => { void useArtists.getState().load(true); if (useSc.getState().me) void useSc.getState().loadFeed() }}>Обновить</button></h3>
       <div className="artgrid">
         {list === null && [0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="art"><div className="skeleton av" /></div>)}
         {list?.length === 0 && <div className="empty-state" style={{ gridColumn: '1/-1' }}>{failed ? 'ВК не отдал твою музыку — нажми «Обновить»' : 'Добавь треки в «Моё» — здесь появятся твои артисты'}</div>}
