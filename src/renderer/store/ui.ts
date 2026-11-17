@@ -4,7 +4,7 @@ import { pushSpot, stepBack, stepForward, type Spot } from './navLogic'
 import { create } from 'zustand'
 import type { ArtistRef, Playlist, Session } from '../../shared/types'
 
-export type ToastAction = { label: string; run: () => void }
+export type ToastAction = { label: string; run: () => void; dismissLabel?: string }
 export type Tab = 'home' | 'mine' | 'playlists' | 'downloads' | 'search' | 'settings' | 'playlist' | 'artist' | 'history' | 'similar' | 'queue' | 'disliked' | 'soundcloud'
 
 type Ui = {
@@ -14,7 +14,7 @@ type Ui = {
   ahead: Spot[]
   playlist: Playlist | null
   /** Кого показывает экран исполнителя. */
-  artist: (ArtistRef & { cover?: string; src?: 'vk' | 'sc' }) | null
+  artist: (ArtistRef & { cover?: string; link?: string; src?: 'vk' | 'sc' }) | null
   query: string
   /** Где искать: везде, только ВК или только SoundCloud. */
   searchWhere: 'all' | 'vk' | 'sc'
@@ -28,7 +28,7 @@ type Ui = {
   back(): void
   forward(): void
   openPlaylist(p: Playlist): void
-  openArtist(a: ArtistRef & { cover?: string; src?: 'vk' | 'sc' }): void
+  openArtist(a: ArtistRef & { cover?: string; link?: string; src?: 'vk' | 'sc' }): void
   setQuery(q: string): void
   submit(q?: string): void
   /** Подсказка внизу справа; action — кнопка (например, «Открыть»). */

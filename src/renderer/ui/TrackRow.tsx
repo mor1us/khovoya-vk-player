@@ -77,19 +77,21 @@ export function TrackRow(p: RowProps) {
       onDragOver={p.onDragOver} onDrop={p.onDrop}
       {...touch}
       onClick={(e) => { if (phone) { if (!held.current && t.available) p.onPlay() } else p.onSelect?.(e) }}
-      onDoubleClick={() => t.available && p.onPlay()}
+      onDoubleClick={(e) => {
+        if (!phone && t.available && !(e.target as HTMLElement).closest('button, a, .cv')) p.onPlay()
+      }}
       onContextMenu={(e) => openTrackMenu(e, p.selected && p.selection?.length ? p.selection : [t], p.ctxPlaylist)}
-      title={t.available ? undefined : 'Трек недоступен (изъят правообладателем)'}>
+      title={t.available ? undefined : 'Трек недоступен'}>
       {!p.compact && <span className="n">{isCur ? '▶' : p.index != null ? String(p.index + 1).padStart(2, '0') : ''}</span>}
       <Cover className="cv" url={t.coverUrl} seed={t.id} onClick={() => t.available && p.onPlay()} />
       <div style={{ minWidth: 0 }}>
         <div className="tt">{p.showSrc && <SrcBadge src={t.src === 'sc' ? 'sc' : 'vk'} />}{t.title}</div>
-        <div className="ar"><Artists names={t.artist} src={t.src} id={t.artists?.[0]?.id} /></div>
+          <div className="ar"><Artists names={t.artist} src={t.src} id={t.src === 'sc' ? t.artistId : t.artists?.[0]?.id} artists={t.artists} profileName={t.artistProfileName} /></div>
         {p.why && <div className="why">{p.why}</div>}
       </div>
       {!p.compact && <div className={'acts' + (done || isLiked ? ' keep' : '')}>
         <button key={pop} className={'ic heart' + (isLiked ? ' on' : ' hov') + (pop ? ' pop' : '')} title={isLiked ? (t.src === 'sc' ? 'Убрать из лайков SoundCloud' : 'Убрать из «Моё»') : (t.src === 'sc' ? 'Нравится — в лайки SoundCloud' : 'Нравится — в «Моё»')} onClick={like}><I.IHeart size={15} on={isLiked} /></button>
-        <button className="ic" title="Играть" onClick={(e) => { e.stopPropagation(); if (t.available) p.onPlay() }}><I.IPlay size={14} /></button>
+        <button className="ic" title="Играть" disabled={!t.available} onClick={(e) => { e.stopPropagation(); if (e.detail <= 1) p.onPlay() }}><I.IPlay size={14} /></button>
         <button className={'ic' + (done ? ' dl' : '')} title={done ? 'Скачан' : 'Скачать'} onClick={(e) => { e.stopPropagation(); if (!done) void useDownloads.getState().start([t]) }}>{done ? <I.ICheck size={16} /> : <I.IDown size={16} />}</button>
       </div>}
       <span className="d">{fmtTime(t.duration)}</span>

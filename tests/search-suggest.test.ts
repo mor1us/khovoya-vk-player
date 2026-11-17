@@ -16,8 +16,13 @@ describe('подсказки поиска', () => {
 })
 
 describe('артисты из обоих мест', () => {
-  it('артисты ВК и SoundCloud помечены, повтор по имени — один раз', () => {
+  it('сохраняет одноимённых артистов с разных платформ', () => {
     const r = buildSuggest('neon', [t('1', 'Neon', 'A')], [], [], [{ name: 'neon', followers: 5 }, { name: 'Neon Kid', followers: 900 }])
-    expect(r.filter((x) => x.kind === 'artist').map((x) => [(x as { name: string }).name, (x as { src: string }).src])).toEqual([['Neon', 'vk'], ['Neon Kid', 'sc']])
+    expect(r.filter((x) => x.kind === 'artist').map((x) => [(x as { name: string }).name, (x as { src: string }).src])).toEqual([['Neon', 'vk'], ['neon', 'sc'], ['Neon Kid', 'sc']])
+  })
+
+  it('сохраняет id артиста ВК для открытия его страницы', () => {
+    const track = { ...t('1', 'Neon', 'A'), artists: [{ id: 'artist-9', name: 'Neon' }] }
+    expect(buildSuggest('neon', [track], [], []).find((x) => x.kind === 'artist')).toMatchObject({ id: 'artist-9', src: 'vk' })
   })
 })

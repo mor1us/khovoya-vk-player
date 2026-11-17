@@ -82,8 +82,6 @@ export function Settings({ onLogout }: { onLogout: () => void }) {
         {!phone && s.discordEnabled && <div className="item"><div className="l"><b>ID приложения Discord</b><span>Только цифры, например 1234567890123456789</span></div>
           <input className="filter wide" defaultValue={s.discordAppId} placeholder="Application ID" onBlur={(e) => void save({ discordAppId: e.target.value })} /></div>}
         <UpdatesRow />
-        {!phone && <div className="item"><div className="l"><b>Скример</b><span>Короткий ролик с громким звуком поверх окон.</span></div>
-          <button className="btn-s" onClick={() => void window.api.invoke('screamer:play').catch(() => useUi.getState().toast('Не получилось проиграть скример'))}>Проиграть скример</button></div>}
         <div className="item"><div className="l"><b>Аккаунт ВК</b><span>{useUi.getState().session?.userName}</span></div>
           <button className="btn-s" onClick={onLogout}>Выйти</button></div>
         <AboutRow />

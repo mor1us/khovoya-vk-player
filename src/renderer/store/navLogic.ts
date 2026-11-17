@@ -7,13 +7,13 @@ import type { Playlist } from '../../shared/types'
 export type Spot = {
   tab: string
   playlist: Playlist | null
-  artist: { id?: string; name: string; cover?: string; src?: 'vk' | 'sc' } | null
+  artist: { id?: string; name: string; cover?: string; link?: string; src?: 'vk' | 'sc' } | null
   submitted: string
 }
 
 export const sameSpot = (a: Spot, b: Spot): boolean =>
   a.tab === b.tab && a.submitted === b.submitted && (a.playlist?.id ?? null) === (b.playlist?.id ?? null) &&
-  (a.artist?.name ?? null) === (b.artist?.name ?? null) && (a.artist?.src ?? null) === (b.artist?.src ?? null)
+  (a.artist?.name ?? null) === (b.artist?.name ?? null) && (a.artist?.id ?? null) === (b.artist?.id ?? null) && (a.artist?.src ?? null) === (b.artist?.src ?? null)
 
 const LIMIT = 30
 

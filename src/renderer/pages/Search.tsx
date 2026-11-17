@@ -62,7 +62,12 @@ function SearchResults({ q }: { q: string }) {
   const merged = where === 'vk' ? vkTracks : where === 'sc' ? scTracks : mergeSources(vkTracks, scTracks)
   const tracks = noMixes ? merged.filter((t) => !t.duration || t.duration <= 15 * 60) : merged // без часовых диджей-сетов
   // артисты из выдачи: у каждого значок, откуда он — ВК или SoundCloud
-  const artists = res ? [...new Map(tracks.map((t) => [t.artist.toLowerCase() + '|' + (t.src ?? 'vk'), { name: t.artist, src: (t.src === 'sc' ? 'sc' : 'vk') as 'vk' | 'sc', cover: t.coverUrl, id: t.id }])).values()].slice(0, 10) : []
+  const profiles = tracks.flatMap((t) => {
+    const src: 'vk' | 'sc' = t.src ?? 'vk'
+    const refs = src === 'sc' ? [{ name: t.artistProfileName || t.artist, id: t.artistId }] : t.artists?.length ? t.artists : [{ name: t.artist, id: undefined }]
+    return refs.map((a) => ({ ...a, src, cover: t.coverUrl, key: src + ':' + (a.id ?? a.name.toLowerCase()) }))
+  })
+  const artists = [...new Map(profiles.map((a) => [a.key, a])).values()].slice(0, 10)
   return (
     <div className="page fill">
       <div className="ph"><h1>«{q}»</h1>{res && <span className="cnt">{tracks.length} треков</span>}<span className="sp" />
@@ -84,10 +89,10 @@ function SearchResults({ q }: { q: string }) {
       {scErr && where !== 'vk' && <div className="scdown"><SrcBadge src="sc" />{scErr}</div>}
       {!res && !err && [0, 1, 2, 3, 4].map((i) => <div key={i} className="skeleton" />)}
       {res && <>
-        {artists.length > 1 && <div className="artists">{artists.map((a) => (
-          <button key={a.name + a.src} className={a.src} title={a.src === 'sc' ? 'Артист SoundCloud' : 'Артист ВКонтакте'}
-            onClick={() => { if (a.src === 'sc') useUi.getState().setSearchWhere('sc'); useUi.getState().submit(a.name) }}>
-            <Cover className="av" url={a.cover} seed={a.id} /><SrcBadge src={a.src} />{a.name}
+        {artists.length > 0 && <div className="artists">{artists.map((a) => (
+          <button key={a.key} className={a.src} title={a.src === 'sc' ? 'Артист SoundCloud' : 'Артист ВКонтакте'}
+            onClick={() => useUi.getState().openArtist(a)}>
+            <Cover className="av" url={a.cover} seed={a.key} /><SrcBadge src={a.src} />{a.name}
           </button>))}</div>}
         {where !== 'sc' && res.playlists.length > 0 && <><div className="h"><h3><SrcBadge src="vk" />Плейлисты ВК</h3><Arrows s={vkRow} /></div><Crates list={res.playlists} rowRef={vkRow.ref} /><div style={{ height: 16 }} /></>}
         {where !== 'vk' && scPl.length > 0 && <><div className="h"><h3><SrcBadge src="sc" />Плейлисты SoundCloud</h3><Arrows s={scRow} /></div><Crates list={scPl} rowRef={scRow.ref} /><div style={{ height: 16 }} /></>}

@@ -171,6 +171,15 @@
 /* Подсказка «потяни, чтобы обновить» — висит над страницей, окну не мешает */
 .pullr{position:fixed;left:50%;top:8px;z-index:60;-webkit-app-region:no-drag;display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;background:var(--p2);border:1px solid var(--ln);color:var(--t2);font:500 11px var(--M);text-transform:uppercase;letter-spacing:.6px;pointer-events:none}
 .ph .sp{flex:1}
+.artist-hero{display:flex;align-items:center;gap:26px;padding:24px;margin-bottom:22px;border:1px solid var(--ln);border-radius:20px;background:var(--p1)}
+.artist-cover{width:132px;height:132px;border-radius:50%;flex:none;box-shadow:0 12px 32px #0008}
+.artist-main{min-width:0;flex:1}
+.artist-eyebrow{display:flex;align-items:center;gap:8px;color:var(--t2);font:600 10px var(--M);letter-spacing:.08em}
+.artist-main h1{margin:10px 0 8px;font:800 34px var(--H);letter-spacing:-1.2px;overflow-wrap:anywhere}
+.artist-meta{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;color:var(--t2);font:500 12px var(--M)}
+.artist-muted{color:var(--t3)}
+.artist-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+@media(max-width:650px){.artist-hero{align-items:flex-start;gap:16px;padding:16px}.artist-cover{width:82px;height:82px}.artist-main h1{font-size:25px}.artist-actions{margin-top:14px}}
 .btn-s{height:36px;padding:0 14px;border-radius:10px;font:600 13px var(--B);border:1px solid var(--ln);color:var(--text);display:inline-flex;align-items:center;gap:8px}
 .btn-s:hover{border-color:#3a3a3a}
 .btn-s:disabled{opacity:.45;color:var(--t3);cursor:default}
@@ -502,6 +511,7 @@ html.no-anim *{animation:none!important;transition:none!important}
 .toast{display:flex;align-items:center;gap:12px}
 .toast.act button{flex:none;font:700 12px var(--B);color:var(--k);background:var(--g);border-radius:8px;padding:6px 10px;white-space:nowrap}
 .toast.act button:hover{filter:brightness(1.1)}
+.toast.act button+button{background:var(--p2);color:var(--text)}
 .ic.heart.pop svg{animation:heartpop .35s ease-out}
 @keyframes heartpop{0%{transform:scale(1)}35%{transform:scale(1.45)}70%{transform:scale(.9)}100%{transform:scale(1)}}
 .toast.act{max-width:420px}

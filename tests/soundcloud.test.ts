@@ -6,7 +6,7 @@ const pickTranscoding = (r: unknown) => pickTranscodings(r)[0] ?? null
 const CID = 'a'.repeat(16) + 'B'.repeat(16)
 const raw = (over: any = {}) => ({
   kind: 'track', id: 42, title: 'Night Drive', duration: 180000, full_duration: 180000, policy: 'ALLOW', streamable: true,
-  user: { username: 'synthboy', avatar_url: 'https://i1.sndcdn.com/avatars-x-large.jpg' }, artwork_url: 'https://i1.sndcdn.com/artworks-y-large.jpg',
+  user: { id: 7, username: 'synthboy', avatar_url: 'https://i1.sndcdn.com/avatars-x-large.jpg' }, artwork_url: 'https://i1.sndcdn.com/artworks-y-large.jpg',
   track_authorization: 'AUTH', permalink_url: 'https://soundcloud.com/synthboy/night-drive', created_at: '2026-10-01T10:00:00Z',
   media: { transcodings: [
     { url: 'https://api-v2.soundcloud.com/media/hls-aac', format: { protocol: 'hls', mime_type: 'audio/mp4; codecs="mp4a.40.2"' } },
@@ -35,7 +35,7 @@ describe('SoundCloud', () => {
 
   it('превращает трек SoundCloud в трек плеера', () => {
     const t = mapScTrack(raw())!
-    expect(t).toMatchObject({ id: 'sc_42', src: 'sc', title: 'Night Drive', artist: 'synthboy', duration: 180, available: true, scAuth: 'AUTH' })
+    expect(t).toMatchObject({ id: 'sc_42', src: 'sc', title: 'Night Drive', artist: 'synthboy', artistId: '7', duration: 180, available: true, scAuth: 'AUTH' })
     expect(t.coverUrl).toBe('https://i1.sndcdn.com/artworks-y-t500x500.jpg')
     expect(mapScTrack(raw({ policy: 'SNIP' }))!.available).toBe(false)
     expect(mapScTrack({ kind: 'playlist', id: 1 })).toBeNull()
@@ -199,6 +199,16 @@ describe('поток SoundCloud: если формат убран (404), про�
     const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
     expect(await sc.streamUrl(mapScTrack(raw())!)).toBe('https://cdn/new.m3u8')
   })
+  it('повторяет тот же запрос потока со свежим разрешением', async () => {
+    const fresh = raw({ track_authorization: 'FRESH' })
+    const f: Fetch = async (url) => {
+      if (url.includes('/tracks/42')) return res(200, fresh)
+      if (url.includes('hls-aac') && url.includes('track_authorization=FRESH')) return res(200, { url: 'https://cdn/new.m3u8' })
+      return res(404, {})
+    }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    expect(await sc.streamUrl(mapScTrack(raw())!)).toBe('https://cdn/new.m3u8')
+  })
 })
 
 describe('аккаунт SoundCloud', () => {
@@ -321,5 +331,52 @@ describe('треки артиста SoundCloud', () => {
     }
     const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
     expect((await sc.artistTracks('synthboy')).map((t) => t.id)).toEqual(['sc_42'])
+  })
+
+  it('использует id профиля для списка треков без повторного поиска', async () => {
+    const calls: string[] = []
+    const f: Fetch = async (url) => {
+      calls.push(url)
+      if (url.includes('/users/7/tracks')) return res(200, { collection: [raw()] })
+      return res(200, {})
+    }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    await sc.artistTracks('synthboy', 40, '7')
+    expect(calls.some((url) => url.includes('/search/users'))).toBe(false)
+    expect(calls.some((url) => url.includes('/users/7/tracks'))).toBe(true)
+  })
+
+  it('проверяет подписку по id профиля', async () => {
+    const calls: string[] = []
+    const f: Fetch = async (url) => {
+      calls.push(url)
+      if (url.includes('/me?')) return res(200, { id: 9, username: 'morius' })
+      if (url.includes('/me/followings/7')) return res(200, { id: 7 })
+      return res(200, {})
+    }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    sc.setAuth(async () => 'TOKEN')
+    expect(await sc.artistInfo('synthboy', '7')).toMatchObject({ followed: true, can: true })
+    expect(calls.some((url) => url.includes('/me/followings/7'))).toBe(true)
+  })
+})
+
+describe('подписка на артиста SoundCloud', () => {
+  it('показывает возможность подписаться, если связи с профилем ещё нет', async () => {
+    const sc = new SoundCloud(async (url) => {
+      return new URL(url).pathname === '/me' ? res(200, { id: 9, username: 'morius' }) : res(404, {})
+    }, { get: () => CID, set: () => {} })
+    sc.setAuth(async () => 'TOKEN')
+    expect(await sc.artistInfo('synthboy', '7')).toMatchObject({ id: '7', followed: false, can: true })
+  })
+
+  it('подписывается и отписывается по сохранённому id профиля', async () => {
+    const calls: string[] = []
+    const sc = new SoundCloud(async (url) => url.includes('/me?') ? res(200, { id: 9 }) : res(200, {}), { get: () => CID, set: () => {} })
+    sc.setAuth(async () => 'TOKEN')
+    sc.setWriter(async (method, url) => { calls.push(`${method} ${new URL(url).pathname}`); return 200 })
+    await sc.followArtist('synthboy', true, '7')
+    await sc.followArtist('synthboy', false, '7')
+    expect(calls).toEqual(['PUT /me/followings/7', 'DELETE /me/followings/7'])
   })
 })

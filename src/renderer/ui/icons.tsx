@@ -32,3 +32,4 @@ export const IList = (p: P) => <S {...p}><path d="M9 6h11M9 12h11M9 18h11" /><ci
 export const IHeartOff = (p: P) => <S {...p}><path d="M12 21s-7-4.4-9.3-8.6C1 9.2 3 5.5 6.6 5.5c2 0 3.3 1.1 4 2.2.7-1.1 2-2.2 4-2.2 3.6 0 5.6 3.7 3.9 6.9C19 16.6 12 21 12 21z" /><path d="M3 3l18 18" /></S>
 export const IUser = (p: P) => <S {...p}><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" /></S>
 export const IArrowUpLeft = (p: P) => <S {...p}><path d="M17 17L7 7M7 15V7h8" /></S>
+export const IExternal = (p: P) => <S {...p}><path d="M14 4h6v6M20 4l-9 9" /><path d="M18 13v5a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h5" /></S>

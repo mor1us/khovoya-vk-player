@@ -59,7 +59,6 @@ export function LikeBtn() {
 }
 
 export function DislikeBtn() {
-  const cur = usePlayer((s) => s.current)
   // перечёркнутое сердце горит, когда открыт список «Не нравится»
   const on = useUi((s) => s.tab === 'disliked')
   return (
@@ -73,6 +72,7 @@ export function DislikeBtn() {
 
 export function Controls({ compact = false, reactions = false }: { compact?: boolean; reactions?: boolean }) {
   const playing = usePlayer((s) => s.playing)
+  const loading = usePlayer((s) => s.loading)
   const shuffle = usePlayer((s) => s.shuffle)
   const repeat = usePlayer((s) => s.repeat)
   const p = player.getState()
@@ -82,7 +82,8 @@ export function Controls({ compact = false, reactions = false }: { compact?: boo
       <div className="mid">
       {!compact && <button className={'ic' + (shuffle ? ' on' : '')} title="Перемешать" onClick={() => player.getState().toggleShuffle()}><I.IShuffle size={18} /></button>}
       <button className="ic" aria-label="Назад" onClick={() => void p.prev()}><I.IPrev size={22} /></button>
-      <button className="play" aria-label={playing ? 'Пауза' : 'Играть'} onClick={() => void player.getState().toggle()}>{playing ? <I.IPause size={24} /> : <I.IPlay size={24} />}</button>
+      <button className="play" aria-label={loading ? 'Загружаю трек' : playing ? 'Пауза' : 'Играть'} disabled={loading} aria-busy={loading}
+        onClick={() => void player.getState().toggle()}>{playing ? <I.IPause size={24} /> : <I.IPlay size={24} />}</button>
       <button className="ic" aria-label="Вперёд" onClick={() => void p.next()}><I.INext size={22} /></button>
       {!compact && <button className={'ic' + (repeat !== 'off' ? ' on' : '')} title={repeat === 'one' ? 'Повтор трека' : repeat === 'all' ? 'Повтор списка' : 'Повтор выключен'} onClick={() => player.getState().cycleRepeat()}>{repeat === 'one' ? <I.IRepeatOne size={18} /> : <I.IRepeat size={18} />}</button>}
       </div>
@@ -118,6 +119,7 @@ function VolHint() {
 export function Stage() {
   const tab = useUi((s) => s.tab)
   const cur = usePlayer((s) => s.current)
+  const loading = usePlayer((s) => s.loading)
   const source = usePlayer((s) => s.source)
   const duration = usePlayer((s) => s.duration)
   const volume = usePlayer((s) => s.volume)
@@ -137,17 +139,17 @@ export function Stage() {
         {source && <div className="src" title={'Играет из · ' + sourceLabel(source)}>из · <b>{sourceLabel(source)}</b></div>}
       </div>
       {!cur ? (
-        <div className="empty">Ничего не играет.<br />Включи Волну или любой трек справа.</div>
+        <div className="empty" role="status">{loading ? 'Загружаю трек…' : <>Ничего не играет.<br />Включи Волну или любой трек справа.</>}</div>
       ) : (
         <>
           <div className="nodrag" style={{ display: 'contents' }} onContextMenu={(e) => openTrackMenu(e, [cur])} onWheel={wheelVolume}>
           <Cover className="cover nodrag" url={cur.coverUrl} seed={cur.id} />
           <div className="title nodrag" title={cur.title}>{cur.title}</div>
-          <div className="artist nodrag"><SrcBadge src={cur.src === 'sc' ? 'sc' : 'vk'} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}><Artists names={cur.artist} src={cur.src} /></span></div>
+            <div className="artist nodrag"><SrcBadge src={cur.src === 'sc' ? 'sc' : 'vk'} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}><Artists names={cur.artist} src={cur.src} id={cur.src === 'sc' ? cur.artistId : cur.artists?.[0]?.id} artists={cur.artists} profileName={cur.artistProfileName} /></span></div>
           </div>
           <ScComments track={cur} pos={pos} />
           <Waveform id={cur.id} track={cur} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} className="wf nodrag" />
-          <div className="times"><span>{fmtTime(pos)}</span><b className={fading ? 'now' : ''}>{playerHooks.crossfadeSec ? `⤨ кроссфейд ${playerHooks.crossfadeSec} с` : 'без кроссфейда'}</b><span>{fmtTime(dur)}</span></div>
+          <div className="times"><span>{fmtTime(pos)}</span><b className={fading && !loading ? 'now' : ''} role="status">{loading ? 'Загружаю трек…' : playerHooks.crossfadeSec ? `⤨ кроссфейд ${playerHooks.crossfadeSec} с` : 'без кроссфейда'}</b><span>{fmtTime(dur)}</span></div>
           <div className="ctl nodrag"><Controls reactions /></div>
           <div className="vol nodrag">
             <button className="ic" onClick={() => player.getState().setVolume(volume > 0 ? 0 : 0.8)} title="Звук">{volume > 0 ? <I.IVol size={18} /> : <I.IMute size={18} />}</button>
@@ -169,7 +171,7 @@ export function MiniBar() {
   return (
     <div className="minibar">
       <VolHint />
-      <div className="now nodrag" onContextMenu={(e) => cur && openTrackMenu(e, [cur])} onWheel={wheelVolume}>{cur && <><Cover className="cv" url={cur.coverUrl} seed={cur.id} /><div style={{ minWidth: 0 }}><div className="tt">{cur.title}</div><div className="ar"><SrcBadge src={cur.src === 'sc' ? 'sc' : 'vk'} /><Artists names={cur.artist} src={cur.src} /></div></div></>}</div>
+        <div className="now nodrag" onContextMenu={(e) => cur && openTrackMenu(e, [cur])} onWheel={wheelVolume}>{cur && <><Cover className="cv" url={cur.coverUrl} seed={cur.id} /><div style={{ minWidth: 0 }}><div className="tt">{cur.title}</div><div className="ar"><SrcBadge src={cur.src === 'sc' ? 'sc' : 'vk'} /><Artists names={cur.artist} src={cur.src} id={cur.src === 'sc' ? cur.artistId : cur.artists?.[0]?.id} artists={cur.artists} profileName={cur.artistProfileName} /></div></div></>}</div>
       <Controls reactions />
       <div className="mright">
         {cur && <><span className="muted" style={{ font: '500 11px var(--M)' }}>{fmtTime(pos)}</span><Waveform id={cur.id} track={cur} n={36} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} /></>}

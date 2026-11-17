@@ -4,7 +4,6 @@ import type { LocalPl, ScComment, ScMe, ScPlaylistRef, Settings, Track, WaveProf
 import { settings } from './system/settings'
 import { setupTray, attachWindow } from './system/tray'
 import { setupUpdater, updates } from './system/updater'
-import { playScreamer, scheduleUpdateScreamer } from './system/screamer'
 import { DiscordPresence } from './system/discord'
 import { buildActivity } from './system/discordActivity'
 import type { DiscordUpdate } from '../shared/types'
@@ -74,7 +73,6 @@ function signVkAudioRequests() {
 
 async function setup() {
   handle('win:reload', () => win?.webContents.reloadIgnoringCache())
-  handle('screamer:play', playScreamer)
   allowVkAudioCors()
   signVkAudioRequests()
   keeper = new TokenKeeper(fetchWebToken, Date.now, () => win?.webContents.send('auth:lost'))
@@ -130,9 +128,9 @@ async function setup() {
   const scLog = (what: string) => (e: unknown) => { if (!(e instanceof ScUnavailable)) log(`soundcloud: ${what} — ${(e as Error)?.message ?? e}`); throw e }
   handle('sc:search', (q: string) => scSearch(q).catch(scLog('поиск')))
   handle('sc:related', (t: Track) => (MOCK ? scSearch(t.artist) : sc.related(t)))
-  handle('sc:artistTracks', (name: string) => (MOCK ? scSearch(name) : sc.artistTracks(name)))
-  handle('scacc:artistInfo', (name: string) => (MOCK ? { followed: false, can: false } : sc.artistInfo(name)))
-  handle('scacc:artistFollow', (name: string, on: boolean) => (MOCK ? undefined : sc.followArtist(name, on)))
+  handle('sc:artistTracks', (name: string, id?: string, offset?: number) => (MOCK ? (offset ? [] : scSearch(name)) : sc.artistTracks(name, 40, id, offset)))
+  handle('scacc:artistInfo', (name: string, id?: string) => (MOCK ? { followed: false, can: false } : sc.artistInfo(name, id)))
+  handle('scacc:artistFollow', (name: string, on: boolean, id?: string) => (MOCK ? undefined : sc.followArtist(name, on, id)))
   handle('sc:stream', (t: Track) => scStream(t).catch(scLog('поток')))
   handle('sc:waveform', (t: Track, n?: number) => (MOCK ? [] : sc.waveform(t, n).catch(() => [])))
   handle('sc:resolve', async (url: string) => {
@@ -208,7 +206,13 @@ async function setup() {
   const dl = createDownloads(() => settings.get().downloadDir, () => {
     if (changeTimer) return
     changeTimer = setTimeout(() => { changeTimer = null; win?.webContents.send('dl:changed') }, 300)
-  }, async (t) => (t.src === 'sc' ? scStream(t) : t.url))
+  }, async (t) => {
+    if (t.src === 'sc') return scStream(t)
+    if (t.url) return t.url
+    const id = t.accessKey ? `${t.id}_${t.accessKey}` : t.id
+    const [fresh] = await api.byId([id])
+    return fresh?.available ? fresh.url : ''
+  })
   handle('dl:start', (tracks: Track[]) => dl.enqueue(tracks))
   handle('dl:list', () => dl.list())
   handle('dl:cancel', (id: string) => dl.cancel(id))
@@ -300,7 +304,6 @@ if (!app.requestSingleInstanceLock()) {
       log(`подготовка не удалась: ${(e as Error)?.message ?? e}`)
       dialog.showErrorBox('Хвоя', 'Не получилось подготовить Хвою — часть возможностей может не работать. Подробности в журнале: %APPDATA%/Хвоя/khvoya.log')
     })
-    scheduleUpdateScreamer(log)
     win = createWindow()
     win.on('closed', () => captcha.cancel()) // окна нет — ответа на капчу не будет
     attachWindow(win); setupTray(() => win); setupUpdater(() => win, log)

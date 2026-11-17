@@ -12,6 +12,10 @@ export type Track = {
   available: boolean
   /** Основные исполнители из ВК (main_artists), если есть. */
   artists?: { id: string; name: string }[]
+  /** ID автора SoundCloud, чтобы открывать и подписывать именно его профиль. */
+  artistId?: string
+  /** Имя аккаунта, с которого загружен трек SoundCloud. */
+  artistProfileName?: string
   /** Альбом ВК, если трек из альбома. */
   album?: { id: number; ownerId: number; accessKey?: string; title: string }
   /** Откуда трек: нет — ВКонтакте, 'sc' — SoundCloud. */
@@ -95,14 +99,14 @@ export type DiscordUpdate = { track: Track | null; playing: boolean; position: n
 
 export type ArtistRef = { id?: string; name: string }
 /** Что известно об исполнителе сверх его треков. can — можно ли тут вообще подписаться (на телефоне SoundCloud нельзя). */
-export type ArtistInfo = { followed: boolean; cover?: string; can: boolean }
+export type ArtistInfo = { id?: string; missing?: boolean; followed: boolean; cover?: string; can: boolean; followers?: number; link?: string }
 
 /** SoundCloud: всё, что ходит между окном и главным процессом. */
 export type ScMe = { id: number; name: string; avatar?: string }
 export type ScPlaylistRef = { id: number; title: string; count: number; cover?: string; link?: string; mine: boolean; author?: string }
 export type ScStatus = { ok: boolean; message?: string; hasKey: boolean }
 export type ScComment = { at: number; text: string; user: string; avatar?: string }
-export type ScArtist = { name: string; avatar?: string; link?: string; followers: number }
+export type ScArtist = { id?: string; name: string; avatar?: string; link?: string; followers: number }
 export type ScResolved =
   | { kind: 'track'; track: Track }
   | { kind: 'playlist'; title: string; author: string; cover?: string; link?: string; tracks: Track[] }

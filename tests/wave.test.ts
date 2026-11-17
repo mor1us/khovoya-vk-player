@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { applyReaction, emptyProfile, seedsFor, undoDislike, DAY } from '../src/renderer/wave/profile'
-import { pickBatch, blend } from '../src/renderer/wave/picker'
+import { pickBatch, blend, uniqueByKey } from '../src/renderer/wave/picker'
 import type { Track } from '../src/shared/types'
 
 const tr = (i: number, artist = 'A' + (i % 10)): Track => ({ id: 't' + i, ownerId: 1, vkId: i, title: 'T' + i, artist, duration: 100, url: 'u', available: true })
@@ -24,6 +24,16 @@ describe('applyReaction', () => {
     expect(p0.reactions).toBe(0)
     expect(new Set(p.seeds).size).toBe(p.seeds.length)
     expect(p.seeds.length).toBeLessThanOrEqual(30)
+  })
+  it('does not double-penalize or duplicate another copy of a disliked song', () => {
+    const original = tr(25, 'Same')
+    const copy = { ...original, id: 'copy_25', ownerId: 2 }
+    const once = applyReaction(emptyProfile(), original, 'dislike', NOW)
+    const twice = applyReaction(once, copy, 'dislike', NOW)
+    expect(twice.artists.same).toBe(-5)
+    expect(twice.disliked).toHaveLength(1)
+    expect(undoDislike(twice, copy).bannedKeys).not.toContain('same|t25')
+    expect(undoDislike(twice, copy).disliked).toHaveLength(0)
   })
   it('seedsFor gives 3–5 most recent seeds', () => {
     let p = emptyProfile()
@@ -75,6 +85,17 @@ describe('pickBatch', () => {
     const out = pickBatch({ ...base, candidates: [...fresh.slice(0, 3), ...mineList], mode: 'mix', rnd: seeded(6) })
     expect(out.length).toBe(20)
   })
+  it('falls back to the oldest recent songs only when fresh candidates run short', () => {
+    const out = pickBatch({ ...base, candidates: [tr(300, 'Old'), tr(301, 'New')], recent: ['t301', 't300'], mode: 'new', size: 1, rnd: seeded(14) })
+    expect(out).toHaveLength(1)
+    expect(out[0].id).toBe('t300')
+  })
+  it('keeps a playable copy when the first duplicate is unavailable', () => {
+    const unavailable = { ...tr(400, 'Same'), available: false }
+    const available = { ...unavailable, id: 'available', available: true }
+    const out = pickBatch({ ...base, candidates: [unavailable, available], mode: 'new', size: 1, rnd: seeded(15) })
+    expect(out.map((t) => t.id)).toEqual(['available'])
+  })
   it('prefers liked artists', () => {
     let p = emptyProfile()
     for (let i = 0; i < 4; i++) p = applyReaction(p, tr(900 + i, 'N5'), 'like', NOW)
@@ -94,9 +115,19 @@ import { reactionFor } from '../src/renderer/wave/profile'
 describe('reactionFor', () => {
   const t = { ...tr(1), duration: 200 }
   it('manual skip before 30 s → earlySkip', () => { expect(reactionFor(t, { listened: 12, manual: true })).toBe('earlySkip') })
-  it('auto switch → finished', () => { expect(reactionFor(t, { listened: 194, manual: false })).toBe('finished') })
+  it('auto crossfade near the end → finished', () => { expect(reactionFor(t, { listened: 194, manual: false })).toBe('finished') })
+  it('does not treat an early automatic transition as finished', () => { expect(reactionFor(t, { listened: 40, manual: false })).toBeNull() })
+  it('ignores signals after seeking', () => { expect(reactionFor(t, { listened: 190, manual: true, sought: true })).toBeNull() })
+  it('counts a confirmed natural end as finished', () => { expect(reactionFor(t, { listened: 30, manual: false, completed: true })).toBe('finished') })
   it('manual near the end → finished', () => { expect(reactionFor(t, { listened: 190, manual: true })).toBe('finished') })
   it('manual in the middle → midSkip', () => { expect(reactionFor(t, { listened: 90, manual: true })).toBe('midSkip') })
+})
+
+describe('uniqueByKey', () => {
+  it('removes cross-source copies while preserving the woven order', () => {
+    const a = tr(500, 'Band'), b = { ...tr(501, 'Band'), title: a.title }, c = tr(502, 'Other')
+    expect(uniqueByKey([a, c, b], (t) => `${t.artist}|${t.title}`).map((t) => t.id)).toEqual([a.id, c.id])
+  })
 })
 
 describe('«Не нравится» можно вернуть', () => {

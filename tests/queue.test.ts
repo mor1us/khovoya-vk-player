@@ -58,6 +58,17 @@ describe('Queue', () => {
     q.append([tr(9)]); expect(q.list().at(-1)?.id).toBe('t9')
     expect(q.remaining()).toBe(2)
   })
+  it('removes future copies of a disliked song and keeps the current track', () => {
+    const copy = { ...tr(7), ownerId: 2, artist: 'T', title: 'Same' }
+    const currentCopy = { ...tr(8), artist: 'T', title: 'Same' }
+    const q = new Queue([tr(0), currentCopy, copy, tr(1)], 1, 'wave:vk')
+    q.removeOtherCopies(currentCopy)
+    expect(q.current()?.id).toBe(currentCopy.id)
+    expect(q.list().map((x) => x.id)).toEqual(['t0', currentCopy.id, 't1'])
+    expect(q.next(false)?.id).toBe('t1')
+    q.setShuffle(false, [])
+    expect(q.list().map((x) => x.id)).not.toContain(copy.id)
+  })
   it('round-trips through JSON', () => {
     const q = new Queue(five(), 3, 'pl:5'); q.repeat = 'all'; q.setShuffle(true, [])
     const r = Queue.fromJSON(JSON.parse(JSON.stringify(q.toJSON())))

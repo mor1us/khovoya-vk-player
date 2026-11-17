@@ -1,4 +1,5 @@
 import type { Track } from '../../shared/types'
+import { trackKey } from '../../shared/match'
 import { smartShuffle } from './shuffle'
 
 export type Repeat = 'off' | 'all' | 'one'
@@ -60,12 +61,22 @@ export class Queue {
 
   jumpTo(id: string) { const i = this.order.findIndex((t) => t.id === id); if (i >= 0) this.index = i }
 
+  /** Удалить из списка копии трека, сохранив текущую позицию и текущую песню. */
+  removeOtherCopies(t: Track) {
+    const currentId = this.current()?.id
+    const key = trackKey(t)
+    const keep = (x: Track) => x.id === currentId || trackKey(x) !== key
+    this.order = this.order.filter(keep)
+    this.original = this.original.filter(keep)
+    this.index = Math.max(0, this.order.findIndex((x) => x.id === currentId))
+  }
+
   append(tracks: Track[]) { this.order.push(...tracks); this.original.push(...tracks) }
 
-  setShuffle(on: boolean, recent: string[]) {
+  setShuffle(on: boolean, recent: string[], recentKeys: string[] = []) {
     const cur = this.order[this.index]
     this.shuffled = on
-    this.order = on ? smartShuffle(this.original, { firstId: cur?.id, recent }) : this.original.slice()
+    this.order = on ? smartShuffle(this.original, { firstId: cur?.id, recent, recentKeys }) : this.original.slice()
     this.index = Math.max(0, cur ? this.order.findIndex((t) => t.id === cur.id) : 0)
   }
 

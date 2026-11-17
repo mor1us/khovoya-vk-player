@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createPlayer } from '../src/renderer/store/player'
 import type { Track } from '../src/shared/types'
+import { mapTrack } from '../src/main/vk/models'
 
 const tr = (i: number, url = 'https://u/' + i): Track => ({ id: 't' + i, ownerId: 1, vkId: i, title: 'T' + i, artist: 'A' + i, duration: 200, url, available: true })
 const list = [0, 1, 2, 3].map((i) => tr(i))
@@ -27,6 +28,17 @@ describe('player store', () => {
     expect(p.getState().playing).toBe(true)
     expect(engine.load).toHaveBeenCalledWith('https://u/2', 0)
   })
+  it('plays the selected VK track after fetching the link omitted by the list', async () => {
+    const vk = mapTrack({ owner_id: 7, id: 1, artist: 'A', title: 'B', duration: 90 })
+    const refreshUrl = vi.fn(async () => 'https://fresh/vk')
+    const { p, engine } = make({ refreshUrl })
+    await p.getState().playList([vk, ...list], vk.id, 'mine')
+    expect(refreshUrl).toHaveBeenCalledWith(vk)
+    expect(engine.load).toHaveBeenCalledOnce()
+    expect(engine.load).toHaveBeenCalledWith('https://fresh/vk', 0)
+    expect(p.getState().current?.id).toBe('7_1')
+    expect(p.getState().playing).toBe(true)
+  })
   it('manual next crossfades 0.3 s', async () => {
     const { p, engine } = make()
     await p.getState().playList(list, 't0', 'mine')
@@ -52,13 +64,19 @@ describe('player store', () => {
     expect(p.getState().current?.id).toBe('t1')
     expect(engine.load).toHaveBeenLastCalledWith('https://u/1', 0)
   })
-  it('dead link with failed refresh skips to the next track and notifies', async () => {
+  it('keeps a failed manual choice selected so play can retry the same track', async () => {
     const onNotice = vi.fn()
     const { p, engine } = make({ onNotice })
     engine.load.mockImplementation(async (u: string) => { if (u.endsWith('/1')) throw new Error('x') })
     await p.getState().playList(list, 't1', 'mine')
-    expect(p.getState().current?.id).toBe('t2')
+    expect(p.getState().current?.id).toBe('t1')
+    expect(p.getState().queue?.current()?.id).toBe('t1')
+    expect(p.getState().playing).toBe(false)
     expect(onNotice).toHaveBeenCalled()
+    engine.load.mockResolvedValue(undefined)
+    await p.getState().toggle()
+    expect(engine.load).toHaveBeenLastCalledWith('https://u/1', 0)
+    expect(p.getState().playing).toBe(true)
   })
   it('persists and restores on pause with same track and position', async () => {
     const { p, storage } = make()
@@ -84,17 +102,55 @@ describe('player store', () => {
     await p.getState().playList(list, 't0', 'mine')
     engine.onTimeUpdate.mock.calls[0][0](12, 200)
     await p.getState().next()
-    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ id: 't0' }), expect.objectContaining({ id: 't1' }), { listened: 12, manual: true, broken: false })
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ id: 't0' }), expect.objectContaining({ id: 't1' }), { listened: 12, manual: true, broken: false, sought: false, completed: false })
   })
-  it('stops after 3 dead tracks in a row instead of skipping the whole queue', async () => {
+  it('counts playback time and flags manual seeks', async () => {
+    const onChange = vi.fn()
+    const { p, engine } = make({ onTrackChange: onChange })
+    await p.getState().playList(list, 't0', 'mine')
+    const tick = engine.onTimeUpdate.mock.calls[0][0]
+    tick(5, 200); tick(10, 200)
+    await p.getState().next()
+    expect(onChange).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ listened: 10, manual: true }))
+    await p.getState().seek(190)
+    await p.getState().next()
+    expect(onChange).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ sought: true }))
+  })
+  it('reports a confirmed natural end, even at the end of the queue', async () => {
+    const onChange = vi.fn()
+    const { p, engine } = make({ onTrackChange: onChange })
+    await p.getState().playList(list.slice(0, 1), 't0', 'mine')
+    engine.onTimeUpdate.mock.calls[0][0](200, 200)
+    engine.onEnded.mock.calls[0][0]()
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ id: 't0' }), null, expect.objectContaining({ completed: true, manual: false }))
+  })
+  it('stops on a failed automatic transition and keeps that track selected', async () => {
     const onNotice = vi.fn()
     const many = Array.from({ length: 10 }, (_, i) => tr(i))
-    const { p, engine } = make({ onNotice })
-    engine.load.mockRejectedValue(new Error('dead'))
+    const { p, engine } = make({ onNotice, crossfadeSec: () => 0 })
     await p.getState().playList(many, 't0', 'mine')
-    expect(engine.load.mock.calls.length).toBeLessThanOrEqual(3)
+    engine.load.mockClear().mockRejectedValue(new Error('dead'))
+    engine.onEnded.mock.calls[0][0]()
+    await new Promise((r) => setTimeout(r, 0))
+    expect(engine.load.mock.calls.map(([url]) => url)).toEqual(['https://u/1'])
+    expect(p.getState().current?.id).toBe('t1')
+    expect(p.getState().queue?.current()?.id).toBe('t1')
     expect(p.getState().playing).toBe(false)
-    expect(onNotice).toHaveBeenLastCalledWith('Не получается включить треки. Проверь интернет или войди в ВК заново.')
+    expect(onNotice).toHaveBeenLastCalledWith(expect.stringContaining('Нажми «Играть»'))
+  })
+  it('finishes the active load before switching to a new manual choice', async () => {
+    const { p, engine } = make()
+    let finish!: () => void
+    engine.load.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve }))
+    const first = p.getState().playList(list, 't0', 'mine')
+    await vi.waitFor(() => expect(engine.load).toHaveBeenCalledOnce())
+    const next = p.getState().playList(list, 't3', 'search')
+    expect(engine.crossfadeTo).not.toHaveBeenCalled()
+    finish()
+    await Promise.all([first, next])
+    expect(engine.crossfadeTo).toHaveBeenCalledWith('https://u/3', 0.3)
+    expect(p.getState().current?.id).toBe('t3')
+    expect(p.getState().source).toBe('search')
   })
   it('mid-track error: refreshes the link and resumes at the same position', async () => {
     const refreshUrl = vi.fn(async () => 'https://fresh/0')
@@ -107,13 +163,15 @@ describe('player store', () => {
     expect(p.getState().current?.id).toBe('t0')
     expect(p.getState().playing).toBe(true)
   })
-  it('mid-track error with dead refresh: skips to next', async () => {
+  it('mid-track error with dead refresh: keeps the track and position to retry', async () => {
     const onNotice = vi.fn()
     const { p, engine } = make({ onNotice })
     await p.getState().playList(list, 't0', 'mine')
     engine.onTimeUpdate.mock.calls[0][0](50, 200)
     await engine.onError.mock.calls[0][0](new Error('network'))
-    expect(p.getState().current?.id).toBe('t1')
+    expect(p.getState().current?.id).toBe('t0')
+    expect(p.getState().position).toBe(50)
+    expect(p.getState().playing).toBe(false)
     expect(onNotice).toHaveBeenCalled()
   })
   it('pause() never starts playback', async () => {

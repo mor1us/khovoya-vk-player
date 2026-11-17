@@ -24,7 +24,7 @@ export type IpcMap = {
   'vk:recommendations': (target?: string, count?: number) => Track[]
   'vk:popular': () => Track[]
   'vk:forYou': () => ForYouBlock[]
-  'vk:artistTracks': (a: ArtistRef) => Track[]
+  'vk:artistTracks': (a: ArtistRef, offset?: number) => Track[]
   'vk:artistInfo': (a: ArtistRef) => ArtistInfo
   'vk:artistFollow': (a: ArtistRef, on: boolean) => void
   'vk:byId': (ids: string[]) => Track[]
@@ -44,9 +44,9 @@ export type IpcMap = {
   // SoundCloud без входа
   'sc:search': (q: string) => Track[]
   'sc:related': (t: Track) => Track[]
-  'sc:artistTracks': (name: string) => Track[]
-  'scacc:artistInfo': (name: string) => ArtistInfo
-  'scacc:artistFollow': (name: string, on: boolean) => void
+  'sc:artistTracks': (name: string, id?: string, offset?: number) => Track[]
+  'scacc:artistInfo': (name: string, id?: string) => ArtistInfo
+  'scacc:artistFollow': (name: string, on: boolean, id?: string) => void
   /** Ссылка на поток живёт недолго — берётся прямо перед прослушиванием. */
   'sc:stream': (t: Track) => string
   'sc:resolve': (url: string) => ScResolved

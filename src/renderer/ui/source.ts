@@ -1,3 +1,23 @@
+import type { ArtistRef } from '../../shared/types'
+
+/** Источник очереди артиста хранит платформу и id, чтобы переход из очереди вернул тот же профиль. */
+export function artistSource(a: ArtistRef & { src?: 'vk' | 'sc' }): string {
+  return `artist2:${a.src ?? 'vk'}:${encodeURIComponent(a.id ?? '')}:${encodeURIComponent(a.name)}`
+}
+
+export function artistFromSource(src: string): (ArtistRef & { src: 'vk' | 'sc' }) | null {
+  if (src.startsWith('artist2:')) {
+    const [, platform, id, ...nameParts] = src.split(':')
+    const name = nameParts.join(':')
+    if ((platform !== 'vk' && platform !== 'sc') || !name) return null
+    try {
+      return { src: platform, id: decodeURIComponent(id) || undefined, name: decodeURIComponent(name) }
+    } catch { return null }
+  }
+  if (src.startsWith('artist:')) return { src: 'vk', name: src.slice(7) }
+  return null
+}
+
 export function sourceLabel(src: string): string {
   if (!src) return ''
   if (src.startsWith('wave:')) return 'Волна / ' + (({ mix: 'Микс', new: 'Новое', fav: 'Любимое', sc: 'SoundCloud', both: 'ВК + SoundCloud' } as Record<string, string>)[src.slice(5)] ?? 'Микс')
@@ -10,7 +30,8 @@ export function sourceLabel(src: string): string {
   if (src === 'downloads') return 'Загрузки'
   if (src === 'history') return 'История'
   if (src.startsWith('mix:')) return 'Микс / ' + src.slice(4)
-  if (src.startsWith('artist:')) return 'Артист / ' + src.slice(7)
+  const artist = artistFromSource(src)
+  if (artist) return 'Артист / ' + artist.name
   return src
 }
 
@@ -29,6 +50,7 @@ export function sourceParts(src: string): { kind: string; name: string } {
   if (src === 'downloads') return { kind: 'раздела', name: 'Загрузки' }
   if (src === 'history') return { kind: 'раздела', name: 'История' }
   if (src.startsWith('mix:')) return { kind: 'микса', name: after('mix:') }
-  if (src.startsWith('artist:')) return { kind: 'артиста', name: after('artist:') }
+  const artist = artistFromSource(src)
+  if (artist) return { kind: 'артиста', name: artist.name }
   return { kind: '', name: src }
 }

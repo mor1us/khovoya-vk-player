@@ -1,6 +1,7 @@
 import type { Playlist } from '../../shared/types'
 import { useUi } from './ui'
 import { readJson, writeJson } from './json'
+import { artistFromSource } from '../ui/source'
 
 /** Запоминаем, какой плейлист играет, чтобы из очереди можно было в него перейти. */
 let lastPl: Playlist | null = readJson<Playlist | null>('srcPl', null)
@@ -24,6 +25,7 @@ export function openSource(src: string) {
   if (src === 'downloads') return ui.go('downloads')
   if (src === 'history') return ui.go('history')
   if (src.startsWith('search:')) return ui.submit(src.slice(7))
-  if (src.startsWith('artist:')) return ui.openArtist({ name: src.slice(7) })
+  const artist = artistFromSource(src)
+  if (artist) return ui.openArtist(artist)
   ui.go('home') // Волна и миксы живут на главной
 }

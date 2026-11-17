@@ -35,24 +35,25 @@ export function pickBatch(o: Opts): Track[] {
   const mineKeys = new Set(o.mineKeys ?? [])
   const isMine = (t: Track) => o.mine.has(t.id) || mineKeys.has(trackKey(t))
   const seen = new Set<string>()
-  const ok = o.candidates.filter((t) => {
+  const eligible = o.candidates.filter((t) => {
     // В ВК один и тот же трек лежит у десятков владельцев: копии считаем одним треком,
     // иначе он приходит в пачке по два-три раза, а «не нравится» блокирует только одну копию.
     const k = trackKey(t)
     if (seen.has(k)) return false
-    seen.add(k)
-    if (!t.available || banned.has(t.id) || bannedKeys.has(k) || recent.has(t.id) || recentKeys.has(k)) return false
+    if (!t.available || banned.has(t.id) || bannedKeys.has(k)) return false
     const until = Math.max(o.profile.snoozed[t.id] ?? 0, snoozedKeys[k] ?? 0)
     if (until > o.now) return false
-    return (o.profile.artists[artistKey(t.artist)] ?? 0) >= MIN_ARTIST_WEIGHT
+    if ((o.profile.artists[artistKey(t.artist)] ?? 0) < MIN_ARTIST_WEIGHT) return false
+    seen.add(k)
+    return true
   })
   /** Вкус: разница между весом 3 и 15 не должна быть решающей — иначе выдача упирается в одних артистов. */
   const taste = (t: Track) => TASTE_MAX * Math.tanh((o.profile.artists[artistKey(t.artist)] ?? 0) / TASTE_MAX)
   const score = (t: Track) => taste(t) + (o.boost?.(t) ?? 0) + o.rnd() * 4
   const rank = (xs: Track[]) => xs.map((t) => ({ t, s: score(t) })).sort((a, b) => b.s - a.s).map((x) => x.t)
 
-  const fresh = rank(ok.filter((t) => !isMine(t)))
-  const own = rank(ok.filter((t) => isMine(t)))
+  const fresh = rank(eligible.filter((t) => !isMine(t) && !recent.has(t.id) && !recentKeys.has(trackKey(t))))
+  const own = rank(eligible.filter((t) => isMine(t) && !recent.has(t.id) && !recentKeys.has(trackKey(t))))
 
   const perArtist = new Map<string, number>()
   const out: Track[] = []
@@ -74,6 +75,13 @@ export function pickBatch(o: Opts): Track[] {
     take(fresh, wantNew)
     take(own, size - out.length)
     take(fresh, size - out.length) // если своих мало — добираем новым
+  }
+  if (out.length < size) {
+    const age = (t: Track) => Math.max(o.recent.indexOf(t.id), (o.recentKeys ?? []).indexOf(trackKey(t)))
+    const fallback = eligible.filter((t) => (o.mode === 'new' ? !isMine(t) : o.mode === 'fav' ? isMine(t) : true))
+      .filter((t) => recent.has(t.id) || recentKeys.has(trackKey(t)))
+      .sort((a, b) => age(b) - age(a))
+    take(fallback, size - out.length)
   }
   // перемешиваем внутри пачки, чтобы новое и своё чередовались
   for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(o.rnd() * (i + 1)); [out[i], out[j]] = [out[j], out[i]] }
@@ -97,4 +105,15 @@ export function blend<T>(a: T[], b: T[], rnd: () => number): T[] {
     side = 1 - side
   }
   return out
+}
+
+/** Убрать повторы между источниками, сохранив порядок сплетённой пачки. */
+export function uniqueByKey<T>(items: T[], keyOf: (item: T) => string): T[] {
+  const seen = new Set<string>()
+  return items.filter((item) => {
+    const key = keyOf(item)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 }

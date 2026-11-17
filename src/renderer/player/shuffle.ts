@@ -1,4 +1,5 @@
 import type { Track } from '../../shared/types'
+import { trackKey } from '../../shared/match'
 
 /** Случайное число [0,1) из криптогенератора — без перекосов Math.random. */
 export function cryptoRandom(): number {
@@ -22,11 +23,14 @@ export function fisherYates<T>(xs: T[], rnd: () => number = cryptoRandom): T[] {
  * 1) Фишер — Йетс; 2) треки одного артиста раскладываются равномерно по всей очереди
  * со случайным сдвигом; 3) недавно игравшие уходят в конец; 4) firstId — первым.
  */
-export function smartShuffle(tracks: Track[], opts: { firstId?: string; recent: string[]; rnd?: () => number }): Track[] {
+export function smartShuffle(tracks: Track[], opts: { firstId?: string; recent: string[]; recentKeys?: string[]; rnd?: () => number }): Track[] {
   const rnd = opts.rnd ?? cryptoRandom
   const recentSet = new Set(opts.recent)
+  const recentKeySet = new Set(opts.recentKeys ?? [])
+  for (const t of tracks) if (recentSet.has(t.id)) recentKeySet.add(trackKey(t))
   const first = opts.firstId ? tracks.find((t) => t.id === opts.firstId) : undefined
-  const pool = tracks.filter((t) => t !== first && !recentSet.has(t.id))
+  const isRecent = (t: Track) => recentSet.has(t.id) || recentKeySet.has(trackKey(t))
+  const pool = tracks.filter((t) => t !== first && !isRecent(t))
 
   const groups = new Map<string, Track[]>()
   for (const t of fisherYates(pool, rnd)) {
@@ -43,6 +47,19 @@ export function smartShuffle(tracks: Track[], opts: { firstId?: string; recent: 
   placed.sort((a, b) => a.pos - b.pos)
 
   const byId = new Map(tracks.map((t) => [t.id, t]))
-  const tail = opts.recent.filter((id) => id !== first?.id).map((id) => byId.get(id)).filter((t): t is Track => !!t)
+  const tail: Track[] = []
+  const tailKeys = new Set<string>(first ? [trackKey(first)] : [])
+  for (const id of opts.recent) {
+    const t = byId.get(id)
+    if (!t || t === first || tailKeys.has(trackKey(t))) continue
+    tailKeys.add(trackKey(t))
+    tail.push(t)
+  }
+  for (const t of tracks) {
+    const key = trackKey(t)
+    if (t === first || !recentKeySet.has(key) || tailKeys.has(key)) continue
+    tailKeys.add(key)
+    tail.push(t)
+  }
   return [...(first ? [first] : []), ...placed.map((p) => p.t), ...tail]
 }

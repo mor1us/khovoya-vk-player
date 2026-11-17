@@ -29,7 +29,7 @@ export function registerCore(c: CoreCtx, handle: Handle) {
   handle('vk:recommendations', (t?: string, n?: number) => c.api().recommendations(t, n))
   handle('vk:popular', () => c.api().popular())
   handle('vk:forYou', () => c.api().forYou())
-  handle('vk:artistTracks', (a: { id?: string; name: string }) => c.api().artistTracks(a))
+  handle('vk:artistTracks', (a: { id?: string; name: string }, offset?: number) => c.api().artistTracks(a, offset))
   handle('vk:artistInfo', (a: { id?: string; name: string }) => c.api().artistInfo(a))
   handle('vk:artistFollow', (a: { id?: string; name: string }, on: boolean) => c.api().followArtist(a, on))
   handle('vk:byId', (ids: string[]) => c.api().byId(ids))

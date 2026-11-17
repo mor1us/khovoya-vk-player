@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { ScArtist, Track } from '../../shared/types'
+import { readJson } from '../store/json'
 
 export type Suggest =
   | { kind: 'search'; q: string }
-  | { kind: 'artist'; name: string; cover?: string; seed: string; src: 'vk' | 'sc'; followers?: number }
+  | { kind: 'artist'; id?: string; name: string; cover?: string; link?: string; seed: string; src: 'vk' | 'sc'; followers?: number }
   | { kind: 'track'; track: Track }
   | { kind: 'query'; q: string; fromHistory: boolean }
 
@@ -19,9 +20,11 @@ export function buildSuggest(q: string, vk: Track[], sc: string[], history: stri
     const names = t.artists?.length ? t.artists.map((a) => a.name) : [t.artist]
     for (const n of names) if (n.toLowerCase().includes(low) && !artists.has(n.toLowerCase())) artists.set(n.toLowerCase(), { ...t, artist: n })
   }
-  const shown = new Set<string>()
-  for (const t of [...artists.values()].slice(0, 2)) { shown.add(t.artist.toLowerCase()); out.push({ kind: 'artist', name: t.artist, cover: t.coverUrl, seed: t.id, src: 'vk' }) }
-  for (const a of scArtists.filter((a) => !shown.has(a.name.toLowerCase())).slice(0, 2)) out.push({ kind: 'artist', name: a.name, cover: a.avatar, seed: 'sca' + a.name, src: 'sc', followers: a.followers })
+  for (const t of [...artists.values()].slice(0, 2)) {
+    const id = t.artists?.find((a) => a.name.toLowerCase() === t.artist.toLowerCase())?.id
+    out.push({ kind: 'artist', id, name: t.artist, cover: t.coverUrl, seed: t.id, src: 'vk' })
+  }
+  for (const a of scArtists.slice(0, 2)) out.push({ kind: 'artist', id: a.id, name: a.name, cover: a.avatar, link: a.link, seed: a.id ?? 'sca' + a.name, src: 'sc', followers: a.followers })
   for (const t of vk.filter((t) => t.available).slice(0, 3)) out.push({ kind: 'track', track: t })
   const seen = new Set([low])
   const qs = [...history.filter((h) => h.toLowerCase().includes(low)).slice(0, 2).map((x) => ({ q: x, h: true })), ...sc.map((x) => ({ q: x, h: false }))]
@@ -39,7 +42,7 @@ export function useSuggest(q: string, open: boolean): Suggest[] {
     setItems((prev) => [{ kind: 'search', q: text }, ...prev.filter((x) => x.kind !== 'search')])
     let alive = true
     const tm = setTimeout(async () => {
-      const hist = JSON.parse(localStorage.getItem('searchHistory') ?? '[]') as string[]
+      const hist = readJson<string[]>('searchHistory', [])
       // ВК показываем сразу, SoundCloud догружаем — без VPN в России он может не ответить
       const scP = Promise.all([
         window.api.invoke('sc:suggest', text).catch(() => [] as string[]),

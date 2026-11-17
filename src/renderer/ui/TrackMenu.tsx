@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { create } from 'zustand'
 import type { Playlist, Track } from '../../shared/types'
 import { useLibrary } from '../store/library'
+import { useWave } from '../store/wave'
 import { useUi } from '../store/ui'
 import { mainName } from './Artists'
 import { useDownloads } from '../store/downloads'
@@ -36,6 +37,9 @@ export function TrackMenu() {
   if (!m) return null
   const { tracks } = m
   const one = tracks.length === 1 ? tracks[0] : null
+  const artist = one && (one.src === 'sc'
+    ? { src: 'sc' as const, name: one.artistProfileName || one.artist, id: one.artistId }
+    : { src: 'vk' as const, name: one.artists?.[0]?.name ?? mainName(one.artist), id: one.artists?.[0]?.id })
   const lib = useLibrary.getState()
   const inMine = one ? lib.isMine(one.id) : false
   const source = player.getState().source
@@ -49,8 +53,7 @@ export function TrackMenu() {
       {tracks.length > 1 && <div className="lbl">Выбрано: {tracks.length}</div>}
       <button onClick={() => run(() => player.getState().append(tracks.filter((t) => t.available)))}><span className="ico"><I.IQueue size={15} /></span>В конец очереди</button>
       {one && vkOnly && <button onClick={() => run(async () => {
-        if (inMine) { await window.api.invoke('vk:remove', one); lib.setMine(lib.mine.filter((t) => t.id !== one.id)); toast('Убрано из твоей музыки') }
-        else { await window.api.invoke('vk:add', one); lib.setMine([one, ...lib.mine]); toast('Добавлено в твою музыку') }
+        toast(await useWave.getState().toggleLike(one))
       })}><span className="ico"><I.IHeart size={15} on={inMine} /></span>{inMine ? 'Убрать из моей музыки' : 'Добавить в мою музыку'}</button>}
       <button onClick={() => setSub(!sub)}><span className="ico"><I.IPlus size={15} /></span>Добавить в плейлист {sub ? '⌄' : '›'}</button>
       {sub && <div className="sub">
@@ -67,7 +70,7 @@ export function TrackMenu() {
       {one?.link && <button onClick={() => run(() => { window.open(one.link, '_blank') })}><span className="ico"><SrcBadge src="sc" /></span>Открыть на SoundCloud</button>}
       {one?.album && <button onClick={() => run(() => useUi.getState().openPlaylist({ id: one.album!.id, ownerId: one.album!.ownerId, accessKey: one.album!.accessKey, title: one.album!.title, count: 0, coverUrls: one.coverUrl ? [one.coverUrl] : [], isMine: false, updatedAt: 0 }))}><span className="ico"><I.IList size={15} /></span>Перейти к альбому «{one.album.title}»</button>}
       {one && isCurrent && canOpenSource(source) && <button onClick={() => run(() => openSource(source))}><span className="ico"><I.IBack size={15} /></span>Перейти туда, откуда играет: {sourceParts(source).name}</button>}
-      {one && <button onClick={() => run(() => useUi.getState().openArtist({ name: mainName(one.artist), id: one.artists?.[0]?.id, src: one.src === 'sc' ? 'sc' : 'vk' }))}><span className="ico"><I.IUser size={15} /></span>Открыть «{mainName(one.artist)}»</button>}
+      {artist && <button onClick={() => run(() => useUi.getState().openArtist(artist))}><span className="ico"><I.IUser size={15} /></span>Открыть «{artist.name}»</button>}
     </div>
   )
 }

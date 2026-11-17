@@ -23,4 +23,9 @@ describe('withUrlRefresh', () => {
     expect(await withUrlRefresh('', load, async () => 'v')).toBe('ok')
     expect(load).toHaveBeenCalledWith('v')
   })
+  it('tries another source after the refreshed link also fails to play', async () => {
+    const load = vi.fn().mockRejectedValueOnce(new Error('net')).mockRejectedValueOnce(new Error('net')).mockResolvedValueOnce(undefined)
+    expect(await withUrlRefresh('old', load, async () => 'fresh', async () => 'fallback')).toBe('ok')
+    expect(load.mock.calls.map(([url]) => url)).toEqual(['old', 'fresh', 'fallback'])
+  })
 })

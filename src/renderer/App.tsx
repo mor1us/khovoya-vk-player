@@ -3,6 +3,7 @@ import { useUi } from './store/ui'
 import { useLibrary } from './store/library'
 import { useWave, bindWave } from './store/wave'
 import { player, playerHooks, usePlayer } from './store/playerInstance'
+import { useStats } from './store/stats'
 import { bindMedia } from './player/media'
 import { Stage, MiniBar, toggleCurrentLike, dislikeCurrentTrack } from './ui/Stage'
 import { TopBar, searchRef } from './ui/TopBar'
@@ -34,9 +35,8 @@ function boot() {
   const w = bindWave()
   playerHooks.trackChange.push(w.onTrackChange)
   playerHooks.queueLow.push((r) => void w.onQueueLow(r))
-  playerHooks.failed.push(w.onFailed)
   playerHooks.notice.push((m) => useUi.getState().toast(m))
-  playerHooks.trackChange.push((_p, n) => { if (n) useHistory.getState().add(n) })
+  playerHooks.trackChange.push((_p, n) => { if (n) { useHistory.getState().add(n); useStats.getState().played(n.id) } })
   setInterval(() => { if (player.getState().playing) player.getState().persist() }, 5000)
   window.addEventListener('beforeunload', () => player.getState().persist())
   window.api.on('sys:state', (s: { background: boolean }) => {
@@ -86,6 +86,7 @@ function Toasts() {
     <div key={t.id} className={'toast' + (t.action ? ' act' : '')}>
       <span>{t.text}</span>
       {t.action && <button onClick={() => { t.action!.run(); close(t.id) }}>{t.action.label} →</button>}
+      {t.action?.dismissLabel && <button onClick={() => close(t.id)}>{t.action.dismissLabel}</button>}
     </div>))}</div>
 }
 

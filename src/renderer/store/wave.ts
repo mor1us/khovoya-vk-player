@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { Track, WaveMode, WaveProfile } from '../../shared/types'
-import { applyReaction, decayArtists, emptyProfile, reactionFor, seedsFor, snoozeTrack, undoDislike, type Reaction } from '../wave/profile'
-import { blend, pickBatch } from '../wave/picker'
+import { applyReaction, decayArtists, emptyProfile, reactionFor, seedsFor, undoDislike, type Reaction } from '../wave/profile'
+import { blend, pickBatch, uniqueByKey } from '../wave/picker'
 import { cryptoRandom, fisherYates } from '../player/shuffle'
 import { useLibrary } from './library'
 import { useSc } from './sc'
@@ -10,6 +10,7 @@ import { player } from './playerInstance'
 import { useUi } from './ui'
 import { trackKey } from '../../shared/match'
 import { readJson, writeJson } from './json'
+import { useStats } from './stats'
 
 export type WaveKind = 'vk' | 'sc' | 'both'
 
@@ -38,6 +39,17 @@ const recent = (): string[] => readJson<string[]>('recent', [])
 const recentKeys = (): string[] => readJson<string[]>('recentKeys', [])
 const isWave = () => player.getState().source.startsWith('wave:')
 let fetching = false
+
+function saveProfile(profile: WaveProfile) {
+  useWave.setState({ profile })
+  void window.api.invoke('wave:set', profile).catch(() => {})
+}
+
+function removeSeed(t: Track) {
+  const profile = useWave.getState().profile
+  if (!profile.seeds.includes(t.id)) return
+  saveProfile({ ...profile, seeds: profile.seeds.filter((id) => id !== t.id) })
+}
 
 const readTune = (): WaveTune => normalizeTune(readJson<unknown>('waveTune', null))
 const startTune = readTune()
@@ -169,12 +181,18 @@ async function scBatch(mode: WaveMode, profile: WaveProfile, size = 20, tune: Wa
 }
 
 async function batchFor(kind: WaveKind, size = 20): Promise<Track[]> {
+  const out = await collect(kind, size)
+  useStats.getState().fromWave(out.map((t) => t.id)) // чтобы потом видеть, как часто трек приносила Волна
+  return out
+}
+
+async function collect(kind: WaveKind, size: number): Promise<Track[]> {
   const w = useWave.getState()
   if (kind === 'sc') return scBatch(w.mode, w.profile, size)
   if (kind === 'both') {
     // просим у каждой стороны целую пачку и режем после сплетения: если одна промолчала, вторая закроет всю Волну
-    const [v, c] = await Promise.all([batch(w.mode, w.profile, size).catch(() => [] as Track[]), scBatch(w.mode, w.profile, size).catch(() => [] as Track[])])
-    return blend(v, c, cryptoRandom).slice(0, size)
+    const [v, c] = await Promise.all([batch(w.mode, w.profile, size * 2).catch(() => [] as Track[]), scBatch(w.mode, w.profile, size * 2).catch(() => [] as Track[])])
+    return uniqueByKey(blend(v, c, cryptoRandom), trackKey).slice(0, size)
   }
   return batch(w.mode, w.profile, size)
 }
@@ -228,20 +246,24 @@ export const useWave = create<Wave>((set, get) => ({
     try {
       const b = await batch(m, get().profile)
       if (!b.length) throw new Error('Не получилось собрать Волну. Попробуй ещё раз чуть позже')
+      useStats.getState().fromWave(b.map((t) => t.id))
       await player.getState().playList(b, b[0].id, `wave:${m}`)
     } finally { set({ loading: false, loadingKind: null }) }
   },
   react(t, r) {
+    if (r === 'finished' || r === 'earlySkip' || r === 'midSkip') useStats.getState().reacted(t.id, r === 'finished' ? 'done' : 'skip')
     const profile = applyReaction(get().profile, t, r, Date.now())
-    set({ profile })
-    void window.api.invoke('wave:set', profile).catch(() => {})
+    saveProfile(profile)
   },
   async like(t) {
-    get().react(t, 'like')
-    if (t.src === 'sc') { if (!useSc.getState().isLiked(t.id)) await useSc.getState().toggle(t); return }
+    if (t.src === 'sc') {
+      if (!useSc.getState().isLiked(t.id) && await useSc.getState().toggle(t)) get().react(t, 'like')
+      return
+    }
     if (!useLibrary.getState().isMine(t.id)) {
       await window.api.invoke('vk:add', t)
       useLibrary.getState().setMine([t, ...useLibrary.getState().mine])
+      get().react(t, 'like')
     }
   },
   isLiked(t) { return t.src === 'sc' ? useSc.getState().isLiked(t.id) : useLibrary.getState().isMine(t.id) },
@@ -250,12 +272,13 @@ export const useWave = create<Wave>((set, get) => ({
     if (t.src === 'sc') { // в ВК не добавить — лайк живёт в «Моё · SoundCloud»
       const on = await useSc.getState().toggle(t)
       if (on) get().react(t, 'like')
-      else { const profile = { ...get().profile, seeds: get().profile.seeds.filter((s) => s !== t.id) }; set({ profile }); void window.api.invoke('wave:set', profile).catch(() => {}) }
+      else removeSeed(t)
       return on ? 'Добавлено в «Моё · SoundCloud»' : 'Убрано из «Моё · SoundCloud»'
     }
     if (lib.isMine(t.id)) {
       await window.api.invoke('vk:remove', t)
       lib.setMine(lib.mine.filter((x) => x.id !== t.id))
+      removeSeed(t)
       return 'Убрано из твоей музыки'
     }
     await get().like(t)
@@ -263,29 +286,24 @@ export const useWave = create<Wave>((set, get) => ({
   },
   async dislike(t) {
     get().react(t, 'dislike')
+    player.getState().removeOtherCopies(t)
     if (player.getState().current?.id === t.id) await player.getState().next()
   },
   undislike(t) {
     const profile = undoDislike(get().profile, t)
-    set({ profile })
-    void window.api.invoke('wave:set', profile).catch(() => {})
+    saveProfile(profile)
   }
 }))
 
 /** Подключение Волны к плееру: реакции при смене трека и подгрузка, когда очередь кончается. */
 export function bindWave() {
   return {
-    onTrackChange(prev: Track | null, _next: Track | null, info: { listened: number; manual: boolean; broken?: boolean }) {
+    onTrackChange(prev: Track | null, _next: Track | null, info: { listened: number; manual: boolean; broken?: boolean; sought?: boolean; completed?: boolean }) {
       if (!prev || !isWave()) return
+      if (useWave.getState().profile.banned.includes(prev.id) || (useWave.getState().profile.bannedKeys ?? []).includes(trackKey(prev))) return
       // в свёрнутом окне музыка играет сама — это не выбор, вес артисту за это не идёт
       const r = reactionFor(prev, { ...info, background: useUi.getState().background })
       if (r) useWave.getState().react(prev, r)
-    },
-    /** Трек не сыграл — убираем его из Волны на неделю, иначе он возвращается в каждой пачке. */
-    onFailed(t: Track) {
-      const profile = snoozeTrack(useWave.getState().profile, t, Date.now())
-      useWave.setState({ profile })
-      void window.api.invoke('wave:set', profile).catch(() => {})
     },
     async onQueueLow(remaining: number) {
       if (!isWave() || remaining > 5 || fetching) return

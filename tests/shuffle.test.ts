@@ -39,6 +39,12 @@ describe('smartShuffle', () => {
     expect(out[0].id).toBe('t5')
     expect(out.length).toBe(50)
   })
+  it('moves another VK copy of a recently played song to the end', () => {
+    const copy = { ...tr(51), artist: list[5].artist, title: list[5].title }
+    const out = smartShuffle([...list, copy], { recent: [], recentKeys: [`${list[5].artist.toLowerCase()}|${list[5].title.toLowerCase()}`], rnd: seeded(8) })
+    expect(out.at(-1)?.id).toBe(list[5].id)
+    expect(out.some((t) => t.id === copy.id)).toBe(false)
+  })
   it('different seeds give different orders', () => {
     const a = smartShuffle(list, { recent: [], rnd: seeded(10) }).map((t) => t.id).join()
     const b = smartShuffle(list, { recent: [], rnd: seeded(11) }).map((t) => t.id).join()

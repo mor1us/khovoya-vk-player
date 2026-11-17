@@ -73,10 +73,14 @@ export const useSc = create<Sc>((set, get) => ({
   async toggle(t) {
     await get().load()
     const on = !get().isLiked(t.id)
+    const previousAccountLikes = get().accLikes
     get().setLikes(on ? [strip(t), ...get().likes] : get().likes.filter((x) => x.id !== t.id))
     if (get().me) { // вошёл в аккаунт — лайк ставим и на SoundCloud
       set({ accLikes: on ? [strip(t), ...get().accLikes] : get().accLikes.filter((x) => x.id !== t.id) })
-      await window.api.invoke('scacc:like', t, on).catch((e) => { throw new Error((on ? 'В Хвое лайк сохранён, а на SoundCloud — нет: ' : 'В Хвое лайк снят, а на SoundCloud — нет: ') + (e as Error).message) })
+      await window.api.invoke('scacc:like', t, on).catch((e) => {
+        set({ accLikes: previousAccountLikes })
+        throw new Error((on ? 'В Хвое лайк сохранён, а на SoundCloud — нет: ' : 'В Хвое лайк снят, а на SoundCloud — нет: ') + (e as Error).message)
+      })
     }
     return on
   },

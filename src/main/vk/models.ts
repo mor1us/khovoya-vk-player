@@ -15,7 +15,8 @@ export function mapTrack(r: any): Track {
     url: r.url ?? '',
     coverUrl: best(r.album?.thumb),
     addedAt: r.date,
-    available: Boolean(r.url) && !r.content_restricted,
+    // Список может не отдать ссылку. В таком случае получим её отдельно при запуске.
+    available: !r.content_restricted,
     ...(r.album?.id && r.album?.owner_id ? { album: { id: Number(r.album.id), ownerId: Number(r.album.owner_id), accessKey: r.album.access_key, title: String(r.album.title ?? 'Альбом') } } : {}),
     ...(Array.isArray(r.main_artists) && r.main_artists.length ? { artists: r.main_artists.filter((a: any) => a?.id && a?.name).map((a: any) => ({ id: String(a.id), name: String(a.name) })) } : {})
   }

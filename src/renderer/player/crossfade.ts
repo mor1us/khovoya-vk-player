@@ -19,12 +19,14 @@ export function fadePlan(o: { duration: number; crossfadeSec: number; repeat: Re
   return { startAt, length: o.crossfadeSec, preloadAt: Math.max(0, startAt - 10) }
 }
 
-/** Протухшая ссылка: один перезапрос, вторая ошибка — пропуск трека. */
-export async function withUrlRefresh(url: string, load: (u: string) => Promise<void>, refresh: () => Promise<string>): Promise<'ok' | 'skip'> {
-  if (url) {
-    try { await load(url); return 'ok' } catch { /* попробуем свежую ссылку */ }
+/** Даже свежая ссылка может не играть: запасной источник пробуем после её загрузки. */
+export async function withUrlRefresh(url: string, load: (u: string) => Promise<void>, refresh: () => Promise<string>, fallback?: () => Promise<string>): Promise<'ok' | 'skip'> {
+  const tryLoad = async (candidate: string) => {
+    if (!candidate) return false
+    try { await load(candidate); return true } catch { return false }
   }
-  const fresh = await refresh().catch(() => '')
-  if (!fresh) return 'skip'
-  try { await load(fresh); return 'ok' } catch { return 'skip' }
+  if (await tryLoad(url)) return 'ok'
+  if (await tryLoad(await refresh().catch(() => ''))) return 'ok'
+  if (fallback && await tryLoad(await fallback().catch(() => ''))) return 'ok'
+  return 'skip'
 }

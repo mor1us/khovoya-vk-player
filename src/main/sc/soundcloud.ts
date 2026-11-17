@@ -55,6 +55,8 @@ export function mapScTrack(r: any): Track | null {
     vkId: Number(r.id),
     title: String(r.title ?? '').trim() || 'Без названия',
     artist: String(r.publisher_metadata?.artist || r.user?.username || '').trim() || 'Неизвестен',
+    artistId: r.user?.id ? String(r.user.id) : undefined,
+    artistProfileName: r.user?.username ? String(r.user.username).trim() : undefined,
     duration: Math.round((Number(r.full_duration || r.duration) || 0) / 1000),
     url: '',
     coverUrl: artwork(r),
@@ -236,17 +238,18 @@ export class SoundCloud {
    * Треки артиста SoundCloud: сначала ищем его страницу по имени и берём оттуда загрузки, новые сверху.
    * Страницы нет (или имя написано иначе) — ищем треки по имени и оставляем только его.
    */
-  async artistTracks(name: string, limit = 40): Promise<Track[]> {
+  async artistTracks(name: string, limit = 40, userId?: string, offset = 0): Promise<Track[]> {
     const key = name.trim().toLowerCase()
     const byDate = (ts: Track[]) => ts.sort((x, y) => (y.addedAt ?? 0) - (x.addedAt ?? 0))
-    const j = await this.api('/search/users', { q: name, limit: 3 }).catch(() => null)
+    const j = userId ? null : await this.api('/search/users', { q: name, limit: 10 }).catch(() => null)
     const users: any[] = j?.collection ?? []
-    const u = users.find((x) => String(x?.username ?? '').trim().toLowerCase() === key) ?? users[0]
+    const u = userId ? { id: userId } : users.find((x) => String(x?.username ?? '').trim().toLowerCase() === key)
     if (u?.id) {
-      const r = await this.api(`/users/${u.id}/tracks`, { limit, linked_partitioning: 1 }).catch(() => null)
+      const r = await this.api(`/users/${encodeURIComponent(String(u.id))}/tracks`, { limit, linked_partitioning: 1, ...(offset ? { offset } : {}) })
       const ts = (r?.collection ?? []).map(mapScTrack).filter((t: Track | null): t is Track => !!t)
-      if (ts.length) return byDate(ts)
+      return byDate(ts)
     }
+    if (offset) return []
     const found = await this.search(name, limit)
     return byDate(found.filter((t) => t.artist.trim().toLowerCase() === key))
   }
@@ -268,7 +271,7 @@ export class SoundCloud {
   async users(q: string, limit = 4): Promise<ScArtist[]> {
     const j = await this.api('/search/users', { q, limit })
     return (j?.collection ?? []).filter((u: any) => u?.username).map((u: any) => ({
-      name: String(u.username), avatar: u.avatar_url ? String(u.avatar_url).replace('-large.', '-t200x200.') : undefined, link: u.permalink_url, followers: Number(u.followers_count) || 0
+      id: u.id ? String(u.id) : undefined, name: String(u.username), avatar: u.avatar_url ? String(u.avatar_url).replace('-large.', '-t200x200.') : undefined, link: u.permalink_url, followers: Number(u.followers_count) || 0
     }))
   }
 
@@ -378,30 +381,33 @@ export class SoundCloud {
   setWriter(f: (method: 'PUT' | 'DELETE', url: string, token: string) => Promise<number>) { this.writer = f }
 
   /** Страница артиста SoundCloud по имени: нужен его номер, чтобы подписываться. */
-  private async userByName(name: string): Promise<{ id: number; avatar?: string } | null> {
+  private async userByName(name: string, userId?: string): Promise<{ id: number; avatar?: string; link?: string; followers?: number } | null> {
+    if (userId && /^\d+$/.test(userId)) return { id: Number(userId) }
     const key = name.trim().toLowerCase()
-    const j = await this.api('/search/users', { q: name, limit: 3 }).catch(() => null)
+    const j = await this.api('/search/users', { q: name, limit: 10 })
     const users: any[] = j?.collection ?? []
-    const u = users.find((x) => String(x?.username ?? '').trim().toLowerCase() === key) ?? users[0]
-    return u?.id ? { id: Number(u.id), avatar: u.avatar_url ? String(u.avatar_url).replace('-large.', '-t200x200.') : undefined } : null
+    const u = users.find((x) => String(x?.username ?? '').trim().toLowerCase() === key)
+    return u?.id ? { id: Number(u.id), avatar: u.avatar_url ? String(u.avatar_url).replace('-large.', '-t200x200.') : undefined, link: u.permalink_url, followers: Number(u.followers_count) || 0 } : null
   }
 
   /** Подписан ли ты на артиста SoundCloud. Без входа вопрос не имеет смысла. */
-  async artistInfo(name: string): Promise<{ followed: boolean; cover?: string; can: boolean }> {
-    const u = await this.userByName(name)
-    if (!u) return { followed: false, can: false }
+  async artistInfo(name: string, userId?: string): Promise<import('../../shared/types').ArtistInfo> {
+    const u = await this.userByName(name, userId)
+    if (!u) return { missing: true, followed: false, can: false }
     const me = await this.me()
-    if (!me) return { followed: false, cover: u.avatar, can: false }
-    const j = await this.api(`/users/${me.id}/followings/ids`, { limit: 5000 }, false, 'GET', true).catch(() => null)
-    const ids: number[] = j?.collection ?? []
-    return { followed: ids.includes(u.id), cover: u.avatar, can: true }
+    if (!me) return { id: String(u.id), followed: false, cover: u.avatar, can: false, followers: u.followers, link: u.link }
+    const relation = await this.api(`/me/followings/${u.id}`, {}, false, 'GET', true).catch((e) => {
+      if ((e as Error).message === 'SoundCloud ответил 404') return null
+      throw e
+    })
+    return { id: String(u.id), followed: !!relation, cover: u.avatar, can: true, followers: u.followers, link: u.link }
   }
 
   /** Подписка на артиста SoundCloud — то же, что Follow на сайте. */
-  async followArtist(name: string, on: boolean): Promise<void> {
+  async followArtist(name: string, on: boolean, userId?: string): Promise<void> {
     const token = await this.token()
     if (!token) throw new ScAuthLost('Войди в SoundCloud во вкладке SoundCloud')
-    const u = await this.userByName(name)
+    const u = await this.userByName(name, userId)
     if (!u) throw new Error(`На SoundCloud не нашёлся ${name}`)
     const url = new URL(`${API}/me/followings/${u.id}`)
     url.searchParams.set('client_id', await this.clientId())
@@ -437,8 +443,9 @@ export class SoundCloud {
     const tried = new Set<string>()
     const attempt = async (list: string[], auth?: string) => {
       for (const s of list) {
-        if (tried.has(s)) continue
-        tried.add(s)
+        const key = JSON.stringify([s, auth])
+        if (tried.has(key)) continue
+        tried.add(key)
         try {
           const j = await this.api(s, auth ? { track_authorization: auth } : {})
           if (j?.url) return String(j.url)

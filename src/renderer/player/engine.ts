@@ -2,6 +2,9 @@ import Hls from 'hls.js'
 import { gains } from './crossfade'
 
 type Deck = { audio: HTMLAudioElement; gain: GainNode; hls: Hls | null }
+const LOAD_TIMEOUT_MS = 12_000
+
+export class StreamLoadError extends Error {}
 
 function curve(length: number, dir: 'in' | 'out'): Float32Array {
   const n = Math.max(2, Math.round(length * 60))
@@ -19,7 +22,7 @@ export class PlayerEngine {
   private master: GainNode | null = null
   private decks: Deck[] = []
   private active = 0
-  private fading = false
+  private fadeTimer: ReturnType<typeof setTimeout> | undefined
   private timeCb: (t: number, d: number) => void = () => {}
   private endCb: () => void = () => {}
   private errCb: (e: unknown) => void = () => {}
@@ -41,8 +44,10 @@ export class PlayerEngine {
       gain.connect(this.master)
       const deck: Deck = { audio, gain, hls: null }
       audio.addEventListener('timeupdate', () => { if (this.decks[this.active] === deck) this.timeCb(audio.currentTime, audio.duration || 0) })
-      audio.addEventListener('ended', () => { if (this.decks[this.active] === deck && !this.fading) this.endCb() })
-      audio.addEventListener('error', () => { if (this.decks[this.active] === deck) this.errCb(audio.error) })
+      audio.addEventListener('ended', () => { if (this.decks[this.active] === deck) this.endCb() })
+      audio.addEventListener('error', () => {
+        if (this.decks[this.active] === deck) this.errCb(new StreamLoadError(`аудио: код ${audio.error?.code ?? 0}`))
+      })
       this.decks.push(deck)
     }
   }
@@ -51,18 +56,31 @@ export class PlayerEngine {
   private get other() { this.ensure(); return this.decks[1 - this.active] }
 
   private attach(deck: Deck, url: string): Promise<void> {
-    deck.hls?.destroy(); deck.hls = null
+    this.unload(deck)
     const a = deck.audio
     return new Promise((resolve, reject) => {
-      const ok = () => { cleanup(); resolve() }
-      const bad = () => { cleanup(); reject(new Error('Не удалось загрузить трек')) }
-      const cleanup = () => { a.removeEventListener('canplay', ok); a.removeEventListener('error', bad) }
+      let ready = false
+      const ok = () => { ready = true; cleanup(); resolve() }
+      const bad = (reason: string) => {
+        cleanup()
+        this.unload(deck)
+        reject(new StreamLoadError(reason))
+      }
+      const mediaError = () => bad(`аудио: код ${a.error?.code ?? 0}`)
+      const timer = setTimeout(() => bad('аудио: таймаут загрузки'), LOAD_TIMEOUT_MS)
+      const cleanup = () => { clearTimeout(timer); a.removeEventListener('canplay', ok); a.removeEventListener('error', mediaError) }
       a.addEventListener('canplay', ok)
-      a.addEventListener('error', bad)
+      a.addEventListener('error', mediaError)
       if (/\.m3u8(\?|$)/.test(url) && Hls.isSupported()) {
         const hls = new Hls({ enableWorker: true, maxBufferLength: 30, lowLatencyMode: false })
         deck.hls = hls
-        hls.on(Hls.Events.ERROR, (_e, data) => { if (data.fatal) { hls.destroy(); deck.hls = null; bad() } })
+        hls.on(Hls.Events.ERROR, (_e, data) => {
+          if (!data.fatal || deck.hls !== hls) return
+          const status = data.response?.code
+          const reason = `HLS: ${data.details}${status ? ` (HTTP ${status})` : ''}`
+          if (!ready) bad(reason)
+          else if (this.decks[this.active] === deck) this.errCb(new StreamLoadError(reason))
+        })
         hls.loadSource(url)
         hls.attachMedia(a)
       } else {
@@ -74,7 +92,9 @@ export class PlayerEngine {
 
   private unload(deck: Deck) {
     deck.audio.pause()
-    deck.hls?.destroy(); deck.hls = null
+    const hls = deck.hls
+    deck.hls = null
+    hls?.destroy()
     deck.audio.removeAttribute('src'); deck.audio.load()
   }
 
@@ -90,7 +110,7 @@ export class PlayerEngine {
   }
 
   async play() { this.ensure(); await this.ctx!.resume(); await this.cur.audio.play() }
-  pause() { if (this.ctx) this.cur.audio.pause() }
+  pause() { if (this.ctx) { this.cancelFade(); this.cur.audio.pause() } }
   get paused() { return !this.ctx || this.cur.audio.paused }
   get time() { return this.ctx ? this.cur.audio.currentTime : 0 }
   get duration() { return this.ctx ? this.cur.audio.duration || 0 : 0 }
@@ -101,9 +121,13 @@ export class PlayerEngine {
   }
 
   private cancelFade() {
-    if (!this.ctx || !this.fading) return
+    if (!this.fadeTimer) return
+    clearTimeout(this.fadeTimer)
+    this.fadeTimer = undefined
     for (const d of this.decks) d.gain.gain.cancelScheduledValues(0)
-    this.fading = false
+    this.cur.gain.gain.value = 1
+    this.other.gain.gain.value = 0
+    this.unload(this.other)
   }
 
   /** Плавный переход к новому треку за lengthSec секунд. Бросает ошибку, если новый трек не загрузился. */
@@ -112,16 +136,16 @@ export class PlayerEngine {
     this.cancelFade()
     const from = this.cur, to = this.other
     await this.attach(to, url)
-    const now = this.ctx!.currentTime
-    to.gain.gain.cancelScheduledValues(now); from.gain.gain.cancelScheduledValues(now)
-    to.gain.gain.setValueAtTime(0, now)
+    to.gain.gain.cancelScheduledValues(0)
+    to.gain.gain.value = 0
     await this.ctx!.resume()
     await to.audio.play()
-    this.fading = true
-    this.active = 1 - this.active
+    const now = this.ctx!.currentTime
+    from.gain.gain.cancelScheduledValues(now)
     to.gain.gain.setValueCurveAtTime(curve(lengthSec, 'in'), now, lengthSec)
     from.gain.gain.setValueCurveAtTime(curve(lengthSec, 'out'), now, lengthSec)
-    setTimeout(() => { if (this.decks[1 - this.active] === from) this.unload(from); this.fading = false }, lengthSec * 1000 + 80)
+    this.active = 1 - this.active
+    this.fadeTimer = setTimeout(() => { this.fadeTimer = undefined; this.unload(from) }, lengthSec * 1000 + 80)
   }
 
   onTimeUpdate(cb: (t: number, d: number) => void) { this.timeCb = cb }

@@ -49,8 +49,9 @@ export function snoozeTrack(p: WaveProfile, t: Track, now: number): WaveProfile 
 
 /** Реакция на трек меняет вес артиста. Профиль не мутируется. */
 export function applyReaction(p: WaveProfile, t: Track, r: Reaction, now: number): WaveProfile {
-  const key = artistKey(t.artist)
   const tk = trackKey(t)
+  if (r === 'dislike' && (p.banned.includes(t.id) || (p.bannedKeys ?? []).includes(tk))) return p
+  const key = artistKey(t.artist)
   const artists = decayArtists(p.artists, p.at ?? 0, now)
   const next: WaveProfile = {
     artists: { ...artists, [key]: (artists[key] ?? 0) + DELTA[r] },
@@ -78,13 +79,15 @@ export function applyReaction(p: WaveProfile, t: Track, r: Reaction, now: number
 export function undoDislike(p: WaveProfile, t: Track): WaveProfile {
   const key = artistKey(t.artist)
   const tk = trackKey(t)
-  const was = p.banned.includes(t.id) || (p.bannedKeys ?? []).includes(tk)
+  const copies = (p.disliked ?? []).filter((x) => trackKey(x) === tk)
+  const ids = new Set([t.id, ...copies.map((x) => x.id)])
+  const was = p.banned.includes(t.id) || (p.bannedKeys ?? []).includes(tk) || copies.length > 0
   return {
     ...p,
     artists: was ? { ...p.artists, [key]: (p.artists[key] ?? 0) - DELTA.dislike } : p.artists,
-    banned: p.banned.filter((x) => x !== t.id),
+    banned: p.banned.filter((x) => !ids.has(x)),
     bannedKeys: (p.bannedKeys ?? []).filter((x) => x !== tk),
-    disliked: (p.disliked ?? []).filter((x) => x.id !== t.id)
+    disliked: (p.disliked ?? []).filter((x) => trackKey(x) !== tk)
   }
 }
 
@@ -107,10 +110,14 @@ export const earlyLimit = (duration: number) => (duration > 0 ? Math.min(30, dur
  * Музыка, доигравшая сама в свёрнутом окне, — не твой выбор: вес артисту за неё не идёт,
  * иначе фоновое слушание потихоньку поднимает всех подряд и вкус размывается.
  */
-export function reactionFor(prev: Track, info: { listened: number; manual: boolean; background?: boolean; broken?: boolean }): Reaction | null {
+export function reactionFor(prev: Track, info: { listened: number; manual: boolean; background?: boolean; broken?: boolean; sought?: boolean; completed?: boolean }): Reaction | null {
   // трек оборвался или не отдался — это проблема сети, а не твой выбор
-  if (info.broken) return null
-  if (!info.manual) return info.background ? null : 'finished'
+  if (info.broken || info.sought || info.listened <= 0) return null
+  if (info.completed) return info.background ? null : 'finished'
+  if (!info.manual) {
+    if (info.background) return null
+    return prev.duration > 0 && info.listened >= prev.duration - 15 ? 'finished' : null
+  }
   if (info.listened < earlyLimit(prev.duration)) return 'earlySkip'
   if (prev.duration > 0 && info.listened >= prev.duration - 15) return 'finished'
   return 'midSkip' // переключил на середине — слабый минус, раньше это не считалось вообще
