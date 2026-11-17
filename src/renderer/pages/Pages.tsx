@@ -13,6 +13,7 @@ import { Similar } from './Similar'
 import { Queue } from './Queue'
 import { Disliked } from './Disliked'
 import { SoundCloud } from './SoundCloud'
+import { Subscriptions } from './Subscriptions'
 import { TrackMenu } from '../ui/TrackMenu'
 import { PullRefresh } from '../ui/PullRefresh'
 import { isPhone } from '../ui/layout'
@@ -22,6 +23,7 @@ export function Pages({ onLogout }: { onLogout: () => void }) {
   return (
     <>
       {tab === 'home' && <div className="page"><Home /></div>}
+      {tab === 'subscriptions' && !isPhone() && <Subscriptions />}
       {tab === 'mine' && (isPhone() ? <PhoneMine /> : <Mine />)}
       {tab === 'search' && <Search />}
       {tab === 'playlists' && <Playlists />}

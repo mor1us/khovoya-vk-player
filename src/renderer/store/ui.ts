@@ -5,7 +5,7 @@ import { create } from 'zustand'
 import type { ArtistRef, Playlist, Session } from '../../shared/types'
 
 export type ToastAction = { label: string; run: () => void; dismissLabel?: string }
-export type Tab = 'home' | 'mine' | 'playlists' | 'downloads' | 'search' | 'settings' | 'playlist' | 'artist' | 'history' | 'similar' | 'queue' | 'disliked' | 'soundcloud'
+export type Tab = 'home' | 'subscriptions' | 'mine' | 'playlists' | 'downloads' | 'search' | 'settings' | 'playlist' | 'artist' | 'history' | 'similar' | 'queue' | 'disliked' | 'soundcloud'
 
 type Ui = {
   tab: Tab

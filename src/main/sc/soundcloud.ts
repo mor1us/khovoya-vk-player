@@ -1,4 +1,4 @@
-import type { ScArtist, ScComment, ScMe, ScPlaylistRef, ScResolved, ScStatus, Track } from '../../shared/types'
+import type { ArtistSubscription, ScArtist, ScComment, ScMe, ScPlaylistRef, ScResolved, ScStatus, Track } from '../../shared/types'
 import { uniqueBy } from '../../shared/list'
 
 export type { ScArtist, ScComment, ScMe, ScPlaylistRef, ScResolved, ScStatus }
@@ -391,6 +391,28 @@ export class SoundCloud {
   }
 
   /** Подписан ли ты на артиста SoundCloud. Без входа вопрос не имеет смысла. */
+  async artistSubscriptions(): Promise<ArtistSubscription[] | null> {
+    const me = await this.me()
+    if (!me) return null
+    let next: string | undefined = `/users/${me.id}/followings`
+    const seen = new Set<string>()
+    const profiles = new Map<string, ArtistSubscription>()
+    while (next) {
+      const url = new URL(next, API)
+      if (url.origin !== API || seen.has(url.href)) throw new Error('SoundCloud не дал дочитать список подписок')
+      seen.add(url.href)
+      const page = await this.api(url.href, { limit: 200, linked_partitioning: 1 }, false, 'GET', true)
+      if (!Array.isArray(page?.collection)) throw new Error('SoundCloud не вернул список подписок')
+      for (const user of page.collection) {
+        if (!user?.id || !user?.username) continue
+        const id = String(user.id)
+        profiles.set(id, { id, name: String(user.username), cover: user.avatar_url, link: user.permalink_url })
+      }
+      next = typeof page.next_href === 'string' ? page.next_href : undefined
+    }
+    return [...profiles.values()]
+  }
+
   async artistInfo(name: string, userId?: string): Promise<import('../../shared/types').ArtistInfo> {
     const u = await this.userByName(name, userId)
     if (!u) return { missing: true, followed: false, can: false }
@@ -409,9 +431,12 @@ export class SoundCloud {
     if (!token) throw new ScAuthLost('Войди в SoundCloud во вкладке SoundCloud')
     const u = await this.userByName(name, userId)
     if (!u) throw new Error(`На SoundCloud не нашёлся ${name}`)
-    const url = new URL(`${API}/me/followings/${u.id}`)
+    const me = on ? await this.me() : null
+    if (on && !me) throw new ScAuthLost('Войди в SoundCloud во вкладке SoundCloud')
+    const path = me ? `/users/${me.id}/followings/${u.id}` : `/me/followings/${u.id}`
+    const url = new URL(API + path)
     url.searchParams.set('client_id', await this.clientId())
-    if (!this.writer) { await this.api(`/me/followings/${u.id}`, {}, false, on ? 'PUT' : 'DELETE', true); return }
+    if (!this.writer) { await this.api(path, {}, false, on ? 'PUT' : 'DELETE', true); return }
     const status = await this.writer(on ? 'PUT' : 'DELETE', url.toString(), token)
     if (status >= 200 && status < 300) return
     if (!on && status === 404) return // подписки и так нет

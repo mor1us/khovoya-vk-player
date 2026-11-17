@@ -66,6 +66,15 @@ describe('MockAudioApi', () => {
 })
 
 describe('artistTracks', () => {
+  it('берёт подписки из отдельной секции каталога и дочитывает страницы', async () => {
+    const { client } = fakeClient((m, p) => {
+      if (m === 'catalog.getAudio') return { catalog: { sections: [{ id: 'follows', title: 'Артисты и кураторы' }] } }
+      if (p.start_from) return { section: {}, artists: [{ id: 'b', name: 'B' }] }
+      return { section: { next_from: 'next' }, artists: [{ id: 'a', name: 'A' }] }
+    })
+    expect(await new VkAudioApi(client as any, () => 7).artistSubscriptions()).toMatchObject([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }])
+  })
+
   it('by id → audio.getAudiosByArtist, newest first', async () => {
     const { calls, client } = fakeClient(() => ({ items: [{ ...raw(1), date: 100 }, { ...raw(2), date: 300 }] }))
     const r = await new VkAudioApi(client as any, () => 7).artistTracks({ id: 'abc', name: 'A' })
@@ -97,7 +106,7 @@ describe('подписка на исполнителя', () => {
   it('подписка — один простой вызов', async () => {
     const { calls, client } = fakeClient(() => ({}))
     await new VkAudioApi(client as any, () => 7).followArtist({ id: 'a1', name: 'Heronwater' }, true)
-    expect(calls).toEqual([{ m: 'audio.followArtist', p: { artist_id: 'a1' } }])
+    expect(calls).toEqual([{ m: 'audio.followArtist', p: { artist_id: 'a1', ref: 'audio_player' } }])
   })
 
   it('отписка: если ВК не знает unfollowArtist, пробуем второй способ', async () => {

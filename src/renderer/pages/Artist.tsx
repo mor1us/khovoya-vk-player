@@ -90,9 +90,11 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
     setBusy(true)
     setShowFollowActions(false)
     const id = info.id ?? a.id
+    let sent = false
     try {
       if (sc) await window.api.invoke('scacc:artistFollow', a.name, on, id)
       else await window.api.invoke('vk:artistFollow', { id, name: a.name }, on)
+      sent = true
       // не верим себе на слово: спрашиваем, что там теперь на самом деле
       const fresh = sc ? await window.api.invoke('scacc:artistInfo', a.name, id) : await window.api.invoke('vk:artistInfo', { id, name: a.name })
       setInfo(fresh)
@@ -100,7 +102,10 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
       if (fresh.statusUnknown || !fresh.can) useUi.getState().toast(`Запрос принят. ${who} не подтвердил состояние подписки`)
       else if (fresh.followed === on) useUi.getState().toast(on ? `Слежу за ${a.name}` : `Больше не слежу за ${a.name}`)
       else useUi.getState().toast(on ? `${who} не дал подписаться` : `${who} не дал отписаться`)
-    } catch (e) { setInfoFailed(true); useUi.getState().toast((e as Error).message) } finally { setBusy(false) }
+    } catch (e) {
+      if (sent) setInfo((previous) => ({ ...previous, statusUnknown: true }))
+      useUi.getState().toast(sent ? 'Запрос принят, но статус подписки пока не удалось проверить' : (e as Error).message)
+    } finally { setBusy(false) }
   }
 
   return (

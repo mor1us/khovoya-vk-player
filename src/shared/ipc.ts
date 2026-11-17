@@ -1,5 +1,5 @@
 import type {
-  ArtistInfo, ArtistRef, DiscordUpdate, DownloadJob, ForYouBlock, LocalPl, LoginStep, Playlist, ScArtist, ScComment,
+  ArtistInfo, ArtistRef, ArtistSubscription, DiscordUpdate, DownloadJob, ForYouBlock, LocalPl, LoginStep, Playlist, ScArtist, ScComment,
   ScMe, ScPlaylistRef, ScResolved, ScStatus, Session, Settings, Track, WaveProfile
 } from './types'
 import type { UpdateState } from './updates'
@@ -27,6 +27,7 @@ export type IpcMap = {
   'vk:artistTracks': (a: ArtistRef, offset?: number) => Track[]
   'vk:artistInfo': (a: ArtistRef) => ArtistInfo
   'vk:artistFollow': (a: ArtistRef, on: boolean) => void
+  'artists:subscriptions': (source: 'vk' | 'sc') => ArtistSubscription[] | null
   'vk:byId': (ids: string[]) => Track[]
   'vk:add': (t: Track) => void
   'vk:remove': (t: Track) => void
@@ -109,6 +110,7 @@ export type IpcResult<C extends Channel> = Awaited<ReturnType<IpcMap[C]>>
 
 /** Что пропускает мост (`src/preload/index.ts`). Всё, чего здесь нет, окно даже не отправит. */
 export const IPC = {
+  'artists:subscriptions': true,
   'auth:browser': true, 'auth:logout': true, 'auth:session': true,
   'vk:myTracks': true, 'vk:search': true, 'vk:playlists': true, 'vk:playlistTracks': true,
   'vk:recommendations': true, 'vk:popular': true, 'vk:forYou': true, 'vk:artistTracks': true, 'vk:artistInfo': true, 'vk:artistFollow': true, 'vk:byId': true, 'vk:add': true, 'vk:remove': true,

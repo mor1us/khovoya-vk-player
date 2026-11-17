@@ -8,7 +8,7 @@ import { SrcBadge } from './TrackRow'
 import { player } from '../store/playerInstance'
 import { readJson } from '../store/json'
 
-const TABS: [Tab, string][] = [['home', 'Главная'], ['mine', 'Моё'], ['playlists', 'Плейлисты'], ['downloads', 'Загрузки'], ['soundcloud', 'SoundCloud']]
+const TABS: [Tab, string][] = [['home', 'Главная'], ['subscriptions', 'Подписки'], ['mine', 'Моё'], ['playlists', 'Плейлисты'], ['downloads', 'Загрузки'], ['soundcloud', 'SoundCloud']]
 export const searchRef: { current: HTMLInputElement | null } = { current: null }
 
 const fmtFollowers = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1).replace('.0', '')} млн` : n >= 1e3 ? `${Math.round(n / 1e3)} тыс.` : String(n)) + ' подписчиков'

@@ -194,6 +194,10 @@ async function setup() {
     if (!MOCK) return sc.feed()
     return mockScUser ? scSearch('Пустой') : []
   })
+  handle('artists:subscriptions', (source: 'vk' | 'sc') => {
+    if (source === 'sc') return MOCK ? (mockScUser ? [] : null) : sc.artistSubscriptions()
+    return api instanceof VkAudioApi ? api.artistSubscriptions() : []
+  })
   handle('scacc:like', async (t: Track, on: boolean) => { if (!MOCK) await sc.setLike(t, on).catch(scLog('лайк')) })
   // Лайки SoundCloud и свои плейлисты Хвои (ВК + SoundCloud вперемешку) хранятся на компе.
   const scLikes = jsonFile<Track[]>('sc-likes.json', () => [])

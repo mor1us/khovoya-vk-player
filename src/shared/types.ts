@@ -98,6 +98,7 @@ export type WaveProfile = {
 export type DiscordUpdate = { track: Track | null; playing: boolean; position: number }
 
 export type ArtistRef = { id?: string; name: string }
+export type ArtistSubscription = { id: string; name: string; cover?: string; link?: string }
 /** Что известно об исполнителе сверх его треков. can — можно ли тут вообще подписаться (на телефоне SoundCloud нельзя). */
 export type ArtistInfo = { id?: string; missing?: boolean; followed: boolean; statusUnknown?: boolean; cover?: string; can: boolean; followers?: number; link?: string }
 

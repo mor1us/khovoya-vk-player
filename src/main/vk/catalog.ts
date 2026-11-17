@@ -1,4 +1,25 @@
-import type { ForYouBlock } from '../../shared/types'
+import type { ArtistSubscription, ForYouBlock } from '../../shared/types'
+
+/** Идентификатор раздела приходит из каталога текущего аккаунта. */
+export function subscriptionSection(payload: any): string | undefined {
+  const entries = [...(payload?.catalog?.sections ?? []), ...(payload?.section?.blocks ?? []), ...(payload?.links ?? [])]
+  for (const entry of entries) {
+    const title = String(entry?.title ?? entry?.layout?.title ?? '').trim()
+    if (!/^(?:артисты и кураторы|мои артисты|подписки на артистов)$/i.test(title)) continue
+    const id = entry.section_id ?? entry.action?.section_id ?? entry.default_section ?? (payload?.catalog?.sections?.includes(entry) ? entry.id : undefined)
+    if (typeof id === 'string' && id) return id
+  }
+}
+
+export function subscriptionArtists(payload: any): ArtistSubscription[] {
+  const artists: ArtistSubscription[] = []
+  for (const artist of Array.isArray(payload?.artists) ? payload.artists : []) {
+    if (artist?.id == null || typeof artist?.name !== 'string' || !artist.name.trim()) continue
+    const cover = Array.isArray(artist.photo) ? artist.photo.at(-1)?.url : undefined
+    artists.push({ id: String(artist.id), name: artist.name.trim(), cover })
+  }
+  return artists
+}
 
 export type { ForYouBlock }
 import { mapPlaylist } from './models'

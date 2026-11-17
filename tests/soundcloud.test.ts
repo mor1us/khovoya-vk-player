@@ -362,6 +362,17 @@ describe('треки артиста SoundCloud', () => {
 })
 
 describe('подписка на артиста SoundCloud', () => {
+  it('загружает аккаунты из списка подписок, включая следующую страницу', async () => {
+    const sc = new SoundCloud(async (url) => {
+      const u = new URL(url)
+      if (u.pathname === '/me') return res(200, { id: 9 })
+      if (u.searchParams.has('cursor')) return res(200, { collection: [{ id: 8, username: 'other' }] })
+      return res(200, { collection: [{ id: 7, username: 'synthboy' }], next_href: 'https://api-v2.soundcloud.com/users/9/followings?cursor=2' })
+    }, { get: () => CID, set: () => {} })
+    sc.setAuth(async () => 'TOKEN')
+    expect(await sc.artistSubscriptions()).toMatchObject([{ id: '7', name: 'synthboy' }, { id: '8', name: 'other' }])
+  })
+
   it('показывает возможность подписаться, если связи с профилем ещё нет', async () => {
     const sc = new SoundCloud(async (url) => {
       return new URL(url).pathname === '/me' ? res(200, { id: 9, username: 'morius' }) : res(200, { collection: [8] })
@@ -377,6 +388,6 @@ describe('подписка на артиста SoundCloud', () => {
     sc.setWriter(async (method, url) => { calls.push(`${method} ${new URL(url).pathname}`); return 200 })
     await sc.followArtist('synthboy', true, '7')
     await sc.followArtist('synthboy', false, '7')
-    expect(calls).toEqual(['PUT /me/followings/7', 'DELETE /me/followings/7'])
+    expect(calls).toEqual(['PUT /users/9/followings/7', 'DELETE /me/followings/7'])
   })
 })

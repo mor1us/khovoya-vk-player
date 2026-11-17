@@ -19,6 +19,7 @@ export type CoreCtx = {
 }
 
 export function registerCore(c: CoreCtx, handle: Handle) {
+  handle('artists:subscriptions', () => null)
   handle('auth:logout', () => c.logout())
   handle('auth:session', () => c.session())
 
