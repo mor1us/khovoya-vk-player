@@ -10,6 +10,7 @@ import type { DiscordUpdate } from '../shared/types'
 import { join } from 'path'
 import { VkClient, VK_UA } from './vk/client'
 import { VkAudioApi, type AudioApi } from './vk/audio'
+import { vkArtistWindow, vkWebSubscriptions } from './vk/webArtists'
 import { MockAudioApi } from './vk/mock'
 import { startMockMedia } from './vk/mockServer'
 import { fetchWebToken, loginWindow, logoutVk, userInfo, log } from './auth/webSession'
@@ -195,9 +196,19 @@ async function setup() {
     if (!MOCK) return sc.feed()
     return mockScUser ? scSearch('Пустой') : []
   })
+  handle('vk:openArtistProfile', (url: string) => vkArtistWindow(win, url))
+  let vkSubscriptionsRequest: { userId: number; list: ReturnType<typeof vkWebSubscriptions> } | undefined
   handle('artists:subscriptions', (source: 'vk' | 'sc') => {
     if (source === 'sc') return MOCK ? (mockScUser ? [] : null) : sc.artistSubscriptions()
-    return api instanceof VkAudioApi ? api.artistSubscriptions() : []
+    if (MOCK) return []
+    const userId = keeper.userId()
+    if (!userId) return null
+    if (vkSubscriptionsRequest?.userId === userId) return vkSubscriptionsRequest.list
+    const list = vkWebSubscriptions(userId).finally(() => {
+      if (vkSubscriptionsRequest?.list === list) vkSubscriptionsRequest = undefined
+    })
+    vkSubscriptionsRequest = { userId, list }
+    return list
   })
   handle('scacc:like', async (t: Track, on: boolean) => { if (!MOCK) await sc.setLike(t, on).catch(scLog('лайк')) })
   // Лайки SoundCloud и свои плейлисты Хвои (ВК + SoundCloud вперемешку) хранятся на компе.

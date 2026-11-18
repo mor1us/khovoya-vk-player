@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useUi } from '../store/ui'
 import { localArtistKey, useLocalArtists } from '../store/localArtists'
 import { Cover } from '../ui/Cover'
@@ -22,19 +22,37 @@ function SubscriptionGroup({ source }: { source: Source }) {
   const local = useLocalArtists((s) => s.artists).filter((artist) => artist.source === source)
   const [busy, setBusy] = useState(false)
   const [selection, setSelection] = useState<Set<string> | null>(null)
+  const userId = useUi((s) => s.session?.userId)
+  const [refresh, setRefresh] = useState(0)
+  const [vkResult, setVkResult] = useState<{ userId: number; refresh: number; failed: boolean }>()
   const selected = local.filter((artist) => selection?.has(localArtistKey(artist)))
   const service = source === 'sc' ? 'SoundCloud' : 'ВК'
+  const loadingVk = source === 'vk' && !!userId && (vkResult?.userId !== userId || vkResult.refresh !== refresh)
+
+  useEffect(() => {
+    if (source !== 'vk' || !userId) return
+    let active = true
+    window.api.invoke('artists:subscriptions', 'vk').then((artists) => {
+      if (!active) return
+      if (artists) useLocalArtists.getState().syncVk(artists)
+      setVkResult({ userId, refresh, failed: artists === null })
+    }).catch(() => {
+      if (active) setVkResult({ userId, refresh, failed: true })
+    })
+    return () => { active = false }
+  }, [source, userId, refresh])
+
   const importArtists = async () => {
     if (busy) return
     setBusy(true)
     const ui = useUi.getState()
     try {
-      const imported = await window.api.invoke('artists:subscriptions', source)
+      const imported = await window.api.invoke('artists:subscriptions', 'sc')
       if (imported === null) {
         ui.toast(`Войди в ${service}, чтобы импортировать подписки`)
         return
       }
-      const count = useLocalArtists.getState().import(source, imported)
+      const count = useLocalArtists.getState().import('sc', imported)
       ui.toast(count ? `В Хвою добавлено: ${count}` : `Новых подписок для импорта из ${service} нет`)
     } catch {
       ui.toast(`Не удалось загрузить подписки из ${service}. Артистов можно добавить через поиск`)
@@ -66,11 +84,14 @@ function SubscriptionGroup({ source }: { source: Source }) {
           <button className="btn-s" onClick={() => setSelection(null)}>Отмена</button>
         </> : <>
           {local.length > 0 && <button className="btn-s" disabled={busy} onClick={() => setSelection(new Set())}>Выбрать артистов</button>}
-          <button className={'btn-s' + (source === 'sc' ? ' sco' : '')} disabled={busy} onClick={() => void importArtists()}>{busy ? 'Импортирую…' : `Импортировать из ${service}`}</button>
+          {source === 'sc'
+            ? <button className="btn-s sco" disabled={busy} onClick={() => void importArtists()}>{busy ? 'Импортирую…' : 'Импортировать из SoundCloud'}</button>
+            : <button className="btn-s" disabled={loadingVk || !userId} onClick={() => setRefresh((value) => value + 1)}>{loadingVk ? 'Загружаю…' : 'Обновить из ВК'}</button>}
         </>}
       </div>
       <SubscriptionArtistSearch source={source} service={service} />
-      {!local.length ? <div className="empty-state">Найди исполнителя и подпишись в Хвое или импортируй подписки из {service}.</div>
+      {source === 'vk' && !loadingVk && vkResult?.failed && <p className="subscription-status" role="status">Не удалось загрузить «Музыкантов» из ВК. Попробуй обновить список.</p>}
+      {!local.length ? <div className="empty-state">{loadingVk ? 'Загружаю музыкантов из ВК…' : 'Найди исполнителя и подпишись в Хвое.'}</div>
         : <div className="artgrid">{local.map((artist) => {
           const key = localArtistKey(artist)
           return (

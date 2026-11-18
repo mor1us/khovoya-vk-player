@@ -54,7 +54,7 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
     about.then((r) => {
       if (!alive) return
       setInfo(r)
-      if (r.missing) useUi.getState().toast(`Профиль «${a.name}» не найден. Поискать треки?`, { label: 'Искать', run: searchArtist, dismissLabel: 'Не сейчас' })
+      if (r.missing && !a.link) useUi.getState().toast(`Профиль «${a.name}» не найден. Поискать треки?`, { label: 'Искать', run: searchArtist, dismissLabel: 'Не сейчас' })
     }).catch(() => { if (alive) setInfoFailed(true) })
     return () => { alive = false }
   }, [a, sc, searchArtist, pageSize])
@@ -67,10 +67,10 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
   const profileLink = info.link ?? a.link
   const openProfile = async () => {
     if (!profileLink || profileOpen) return
-    if (!sc) { window.open(profileLink, '_blank'); return }
     setProfileOpen(true)
     try {
-      await window.api.invoke('scacc:openArtistProfile', profileLink)
+      if (sc) await window.api.invoke('scacc:openArtistProfile', profileLink)
+      else await window.api.invoke('vk:openArtistProfile', profileLink)
       if (useUi.getState().artist === a && useUi.getState().tab === 'artist') refresh()
     } catch (e) { useUi.getState().toast((e as Error).message) }
     finally { setProfileOpen(false) }
@@ -117,15 +117,15 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
             {list && <span>Треков в списке: {list.length}</span>}
             {info.followers != null && <span>{info.followers.toLocaleString('ru-RU')} подписчиков на платформе</span>}
             {infoFailed && <span className="artist-muted">Не удалось загрузить сведения профиля</span>}
-            {info.missing && <span className="artist-muted">Профиль артиста не найден</span>}
+            {info.missing && !profileLink && <span className="artist-muted">Профиль артиста не найден</span>}
           </div>
           <div className="artist-actions">
             {info.missing && <button className="btn-s" onClick={searchArtist}>Искать треки</button>}
             {!!can.length && <button className="btn-s g" onClick={() => play(can[0].id)}><I.IPlay size={14} />Слушать</button>}
-            {!info.missing && <button className={'btn-s' + (sc ? ' sco' : '')} disabled={busy} onClick={follow}>
+            {(!info.missing || profileLink) && <button className={'btn-s' + (sc ? ' sco' : '')} disabled={busy} onClick={follow}>
               <I.IHeart size={14} on={localFollowed} />{busy ? 'Сохраняю…' : localFollowed ? 'Отписаться в Хвое' : 'Подписаться в Хвое'}
             </button>}
-            {profileLink && <button className="btn-s" disabled={profileOpen} onClick={() => void openProfile()}><I.IExternal size={14} />Открыть профиль</button>}
+            {profileLink && <button className="btn-s" disabled={profileOpen} onClick={() => void openProfile()}><I.IExternal size={14} />{sc ? 'Открыть профиль' : 'Открыть в ВК'}</button>}
             <button className="btn-s" title="Загрузить заново" onClick={refresh} disabled={list === null || busy}><I.IRefresh size={14} />Обновить</button>
           </div>
         </div>

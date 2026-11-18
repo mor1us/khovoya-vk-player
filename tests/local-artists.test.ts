@@ -50,13 +50,30 @@ describe('подписки Хвои на артистов', () => {
   it('удаляет сразу выбранные карточки, сохраняя одноимённых артистов и профили другого сервиса', () => {
     const selected = [artist('vk', '42'), artist('vk', '', 'Артист без ID')]
     const keep = [artist('vk', '43'), artist('sc', '42')]
-    const initial = useLocalArtists.getState().artists
-    useLocalArtists.setState({ artists: [...selected, ...keep] })
+    const { artists, hiddenVk } = useLocalArtists.getState()
+    useLocalArtists.setState({ artists: [...selected, ...keep], hiddenVk: [] })
     try {
       const keys = selected.map(localArtistKey)
       expect(useLocalArtists.getState().removeMany(keys)).toBe(2)
       expect(useLocalArtists.getState().artists).toEqual(keep)
       expect(useLocalArtists.getState().removeMany(keys)).toBe(0)
-    } finally { useLocalArtists.setState({ artists: initial }) }
+    } finally { useLocalArtists.setState({ artists, hiddenVk }) }
+  })
+
+  it('не возвращает удалённого музыканта при обновлении, а ручная подписка возвращает его', () => {
+    const { artists, hiddenVk } = useLocalArtists.getState()
+    const followed = artist('vk', '', 'Hxlkart')
+    const local = artist('vk', '7', 'Артист Хвои')
+    useLocalArtists.setState({ artists: [local], hiddenVk: [] })
+    try {
+      useLocalArtists.getState().syncVk([followed])
+      expect(useLocalArtists.getState().has(followed)).toBe(true)
+      expect(useLocalArtists.getState().toggle(followed)).toBe(false)
+      useLocalArtists.getState().syncVk([followed])
+      expect(useLocalArtists.getState().has(followed)).toBe(false)
+      expect(useLocalArtists.getState().has(local)).toBe(true)
+      expect(useLocalArtists.getState().toggle(followed)).toBe(true)
+      expect(useLocalArtists.getState().hiddenVk).toEqual([])
+    } finally { useLocalArtists.setState({ artists, hiddenVk }) }
   })
 })

@@ -4,6 +4,7 @@ import { readJson, writeJson } from './json'
 
 export type LocalArtist = ArtistSubscription & { source: 'vk' | 'sc' }
 const STORAGE_KEY = 'localArtistSubscriptions'
+const VK_HIDDEN_KEY = 'hiddenVkArtistSubscriptions'
 const nameKey = (name: string) => name.trim().toLocaleLowerCase('ru-RU')
 const artistNameKey = (artist: LocalArtist) => `${artist.source}:name:${nameKey(artist.name)}`
 export const localArtistKey = (artist: LocalArtist) => artist.id ? `${artist.source}:id:${artist.id}` : artistNameKey(artist)
@@ -47,19 +48,32 @@ export function toggleLocalArtist(current: LocalArtist[], artist: LocalArtist): 
 
 type LocalArtists = {
   artists: LocalArtist[]
+  hiddenVk: LocalArtist[]
   toggle(artist: LocalArtist): boolean
   remove(artist: LocalArtist): void
   removeMany(keys: readonly string[]): number
   import(source: 'vk' | 'sc', artists: ArtistSubscription[]): number
+  syncVk(artists: ArtistSubscription[]): void
   has(artist: { source: 'vk' | 'sc'; id?: string; name: string }): boolean
 }
 
 export const useLocalArtists = create<LocalArtists>((set, get) => ({
   artists: readJson<LocalArtist[]>(STORAGE_KEY, []),
+  hiddenVk: readJson<LocalArtist[]>(VK_HIDDEN_KEY, []),
   toggle(artist) {
-    const { artists, added } = toggleLocalArtist(get().artists, artist)
+    const existing = findLocalArtist(get().artists, artist)
+    if (existing) {
+      get().removeMany([localArtistKey(existing)])
+      return false
+    }
+    const artists = mergeLocalArtists(get().artists, [artist])
+    const hidden = findLocalArtist(get().hiddenVk, artist)
+    if (hidden) {
+      const hiddenVk = get().hiddenVk.filter((item) => localArtistKey(item) !== localArtistKey(hidden))
+      set({ hiddenVk }); writeJson(VK_HIDDEN_KEY, hiddenVk)
+    }
     set({ artists }); writeJson(STORAGE_KEY, artists)
-    return added
+    return true
   },
   remove(artist) {
     const existing = findLocalArtist(get().artists, artist)
@@ -71,8 +85,15 @@ export const useLocalArtists = create<LocalArtists>((set, get) => ({
     const artists = current.filter((item) => !selected.has(localArtistKey(item)))
     const count = current.length - artists.length
     if (!count) return 0
-    set({ artists }); writeJson(STORAGE_KEY, artists)
+    const hiddenVk = mergeLocalArtists(get().hiddenVk, current.filter((item) => item.source === 'vk' && selected.has(localArtistKey(item))))
+    set({ artists, hiddenVk })
+    writeJson(STORAGE_KEY, artists); writeJson(VK_HIDDEN_KEY, hiddenVk)
     return count
+  },
+  syncVk(imported) {
+    const hidden = get().hiddenVk
+    const additions = imported.filter((artist) => !findLocalArtist(hidden, { ...artist, source: 'vk' }))
+    get().import('vk', additions)
   },
   import(source, imported) {
     const current = mergeLocalArtists([], get().artists)

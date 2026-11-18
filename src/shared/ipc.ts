@@ -27,6 +27,7 @@ export type IpcMap = {
   'vk:artistTracks': (a: ArtistRef, offset?: number) => Track[]
   'vk:artistInfo': (a: ArtistRef) => ArtistInfo
   'vk:artistFollow': (a: ArtistRef, on: boolean) => void
+  'vk:openArtistProfile': (url: string) => void
   'artists:subscriptions': (source: 'vk' | 'sc') => ArtistSubscription[] | null
   'vk:byId': (ids: string[]) => Track[]
   'vk:add': (t: Track) => void
@@ -113,6 +114,7 @@ export type IpcResult<C extends Channel> = Awaited<ReturnType<IpcMap[C]>>
 export const IPC = {
   'scacc:openArtistProfile': true,
   'artists:subscriptions': true,
+  'vk:openArtistProfile': true,
   'auth:browser': true, 'auth:logout': true, 'auth:session': true,
   'vk:myTracks': true, 'vk:search': true, 'vk:playlists': true, 'vk:playlistTracks': true,
   'vk:recommendations': true, 'vk:popular': true, 'vk:forYou': true, 'vk:artistTracks': true, 'vk:artistInfo': true, 'vk:artistFollow': true, 'vk:byId': true, 'vk:add': true, 'vk:remove': true,
