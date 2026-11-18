@@ -5,22 +5,44 @@ import { readJson, writeJson } from './json'
 export type LocalArtist = ArtistSubscription & { source: 'vk' | 'sc' }
 const STORAGE_KEY = 'localArtistSubscriptions'
 const nameKey = (name: string) => name.trim().toLocaleLowerCase('ru-RU')
-export const localArtistKey = (artist: LocalArtist) => `${artist.source}:${artist.id || nameKey(artist.name)}`
-const sameArtist = (a: LocalArtist, b: LocalArtist) => a.source === b.source && (a.id && b.id ? a.id === b.id : nameKey(a.name) === nameKey(b.name))
+const artistNameKey = (artist: LocalArtist) => `${artist.source}:name:${nameKey(artist.name)}`
+export const localArtistKey = (artist: LocalArtist) => artist.id ? `${artist.source}:id:${artist.id}` : artistNameKey(artist)
+
+function findLocalArtist(artists: LocalArtist[], artist: LocalArtist): LocalArtist | undefined {
+  const exact = artists.find((item) => localArtistKey(item) === localArtistKey(artist))
+  if (exact) return exact
+  const matches = artists.filter((item) => artistNameKey(item) === artistNameKey(artist))
+  if (matches.length === 1 && (!artist.id || !matches[0].id)) return matches[0]
+}
 
 export function mergeLocalArtists(current: LocalArtist[], added: LocalArtist[]): LocalArtist[] {
-  const merged = new Map(current.map((artist) => [localArtistKey(artist), artist]))
-  for (const artist of added) {
-    const key = localArtistKey(artist)
+  const all = [...current, ...added]
+  const idsByName = new Map<string, string | null>()
+  // Имя связывает записи только тогда, когда ему соответствует один ID в этом сервисе.
+  for (const artist of all) {
+    if (!artist.id) continue
+    const name = artistNameKey(artist)
+    const previous = idsByName.get(name)
+    idsByName.set(name, previous === undefined || previous === artist.id ? artist.id : null)
+  }
+  const merged = new Map<string, LocalArtist>()
+  for (const artist of all) {
+    const id = artist.id || idsByName.get(artistNameKey(artist)) || ''
+    const key = localArtistKey({ ...artist, id })
     const previous = merged.get(key)
-    merged.set(key, { ...previous, ...artist, cover: artist.cover || previous?.cover, link: artist.link || previous?.link })
+    merged.set(key, {
+      ...artist, id,
+      name: !artist.id && previous?.id ? previous.name : artist.name,
+      cover: artist.cover || previous?.cover,
+      link: artist.link || previous?.link
+    })
   }
   return [...merged.values()]
 }
 
 export function toggleLocalArtist(current: LocalArtist[], artist: LocalArtist): { artists: LocalArtist[]; added: boolean } {
-  const exists = current.some((item) => sameArtist(item, artist))
-  return { artists: exists ? current.filter((item) => !sameArtist(item, artist)) : mergeLocalArtists(current, [artist]), added: !exists }
+  const existing = findLocalArtist(current, artist)
+  return { artists: existing ? current.filter((item) => localArtistKey(item) !== localArtistKey(existing)) : mergeLocalArtists(current, [artist]), added: !existing }
 }
 
 type LocalArtists = {
@@ -39,15 +61,17 @@ export const useLocalArtists = create<LocalArtists>((set, get) => ({
     return added
   },
   remove(artist) {
-    const artists = get().artists.filter((item) => !sameArtist(item, artist))
+    const existing = findLocalArtist(get().artists, artist)
+    if (!existing) return
+    const artists = get().artists.filter((item) => localArtistKey(item) !== localArtistKey(existing))
     set({ artists }); writeJson(STORAGE_KEY, artists)
   },
   import(source, imported) {
-    const current = get().artists
+    const current = mergeLocalArtists([], get().artists)
     const artists = mergeLocalArtists(current, imported.map((artist) => ({ ...artist, source })))
     const count = artists.length - current.length
     set({ artists }); writeJson(STORAGE_KEY, artists)
     return count
   },
-  has(artist) { return get().artists.some((item) => sameArtist(item, { ...artist, id: artist.id ?? '' })) }
+  has(artist) { return !!findLocalArtist(get().artists, { ...artist, id: artist.id ?? '' }) }
 }))

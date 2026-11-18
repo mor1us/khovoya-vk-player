@@ -1,4 +1,4 @@
-import type { Track } from '../../shared/types'
+import type { ArtistSubscription, Track } from '../../shared/types'
 
 export const FRESH_DAYS = 14
 export type MyArtist = { key: string; name: string; id?: string; count: number; cover?: string }
@@ -22,6 +22,19 @@ export function topArtists(mine: Track[], n: number): MyArtist[] {
     else map.set(key, { key, name: a.name.trim(), id: a.id, count: 1, cover: t.coverUrl })
   }
   return [...map.values()].sort((a, b) => b.count - a.count).slice(0, n)
+}
+
+export function artistsFromLibrary(mine: Track[]): ArtistSubscription[] {
+  const artists: ArtistSubscription[] = []
+  // При объединении более свежий трек уточняет имя и обложку артиста.
+  for (let i = mine.length - 1; i >= 0; i--) {
+    const track = mine[i]
+    const artist = mainArtist(track)
+    if (!artist) continue
+    const name = artist.name.trim()
+    if (name && name.toLowerCase() !== 'неизвестен') artists.push({ id: artist.id ?? '', name, cover: track.coverUrl })
+  }
+  return artists
 }
 
 export function isFresh(dateSec: number | undefined, now: number): boolean {

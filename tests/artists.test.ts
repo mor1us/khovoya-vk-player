@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { topArtists, isFresh, artistWhy, FRESH_DAYS } from '../src/renderer/store/artistsLogic'
+import { artistsFromLibrary, topArtists, isFresh, artistWhy, FRESH_DAYS } from '../src/renderer/store/artistsLogic'
 import type { Track } from '../src/shared/types'
 
 const tr = (i: number, artist: string, extra: Partial<Track> = {}): Track => ({ id: 't' + i, ownerId: 1, vkId: i, title: 'T' + i, artist, duration: 100, url: 'u', available: true, coverUrl: 'c' + i, ...extra })
@@ -19,6 +19,21 @@ describe('topArtists', () => {
     expect(top[0]).toMatchObject({ name: 'A', count: 3 })
   })
   it('skips unknown artist', () => { expect(topArtists([tr(1, 'Неизвестен')], 3)).toEqual([]) })
+})
+
+describe('импорт из сохранённых треков', () => {
+  it('собирает основных исполнителей без лимита главной', () => {
+    const mine = Array.from({ length: 12 }, (_, i) => tr(i, 'Артист ' + i + ' feat. Гость'))
+    mine.push(tr(12, 'Неизвестен'))
+    const artists = artistsFromLibrary(mine)
+    expect(artists).toHaveLength(12)
+    expect(artists).toContainEqual({ id: '', name: 'Артист 0', cover: 'c0' })
+  })
+
+  it('использует структурированного исполнителя и ID профиля, если их вернул ВК', () => {
+    const mine = [tr(1, 'Подпись трека', { artists: [{ id: 'a1', name: 'Исполнитель' }] })]
+    expect(artistsFromLibrary(mine)).toEqual([{ id: 'a1', name: 'Исполнитель', cover: 'c1' }])
+  })
 })
 
 describe('isFresh', () => {

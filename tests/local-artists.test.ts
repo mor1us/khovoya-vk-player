@@ -17,6 +17,22 @@ describe('подписки Хвои на артистов', () => {
     expect(list[0]).toMatchObject({ name: 'Новое имя', cover: 'cover.jpg' })
   })
 
+  it('объединяет «Моё» с каталогом ВК и дополняет подписку ID', () => {
+    const stored = [artist('vk', '', 'Юпи'), artist('sc', '42', 'Юпи')]
+    const imported = [artist('vk', '', 'юпи'), { ...artist('vk', '42', 'Юпи'), cover: 'vk.jpg' }, artist('vk', '43', 'Другой артист')]
+    const list = mergeLocalArtists(stored, imported)
+    expect(list).toEqual([expect.objectContaining({ source: 'vk', id: '42', name: 'Юпи', cover: 'vk.jpg' }), stored[1], imported[2]])
+    expect(mergeLocalArtists(list, imported)).toEqual(list)
+  })
+
+  it('сохраняет одноимённые профили с разными ID отдельно', () => {
+    const first = artist('vk', '42')
+    const second = artist('vk', '43')
+    const unknown = artist('vk', '')
+    const list = mergeLocalArtists([], [first, second, unknown])
+    expect(toggleLocalArtist(list, unknown).artists).toEqual([first, second])
+  })
+
   it('переключает локальную подписку без обращения к сервису', () => {
     const one = toggleLocalArtist([], artist('sc', '9'))
     const two = toggleLocalArtist(one.artists, artist('sc', '9'))
