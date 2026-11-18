@@ -197,6 +197,10 @@ select.filter{width:auto}
 .artists{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
 .artists button{font:600 12.5px var(--B);padding:8px 14px;border-radius:20px;border:1px solid var(--ln)}
 .artists button:hover{border-color:var(--g);color:var(--g)}
+.subscription-search{display:grid;gap:12px;margin-bottom:12px}
+.subscription-search .field{width:100%}
+.subscription-search .artists,.subscription-search p{margin:0}
+.subscription-search p{color:var(--t2)}
 .skeleton{height:56px;border-radius:12px;background:var(--p1);margin-bottom:2px;animation:sk 1.2s ease-in-out infinite alternate}
 @keyframes sk{from{opacity:.5}to{opacity:1}}
 
@@ -258,6 +262,9 @@ html.no-anim *{animation:none!important;transition:none!important}
 .avw{position:relative;width:64px;height:64px}
 .art .av{width:64px;height:64px;border-radius:50%}
 .art:hover .av{outline:2px solid var(--g);outline-offset:2px}
+.artist-selection{position:absolute;right:-2px;bottom:-2px;width:20px;height:20px;border-radius:6px;display:grid;place-items:center;background:var(--p2);border:1px solid var(--ln)}
+.art[aria-pressed="true"] .av{outline:2px solid var(--g);outline-offset:2px}
+.art[aria-pressed="true"] .artist-selection{background:var(--g);border-color:var(--g);color:var(--k)}
 .art .nm{font:600 11.5px var(--B);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--t2)}
 .art:hover .nm{color:var(--text)}
 .badge{position:absolute;right:-2px;bottom:-2px;width:22px;height:22px;border-radius:50%;background:var(--g);border:2px solid var(--p1);display:flex;align-items:flex-end;justify-content:center;gap:2px;padding-bottom:5px}

@@ -1,6 +1,6 @@
 import type { Track, Playlist, ArtistRef, ArtistInfo } from '../../shared/types'
 import { mapTrack, mapPlaylist, vkFlag } from './models'
-import { artistSubscriptionState, catalogSummary, parseCatalog, subscriptionArtists, subscriptionSection, type ForYouBlock } from './catalog'
+import { artistSubscriptionState, catalogSummary, parseCatalog, subscriptionArtists, subscriptionCatalogShape, subscriptionSection, type ForYouBlock } from './catalog'
 
 type Caller = { call<T = any>(method: string, params: Record<string, string | number | undefined>): Promise<T> }
 
@@ -57,36 +57,42 @@ export class VkAudioApi implements AudioApi {
   private async fetchArtistSubscriptions() {
     let sectionId: string | undefined
     let diagnostic: any
+    let step = 'старт'
     {
       const params = { need_blocks: 1, extended: 1, v: MUSIC_API_VERSION }
+      const probe = async (label: string, method: 'catalog.getAudio' | 'catalog.getSection', extra: Record<string, string | number> = {}) => {
+        step = label
+        const payload = await this.vk.call(method, { ...params, ...extra })
+        const id = subscriptionSection(payload)
+        if (!id) this.log(`подписки ВК: ${step} без ссылки на раздел (${subscriptionCatalogShape(payload)})`)
+        return { payload, id }
+      }
       try {
-        const root = await this.vk.call<any>('catalog.getAudio', params)
+        const { payload: root, id } = await probe('каталог', 'catalog.getAudio')
+        sectionId = id
         diagnostic = root
-        sectionId = subscriptionSection(root)
         const librarySection = root?.catalog?.sections?.find((section: any) => /^(?:моя музыка|my music)$/i.test(String(section?.title ?? '').trim()))
         const librarySectionId = librarySection?.section_id ?? librarySection?.id
         if (!sectionId && typeof librarySectionId === 'string' && librarySectionId) {
-          const library = await this.vk.call<any>('catalog.getSection', { ...params, section_id: librarySectionId })
-          sectionId = subscriptionSection(library)
+          sectionId = (await probe('моя музыка', 'catalog.getSection', { section_id: librarySectionId })).id
         }
         if (!sectionId) {
-          const library = await this.vk.call<any>('catalog.getAudio', { ...params, url: `https://vk.com/audios${this.me()}` })
+          const { payload: library, id } = await probe('каталог библиотеки', 'catalog.getAudio', { url: `https://vk.com/audios${this.me()}` })
+          sectionId = id
           diagnostic = library
-          sectionId = subscriptionSection(library)
           const libraryId = library?.catalog?.default_section
           if (!sectionId && typeof libraryId === 'string') {
-            const home = await this.vk.call<any>('catalog.getSection', { ...params, section_id: libraryId })
-            sectionId = subscriptionSection(home)
+            sectionId = (await probe('главная библиотеки', 'catalog.getSection', { section_id: libraryId })).id
           }
         }
         if (!sectionId) {
-          const index = await this.vk.call<any>('catalog.getAudio', { ...params, need_blocks: 0 })
-          diagnostic = index
-          sectionId = subscriptionSection(index)
+          const index = await probe('оглавление каталога', 'catalog.getAudio', { need_blocks: 0 })
+          diagnostic = index.payload
+          sectionId = index.id
         }
       } catch (error) {
         const code = (error as { code?: unknown })?.code
-        this.log(`подписки ВК: catalog.getAudio завершился ошибкой${typeof code === 'number' ? ` (код ВК ${code})` : ''}`)
+        this.log(`подписки ВК: ${step} завершился ошибкой${typeof code === 'number' ? ` (код ВК ${code})` : ''}`)
         throw error
       }
     }

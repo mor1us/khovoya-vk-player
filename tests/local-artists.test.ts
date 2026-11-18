@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mergeLocalArtists, toggleLocalArtist, type LocalArtist } from '../src/renderer/store/localArtists'
+import { localArtistKey, mergeLocalArtists, toggleLocalArtist, useLocalArtists, type LocalArtist } from '../src/renderer/store/localArtists'
 
 const artist = (source: 'vk' | 'sc', id: string, name = 'Artist'): LocalArtist => ({ source, id, name })
 
@@ -17,7 +17,7 @@ describe('подписки Хвои на артистов', () => {
     expect(list[0]).toMatchObject({ name: 'Новое имя', cover: 'cover.jpg' })
   })
 
-  it('объединяет «Моё» с каталогом ВК и дополняет подписку ID', () => {
+  it('дополняет ранее сохранённую подписку ID из каталога ВК', () => {
     const stored = [artist('vk', '', 'Юпи'), artist('sc', '42', 'Юпи')]
     const imported = [artist('vk', '', 'юпи'), { ...artist('vk', '42', 'Юпи'), cover: 'vk.jpg' }, artist('vk', '43', 'Другой артист')]
     const list = mergeLocalArtists(stored, imported)
@@ -45,5 +45,18 @@ describe('подписки Хвои на артистов', () => {
     const two = toggleLocalArtist([artist('vk', '55', 'Мой артист')], artist('vk', '', 'Мой артист'))
     expect(two.added).toBe(false)
     expect(two.artists).toEqual([])
+  })
+
+  it('удаляет сразу выбранные карточки, сохраняя одноимённых артистов и профили другого сервиса', () => {
+    const selected = [artist('vk', '42'), artist('vk', '', 'Артист без ID')]
+    const keep = [artist('vk', '43'), artist('sc', '42')]
+    const initial = useLocalArtists.getState().artists
+    useLocalArtists.setState({ artists: [...selected, ...keep] })
+    try {
+      const keys = selected.map(localArtistKey)
+      expect(useLocalArtists.getState().removeMany(keys)).toBe(2)
+      expect(useLocalArtists.getState().artists).toEqual(keep)
+      expect(useLocalArtists.getState().removeMany(keys)).toBe(0)
+    } finally { useLocalArtists.setState({ artists: initial }) }
   })
 })

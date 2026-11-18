@@ -49,6 +49,7 @@ type LocalArtists = {
   artists: LocalArtist[]
   toggle(artist: LocalArtist): boolean
   remove(artist: LocalArtist): void
+  removeMany(keys: readonly string[]): number
   import(source: 'vk' | 'sc', artists: ArtistSubscription[]): number
   has(artist: { source: 'vk' | 'sc'; id?: string; name: string }): boolean
 }
@@ -62,9 +63,16 @@ export const useLocalArtists = create<LocalArtists>((set, get) => ({
   },
   remove(artist) {
     const existing = findLocalArtist(get().artists, artist)
-    if (!existing) return
-    const artists = get().artists.filter((item) => localArtistKey(item) !== localArtistKey(existing))
+    if (existing) get().removeMany([localArtistKey(existing)])
+  },
+  removeMany(keys) {
+    const selected = new Set(keys)
+    const current = get().artists
+    const artists = current.filter((item) => !selected.has(localArtistKey(item)))
+    const count = current.length - artists.length
+    if (!count) return 0
     set({ artists }); writeJson(STORAGE_KEY, artists)
+    return count
   },
   import(source, imported) {
     const current = mergeLocalArtists([], get().artists)

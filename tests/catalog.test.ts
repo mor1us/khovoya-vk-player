@@ -1,5 +1,26 @@
 import { describe, it, expect } from 'vitest'
-import { parseCatalog } from '../src/main/vk/catalog'
+import { parseCatalog, subscriptionArtists, subscriptionSection } from '../src/main/vk/catalog'
+
+describe('раздел подписок ВК', () => {
+  it('находит переход во вложенном блоке вкладки «Моя музыка»', () => {
+    expect(subscriptionSection({ catalog: { sections: [{
+      id: 'library', title: 'Моя музыка',
+      blocks: [{ layout: { title: 'Артисты и кураторы' }, actions: [{ title: 'Показать все', action: { type: 'open_section', section_id: 'following' } }] }]
+    }] } })).toBe('following')
+  })
+
+  it('пропускает пустой идентификатор и не считает вкладку обновлений подписками', () => {
+    expect(subscriptionSection({ blocks: [{ layout: { title: 'Подписки' }, section_id: '', action: { section_id: 'following' } }] })).toBe('following')
+    expect(subscriptionSection({ catalog: { sections: [{ id: 'updates', title: 'Обновления' }] }, links: {} })).toBeUndefined()
+  })
+
+  it('пропускает исполнителей, для которых ВК явно указал отсутствие подписки', () => {
+    expect(subscriptionArtists({
+      artists: [{ id: 'a', name: 'ximora', is_following: 1 }, { id: 'b', name: 'Другой', is_followed: '0' }],
+      links: [{ content_type: 'artist', artist_id: 'c', title: 'Рекомендация', is_subscribed: false }]
+    })).toMatchObject([{ id: 'a', name: 'ximora' }])
+  })
+})
 
 const pl = (id: number, owner: number, title: string) => ({ id, owner_id: owner, title, count: 30, access_key: 'k' + id, thumbs: [{ photo_600: 'c' + id }] })
 const sample = {

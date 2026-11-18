@@ -91,6 +91,18 @@ describe('artistTracks', () => {
     expect(calls.every((call) => call.p.v === '8.154')).toBe(true)
   })
 
+  it('не добавляет артистов из общего каталога, если раздел подписок отсутствует', async () => {
+    const { client, calls } = fakeClient(() => ({
+      catalog: { sections: [{ id: 'updates', title: 'Обновления' }] },
+      artists: [{ id: 'new', name: 'Артист из новинок' }]
+    }))
+    const log: string[] = []
+    const api = new VkAudioApi(client as any, () => 7, (message) => log.push(message))
+    await expect(api.artistSubscriptions()).rejects.toThrow('ВК не открыл раздел подписок')
+    expect(calls.every((call) => call.m === 'catalog.getAudio')).toBe(true)
+    expect(log).toContain('подписки ВК: каталог без ссылки на раздел (вкладок 1, блоков 0, действий 0, ссылок 0, артистов 1)')
+  })
+
   it('передаёт версии API ВК, а не номер версии приложения VK Music', async () => {
     const { calls, client } = fakeClient(() => ({ catalog: { sections: [] }, blocks: [], playlists: [] }))
     await new VkAudioApi(client as any, () => 7).forYou()

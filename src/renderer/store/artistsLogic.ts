@@ -24,17 +24,18 @@ export function topArtists(mine: Track[], n: number): MyArtist[] {
   return [...map.values()].sort((a, b) => b.count - a.count).slice(0, n)
 }
 
-export function artistsFromLibrary(mine: Track[]): ArtistSubscription[] {
-  const artists: ArtistSubscription[] = []
-  // При объединении более свежий трек уточняет имя и обложку артиста.
-  for (let i = mine.length - 1; i >= 0; i--) {
-    const track = mine[i]
-    const artist = mainArtist(track)
-    if (!artist) continue
-    const name = artist.name.trim()
-    if (name && name.toLowerCase() !== 'неизвестен') artists.push({ id: artist.id ?? '', name, cover: track.coverUrl })
+export function matchVkArtists(tracks: Track[], query: string): ArtistSubscription[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return []
+  const matches: ArtistSubscription[] = []
+  for (const track of tracks) {
+    const refs = track.artists?.length ? track.artists : track.artist.split(/\s+(?:feat\.?|ft\.?|x|&)\s+|,/i).map((name) => ({ name, id: '' }))
+    for (const ref of refs) {
+      const name = ref.name.trim()
+      if (name.toLowerCase() !== 'неизвестен' && name.toLowerCase().includes(needle)) matches.push({ name, id: ref.id, cover: track.coverUrl })
+    }
   }
-  return artists
+  return matches
 }
 
 export function isFresh(dateSec: number | undefined, now: number): boolean {

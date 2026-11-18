@@ -1,32 +1,50 @@
 import type { ArtistSubscription, ForYouBlock } from '../../shared/types'
+import { mapPlaylist, vkFlag } from './models'
+
+const list = (value: any): any[] => Array.isArray(value) ? value : []
+const sectionsOf = (payload: any) => list(payload?.catalog?.sections)
+const blocksOf = (payload: any) => [
+  ...list(payload?.section?.blocks),
+  ...list(payload?.blocks),
+  ...sectionsOf(payload).flatMap((section) => list(section?.blocks))
+]
 
 /** Идентификатор раздела приходит из каталога текущего аккаунта. */
 export function subscriptionSection(payload: any): string | undefined {
-  const sections = payload?.catalog?.sections ?? []
-  const blocks = payload?.section?.blocks ?? payload?.blocks ?? []
-  const entries = [...sections, ...blocks, ...blocks.flatMap((block: any) => block?.actions ?? []), ...(payload?.links ?? [])]
+  const sections = sectionsOf(payload)
+  const blocks = blocksOf(payload)
+  const entries = [...sections, ...blocks, ...[...sections, ...blocks].flatMap((entry) => list(entry?.actions)), ...list(payload?.links)]
   const titles = /^(?:подписки|мои подписки|артисты и кураторы|мои артисты|подписки на артистов|following|subscriptions)$/i
   for (const entry of entries) {
-    const title = String(entry?.title ?? entry?.layout?.title ?? entry?.text ?? '').trim()
+    const title = String(entry?.title ?? entry?.layout?.title ?? entry?.text ?? entry?.action?.title ?? '').trim()
     if (!titles.test(title)) continue
-    const id = entry.section_id ?? entry.action?.section_id ?? entry.meta?.show_all_info?.section_id ?? entry.default_section
-      ?? entry.actions?.find((a: any) => a?.action?.type === 'open_section')?.section_id ?? (sections.includes(entry) ? entry.id : undefined)
-    if (typeof id === 'string' && id) return id
+    const actions = list(entry.actions).filter((a) => (a?.action?.type ?? a?.type) === 'open_section')
+    const candidates = [entry.section_id, entry.action?.section_id, entry.meta?.show_all_info?.section_id, entry.default_section,
+      ...actions.flatMap((a) => [a.section_id, a.action?.section_id]), sections.includes(entry) ? entry.id : undefined]
+    const id = candidates.find((value) => typeof value === 'string' && value.trim())
+    if (id) return id
   }
+}
+
+export function subscriptionCatalogShape(payload: any): string {
+  const sections = sectionsOf(payload)
+  const blocks = blocksOf(payload)
+  const actions = [...sections, ...blocks].flatMap((entry) => list(entry?.actions))
+  return `вкладок ${sections.length}, блоков ${blocks.length}, действий ${actions.length}, ссылок ${list(payload?.links).length}, артистов ${list(payload?.artists).length}`
 }
 
 export function subscriptionArtists(payload: any): ArtistSubscription[] {
   const artists: ArtistSubscription[] = []
   for (const artist of Array.isArray(payload?.artists) ? payload.artists : []) {
     if (artist?.id == null || typeof artist?.name !== 'string' || !artist.name.trim()) continue
-    if ([false, 0, '0'].includes(artist.is_following)) continue
+    if (vkFlag(artist.is_following ?? artist.is_followed ?? artist.is_subscribed) === false) continue
     const cover = Array.isArray(artist.photo) ? artist.photo.at(-1)?.url : undefined
     artists.push({ id: String(artist.id), name: artist.name.trim(), cover })
   }
   for (const link of Array.isArray(payload?.links) ? payload.links : []) {
     const id = link?.artist_id ?? link?.action?.artist_id
     if (link?.content_type !== 'artist' || id == null || typeof link.title !== 'string' || !link.title.trim()) continue
-    if ([false, 0, '0'].includes(link.is_following)) continue
+    if (vkFlag(link.is_following ?? link.is_followed ?? link.is_subscribed) === false) continue
     artists.push({ id: String(id), name: link.title.trim(), cover: link.images?.at(-1)?.url })
   }
   return artists
@@ -43,7 +61,6 @@ export function artistSubscriptionState(payload: any, artistId: string): boolean
 }
 
 export type { ForYouBlock }
-import { mapPlaylist } from './models'
 
 /** Каталог музыки ВК (catalog.getAudio): берём блоки с плейлистами — «Собрано алгоритмами», плейлисты дня и т.п. */
 export function parseCatalog(resp: any, myId: number): ForYouBlock[] {

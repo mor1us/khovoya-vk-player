@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { artistsFromLibrary, topArtists, isFresh, artistWhy, FRESH_DAYS } from '../src/renderer/store/artistsLogic'
+import { matchVkArtists, topArtists, isFresh, artistWhy, FRESH_DAYS } from '../src/renderer/store/artistsLogic'
 import type { Track } from '../src/shared/types'
 
 const tr = (i: number, artist: string, extra: Partial<Track> = {}): Track => ({ id: 't' + i, ownerId: 1, vkId: i, title: 'T' + i, artist, duration: 100, url: 'u', available: true, coverUrl: 'c' + i, ...extra })
@@ -21,18 +21,20 @@ describe('topArtists', () => {
   it('skips unknown artist', () => { expect(topArtists([tr(1, 'Неизвестен')], 3)).toEqual([]) })
 })
 
-describe('импорт из сохранённых треков', () => {
-  it('собирает основных исполнителей без лимита главной', () => {
-    const mine = Array.from({ length: 12 }, (_, i) => tr(i, 'Артист ' + i + ' feat. Гость'))
-    mine.push(tr(12, 'Неизвестен'))
-    const artists = artistsFromLibrary(mine)
-    expect(artists).toHaveLength(12)
-    expect(artists).toContainEqual({ id: '', name: 'Артист 0', cover: 'c0' })
-  })
-
-  it('использует структурированного исполнителя и ID профиля, если их вернул ВК', () => {
-    const mine = [tr(1, 'Подпись трека', { artists: [{ id: 'a1', name: 'Исполнитель' }] })]
-    expect(artistsFromLibrary(mine)).toEqual([{ id: 'a1', name: 'Исполнитель', cover: 'c1' }])
+describe('поиск исполнителей ВК', () => {
+  it('ищет по имени исполнителя и сохраняет ID одноимённых профилей', () => {
+    const tracks = [
+      tr(1, 'Подпись', { artists: [{ id: 'a1', name: 'Артист' }, { id: 'b1', name: 'Гость' }] }),
+      tr(2, 'Артист', { artists: [{ id: 'a2', name: 'Артист' }] }),
+      tr(3, 'Другой', { title: 'Артист' }),
+      tr(4, 'Другой feat. Артист')
+    ]
+    expect(matchVkArtists(tracks, ' АРТИСТ ')).toEqual([
+      { id: 'a1', name: 'Артист', cover: 'c1' },
+      { id: 'a2', name: 'Артист', cover: 'c2' },
+      { id: '', name: 'Артист', cover: 'c4' }
+    ])
+    expect(matchVkArtists(tracks, '  ')).toEqual([])
   })
 })
 
