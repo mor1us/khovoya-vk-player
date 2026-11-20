@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ArtistSubscription } from '../../shared/types'
+import type { ArtistRef, ArtistSubscription } from '../../shared/types'
 
 export type ArtistService = 'vk' | 'sc'
 type AccountList = {
@@ -13,15 +13,34 @@ type Subscriptions = {
   vk: AccountList | null
   sc: AccountList | null
   load(source: ArtistService, account: number, force?: boolean): Promise<ArtistSubscription[] | null>
+  confirmFollow(source: ArtistService, account: number, artist: ArtistSubscription, followed: boolean): void
 }
 
 const pending: Partial<Record<ArtistService, { account: number; request: Promise<ArtistSubscription[] | null> }>> = {}
 const CACHE_MS = 60_000
 
+export function sameSubscription(a: ArtistRef & { link?: string }, b: ArtistRef & { link?: string }): boolean {
+  if (a.id && b.id) return a.id === b.id
+  if (!a.link || !b.link) return false
+  try {
+    const path = (value: string) => new URL(value).pathname.replace(/\/$/, '')
+    return path(a.link) === path(b.link)
+  } catch { return false }
+}
+
 // Список живёт только в памяти и принадлежит конкретному аккаунту.
 export const useArtistSubscriptions = create<Subscriptions>((set, get) => ({
   vk: null,
   sc: null,
+  confirmFollow(source, account, artist, followed) {
+    const current = get()[source]
+    if (current?.account !== account || !current.artists) return
+    const previous = current.artists.find((item) => sameSubscription(item, artist))
+    const artists = followed ? (previous ? current.artists : [artist, ...current.artists])
+      : current.artists.filter((item) => !sameSubscription(item, artist))
+    if (pending[source]?.account === account) delete pending[source]
+    set({ [source]: { ...current, artists, status: 'ready', updatedAt: 0 } })
+  },
   load(source, account, force) {
     const running = pending[source]
     if (running?.account === account && !force) return running.request

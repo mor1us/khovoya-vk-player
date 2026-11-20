@@ -9,6 +9,13 @@ const blocksOf = (payload: any) => [
   ...sectionsOf(payload).flatMap((section) => list(section?.blocks))
 ]
 
+export function artistPopularTracks(payload: unknown): string[] {
+  const ids = blocksOf(payload).filter((block) => /^(популярное|популярные треки)$/i.test(String(block?.layout?.title ?? block?.title ?? '').trim()))
+    .flatMap((block) => list(block?.audios_ids).map((id) => String(id).split('_').slice(0, 2).join('_')))
+    .filter((id) => /^-?\d+_\d+$/.test(id))
+  return [...new Set(ids)]
+}
+
 /** Идентификатор раздела приходит из каталога текущего аккаунта. */
 export function subscriptionSection(payload: any): string | undefined {
   const sections = sectionsOf(payload)

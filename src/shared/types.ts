@@ -9,6 +9,8 @@ export type Track = {
   url: string
   coverUrl?: string
   addedAt?: number
+  /** Число прослушиваний в сервисе, когда оно есть в ответе каталога. */
+  plays?: number
   available: boolean
   /** Основные исполнители из ВК (main_artists), если есть. */
   artists?: { id: string; name: string; followed?: boolean }[]
@@ -100,7 +102,7 @@ export type DiscordUpdate = { track: Track | null; playing: boolean; position: n
 export type ArtistRef = { id?: string; name: string }
 export type ArtistSubscription = { id: string; name: string; cover?: string; link?: string }
 /** Что известно об исполнителе сверх его треков. can — можно ли тут вообще подписаться (на телефоне SoundCloud нельзя). */
-export type ArtistInfo = { id?: string; missing?: boolean; followed: boolean; statusUnknown?: boolean; cover?: string; can: boolean; followers?: number; link?: string }
+export type ArtistInfo = { id?: string; missing?: boolean; followed: boolean; statusUnknown?: boolean; cover?: string; can: boolean; followers?: number; link?: string; popularTrackIds?: string[] }
 
 /** SoundCloud: всё, что ходит между окном и главным процессом. */
 export type ScMe = { id: number; name: string; avatar?: string }

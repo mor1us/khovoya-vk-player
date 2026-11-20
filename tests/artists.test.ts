@@ -1,8 +1,25 @@
 import { describe, it, expect } from 'vitest'
-import { matchVkArtists, topArtists, isFresh, artistWhy, FRESH_DAYS } from '../src/renderer/store/artistsLogic'
+import { matchVkArtists, topArtists, isFresh, artistWhy, sortArtistTracks, FRESH_DAYS } from '../src/renderer/store/artistsLogic'
 import type { Track } from '../src/shared/types'
 
 const tr = (i: number, artist: string, extra: Partial<Track> = {}): Track => ({ id: 't' + i, ownerId: 1, vkId: i, title: 'T' + i, artist, duration: 100, url: 'u', available: true, coverUrl: 'c' + i, ...extra })
+
+describe('сортировка треков артиста', () => {
+  it('сортирует в обе стороны, отличает ноль от отсутствующих данных и сохраняет исходную выдачу', () => {
+    const tracks = [tr(1, 'A'), tr(2, 'A', { plays: 0, addedAt: 40 }), tr(3, 'A', { plays: 18, addedAt: 10 })]
+    const ids = (order: Parameters<typeof sortArtistTracks>[1]) => sortArtistTracks(tracks, order).map((t) => t.id)
+    expect(ids('mostPlayed')).toEqual(['t3', 't2', 't1'])
+    expect(ids('leastPlayed')).toEqual(['t2', 't3', 't1'])
+    expect(ids('new')).toEqual(['t2', 't3', 't1'])
+    expect(ids('old')).toEqual(['t3', 't2', 't1'])
+    expect(tracks.map((t) => t.id)).toEqual(['t1', 't2', 't3'])
+  })
+
+  it('использует порядок «Популярное» ВК для треков с известным местом', () => {
+    const tracks = [tr(1, 'A'), tr(2, 'A'), tr(3, 'A')]
+    expect(sortArtistTracks(tracks, 'leastPlayed', ['t2', 't3']).map((t) => t.id)).toEqual(['t3', 't2', 't1'])
+  })
+})
 
 describe('topArtists', () => {
   it('ranks by number of tracks, keeps id and a cover from the newest track', () => {

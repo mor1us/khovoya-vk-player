@@ -11,6 +11,7 @@ import { join } from 'path'
 import { VkClient, VK_UA } from './vk/client'
 import { VkAudioApi, type AudioApi } from './vk/audio'
 import { vkArtistWindow, vkWebSubscriptions } from './vk/webArtists'
+import { profileFollow } from './auth/profileFollow'
 import { MockAudioApi } from './vk/mock'
 import { startMockMedia } from './vk/mockServer'
 import { fetchWebToken, loginWindow, logoutVk, userInfo, log } from './auth/webSession'
@@ -22,7 +23,7 @@ import { bootSafely } from './system/boot'
 import { jsonFile } from './system/jsonFile'
 import { SoundCloud, SC_DOWN, SC_NEED_KEY, ScUnavailable, type Fetch } from './sc/soundcloud'
 import { scLoginWindow, scLogout, scProfileWindow, scToken, scWrite } from './sc/scAuth'
-import type { Session } from '../shared/types'
+import type { ArtistRef, Session } from '../shared/types'
 
 const MOCK = process.env.VK_MOCK === '1'
 let win: BrowserWindow | null = null
@@ -197,6 +198,39 @@ async function setup() {
     return mockScUser ? scSearch('Пустой') : []
   })
   handle('vk:openArtistProfile', (url: string) => vkArtistWindow(win, url))
+  const writingArtists = new Set<'vk' | 'sc'>()
+  const mockArtistFollows = new Set<string>()
+  handle('artists:follow', async (source: 'vk' | 'sc', account: number, artist: ArtistRef & { link?: string }, on?: boolean) => {
+    if ((source !== 'vk' && source !== 'sc') || !Number.isSafeInteger(account) || account <= 0 || (on !== undefined && typeof on !== 'boolean')) throw new Error('Не удалось выбрать аккаунт подписки')
+    const assertAccount = async () => {
+      const current = source === 'sc' ? (MOCK ? mockMe()?.id : (await sc.me(true))?.id) : MOCK ? (mockLoggedIn ? 1 : 0) : keeper.userId()
+      if (current !== account) throw new Error('Аккаунт изменился. Открой страницу артиста заново')
+    }
+    if (on !== undefined && writingArtists.has(source)) throw new Error('Другая подписка ещё меняется')
+    if (on !== undefined) writingArtists.add(source)
+    try {
+      await assertAccount()
+      if (MOCK) {
+        const key = source + ':' + (artist.id || artist.name)
+        if (on === true) mockArtistFollows.add(key)
+        if (on === false) mockArtistFollows.delete(key)
+        return mockArtistFollows.has(key)
+      }
+      if (artist.link) return await profileFollow(source, artist.link, on, assertAccount)
+      const read = () => source === 'sc' ? sc.artistInfo(artist.name, artist.id) : api.artistInfo(artist)
+      const before = await read()
+      if (!before.can || before.statusUnknown || before.missing) throw new Error('Сервис не показал состояние подписки')
+      if (on === undefined || on === before.followed) return before.followed
+      await assertAccount()
+      if (source === 'sc') await sc.followArtist(artist.name, on, before.id ?? artist.id)
+      else await api.followArtist({ ...artist, id: before.id ?? artist.id }, on)
+      const after = await read()
+      if (!after.can || after.statusUnknown || after.followed !== on) throw new Error('Сервис не подтвердил изменение подписки')
+      return after.followed
+    } finally {
+      if (on !== undefined) writingArtists.delete(source)
+    }
+  })
   let vkSubscriptionsRequest: { userId: number; list: ReturnType<typeof vkWebSubscriptions> } | undefined
   handle('artists:subscriptions', (source: 'vk' | 'sc') => {
     if (source === 'sc') return MOCK ? (mockScUser ? [] : null) : sc.artistSubscriptions()

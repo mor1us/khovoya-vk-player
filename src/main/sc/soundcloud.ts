@@ -61,6 +61,7 @@ export function mapScTrack(r: any): Track | null {
     url: '',
     coverUrl: artwork(r),
     addedAt: r.created_at ? Math.floor(Date.parse(r.created_at) / 1000) || undefined : undefined,
+    ...(Number.isSafeInteger(r.playback_count) && r.playback_count >= 0 ? { plays: r.playback_count } : {}),
     available: !blocked && !!tr,
     src: 'sc',
     scAuth: r.track_authorization,
@@ -423,8 +424,11 @@ export class SoundCloud {
     const me = await this.me()
     if (!me) return { id: String(u.id), followed: false, cover: u.avatar, can: false, followers: u.followers, link: u.link }
     // Адрес проверки одной подписки на API сайта возвращает 404 даже для подписанного аккаунта.
-    const page = await this.api(`/users/${me.id}/followings/ids`, { limit: 5000 }, false, 'GET', true)
-    if (!Array.isArray(page?.collection)) throw new Error('SoundCloud не вернул список подписок')
+    const page = await this.api(`/users/${me.id}/followings/ids`, { limit: 5000 }, false, 'GET', true).catch(() => {
+      this.log('soundcloud: не удалось прочитать состояние подписки артиста')
+      return null
+    })
+    if (!Array.isArray(page?.collection)) return { id: String(u.id), followed: false, statusUnknown: true, cover: u.avatar, can: true, followers: u.followers, link: u.link }
     let followed = page.collection.some((id: unknown) => String(id) === String(u.id))
     let statusUnknown = !followed && (!!page.next_href || page.collection.length >= 5000)
     if (statusUnknown) {

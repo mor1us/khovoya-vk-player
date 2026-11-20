@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { parseCatalog, subscriptionArtists, subscriptionSection } from '../src/main/vk/catalog'
+import { artistPopularTracks, parseCatalog, subscriptionArtists, subscriptionSection } from '../src/main/vk/catalog'
+
+it('берёт порядок треков из раздела «Популярное» артиста', () => {
+  expect(artistPopularTracks({ section: { blocks: [
+    { layout: { title: 'Популярное' }, audios_ids: ['-9_5_key', '10_2', '10_2'] },
+    { layout: { title: 'Все треки' }, audios_ids: ['10_3'] }
+  ] } })).toEqual(['-9_5', '10_2'])
+})
 
 describe('раздел подписок ВК', () => {
   it('находит переход во вложенном блоке вкладки «Моя музыка»', () => {

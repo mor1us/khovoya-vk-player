@@ -5,11 +5,11 @@ import { useLibrary } from '../store/library'
 import { player } from '../store/playerInstance'
 import { TrackRow, SrcBadge } from '../ui/TrackRow'
 import { Cover } from '../ui/Cover'
-import { artistWhy } from '../store/artistsLogic'
+import { artistWhy, sortArtistTracks, type ArtistTrackOrder } from '../store/artistsLogic'
 import * as I from '../ui/icons'
 import { artistSource } from '../ui/source'
 import { useLocalArtists } from '../store/localArtists'
-import { useArtistSubscriptions } from '../store/artistSubscriptions'
+import { sameSubscription, useArtistSubscriptions } from '../store/artistSubscriptions'
 import { useSc } from '../store/sc'
 import { isPhone } from '../ui/layout'
 
@@ -32,12 +32,15 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
   const vkAccount = useUi((s) => s.session?.userId)
   const scAccount = useSc((s) => s.me?.id)
   const account = sc ? scAccount : vkAccount
+  const accountSubscriptions = useArtistSubscriptions((s) => s[service])
   const [list, setList] = useState<Track[] | null>(null)
   const [info, setInfo] = useState<ArtistInfo>(NO_INFO)
   const [infoFailed, setInfoFailed] = useState(false)
   const [failed, setFailed] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
+  const [checked, setChecked] = useState<{ account: number; followed: boolean | null }>()
+  const [checkAttempt, setCheckAttempt] = useState(0)
+  const [order, setOrder] = useState<ArtistTrackOrder>('new')
   const [moreBusy, setMoreBusy] = useState(false)
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(false)
@@ -70,24 +73,24 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
 
 
   const own = new Set(mine.map((t) => t.id))
-  const can = list?.filter((t) => t.available) ?? []
+  const sorted = phone ? list ?? [] : sortArtistTracks(list ?? [], order, info.popularTrackIds)
+  const can = sorted.filter((t) => t.available)
+  const hasPopularity = list?.some((t) => t.plays !== undefined || info.popularTrackIds?.includes(t.id)) ?? false
   const source = artistSource({ ...a, id: info.id ?? a.id })
   const profileLink = info.link ?? a.link
-  const refreshSubscriptions = () => {
-    if (!phone && account) void useArtistSubscriptions.getState().load(service, account, true).catch(() => {})
-    if (useUi.getState().artist === a && useUi.getState().tab === 'artist') refresh()
-  }
-  const openProfile = async () => {
-    if (!profileLink || profileOpen) return
-    setProfileOpen(true)
-    try {
-      if (phone && !sc) window.open(profileLink, '_blank')
-      else if (sc) await window.api.invoke('scacc:openArtistProfile', profileLink)
-      else await window.api.invoke('vk:openArtistProfile', profileLink)
-      refreshSubscriptions()
-    } catch (e) { useUi.getState().toast((e as Error).message) }
-    finally { setProfileOpen(false) }
-  }
+  const artistId = info.id ?? a.id
+  const listed = accountSubscriptions?.account === account && accountSubscriptions?.artists?.some((item) => sameSubscription(item, { id: artistId, name: a.name, link: profileLink }))
+  const known = listed ? true : info.can && !info.missing && !info.statusUnknown ? info.followed : undefined
+  const checkedStatus = checked?.account === account ? checked?.followed : undefined
+  const followed = checkedStatus ?? known
+  useEffect(() => {
+    if (phone || !account || !profileLink || known !== undefined) return
+    let active = true
+    window.api.invoke('artists:follow', service, account, { id: artistId, name: a.name, link: profileLink })
+      .then((state) => { if (active) setChecked({ account, followed: state }) })
+      .catch(() => { if (active) setChecked({ account, followed: null }) })
+    return () => { active = false }
+  }, [phone, account, profileLink, known, service, artistId, a.name, checkAttempt])
   const play = (id: string) => void player.getState().playList(can, id, source)
   const loadMore = async () => {
     if (moreBusy || !list || !hasMore) return
@@ -118,14 +121,21 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
         const added = useLocalArtists.getState().toggle({ id: info.id ?? a.id ?? '', name: a.name, cover: info.cover ?? a.cover, link: profileLink, source: service })
         useUi.getState().toast(added ? `Добавлен в подписки Хвои: ${a.name}` : `Удалён из подписок Хвои: ${a.name}`)
       } else {
-        await window.api.invoke('vk:artistFollow', { id: info.id, name: a.name }, !info.followed)
-        refreshSubscriptions()
+        if (!account || followed === undefined) return
+        const artist = { id: artistId ?? '', name: a.name, link: profileLink, cover: info.cover ?? a.cover }
+        const confirmed = await window.api.invoke('artists:follow', service, account, artist, !followed)
+        if (confirmed !== !followed) throw new Error('Сервис не подтвердил изменение подписки')
+        setChecked({ account, followed: confirmed })
+        const subscriptions = useArtistSubscriptions.getState()
+        subscriptions.confirmFollow(service, account, artist, confirmed)
+        void subscriptions.load(service, account, true).catch(() => {})
       }
-    } catch {
-      useUi.getState().toast('ВК не подтвердил изменение подписки. Попробуй через страницу исполнителя в ВК.')
+    } catch (error) {
+      useUi.getState().toast((error as Error).message || 'Сервис не подтвердил изменение подписки')
     } finally { setBusy(false) }
   }
-  const directVk = !phone && !sc && !profileLink && !!info.id && info.can && !info.statusUnknown
+  const canFollow = phone ? (!info.missing || !!profileLink) : !!account && followed !== undefined
+  const isFollowed = phone ? localFollowed : followed === true
 
   return (
     <div className="page artist-page">
@@ -144,17 +154,37 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
           <div className="artist-actions">
             {info.missing && <button className="btn-s" onClick={searchArtist}>Искать треки</button>}
             {!!can.length && <button className="btn-s g" onClick={() => play(can[0].id)}><I.IPlay size={14} />Слушать</button>}
-            {((phone && (!info.missing || profileLink)) || directVk) && <button className={'btn-s' + (sc ? ' sco' : '')} disabled={busy} onClick={() => void follow()}>
-              <I.IHeart size={14} on={phone ? localFollowed : info.followed} />{busy ? 'Сохраняю…' : phone ? (localFollowed ? 'Отписаться в Хвое' : 'Подписаться в Хвое') : (info.followed ? 'Отписаться в ВК' : 'Подписаться в ВК')}
+            {canFollow && <button className={'btn-s' + (sc ? ' sco' : '')} disabled={busy} onClick={() => void follow()}>
+              <I.IHeart size={14} on={isFollowed} />{busy ? 'Сохраняю…' : (isFollowed ? 'Отписаться' : 'Подписаться') + (phone ? ' в Хвое' : '')}
             </button>}
-            {profileLink && <button className="btn-s" disabled={profileOpen} onClick={() => void openProfile()}><I.IExternal size={14} />{phone ? (sc ? 'Открыть профиль' : 'Открыть в ВК') : `Подписка в ${sc ? 'SoundCloud' : 'ВК'}`}</button>}
+            {!phone && account && profileLink && followed === undefined && <button className="btn-s" disabled={checkedStatus !== null} onClick={() => {
+              setChecked(undefined)
+              setCheckAttempt((value) => value + 1)
+            }}>{checkedStatus === null ? 'Проверить подписку' : 'Проверяю подписку…'}</button>}
+            {!phone && !account && sc && <button className="btn-s sco" onClick={() => useUi.getState().go('soundcloud')}>Войти в SoundCloud</button>}
+            {phone && profileLink && <button className="btn-s" onClick={() => {
+              if (sc) void window.api.invoke('scacc:openArtistProfile', profileLink).catch((error) => useUi.getState().toast(error.message))
+              else window.open(profileLink, '_blank')
+            }}><I.IExternal size={14} />{sc ? 'Открыть профиль' : 'Открыть в ВК'}</button>}
             <button className="btn-s" title="Загрузить заново" onClick={refresh} disabled={list === null || busy}><I.IRefresh size={14} />Обновить</button>
           </div>
         </div>
       </div>
       {list === null && <div className="rows">{Array.from({ length: 8 }, (_, i) => <div key={i} className="skeleton" style={{ height: 52, marginBottom: 6 }} />)}</div>}
       {list?.length === 0 && <div className="empty-state">{failed ? (sc ? 'SoundCloud не ответил. Попробуй ещё раз чуть позже' : 'ВК не ответил. Попробуй ещё раз чуть позже') : `У ${a.name} тут ничего не нашлось`}</div>}
-      {!!list?.length && <div className="rows">{list.map((t, i) => <TrackRow key={t.id} track={t} why={artistWhy(t, own, now)} index={i} onPlay={() => play(t.id)} />)}</div>}
+      {!!list?.length && <>
+        {!phone && <div className="ph">
+          <h3>Треки</h3><span className="sp" />
+          <select className="filter" aria-label="Порядок треков" value={order} onChange={(event) => setOrder(event.target.value as ArtistTrackOrder)}>
+            <option value="new">Сначала новые</option>
+            <option value="old">Сначала старые</option>
+            <option value="mostPlayed" disabled={!hasPopularity}>Сначала популярные</option>
+            <option value="leastPlayed" disabled={!hasPopularity}>Сначала менее популярные</option>
+          </select>
+          {!hasPopularity && <span className="artist-muted">Сервис не передал данные о популярности</span>}
+        </div>}
+        <div className="rows">{sorted.map((t, i) => <TrackRow key={t.id} track={t} why={artistWhy(t, own, now)} index={i} onPlay={() => play(t.id)} />)}</div>
+      </>}
       {hasMore && (!sc || a.id || info.id) && <button className="btn-s" disabled={moreBusy} onClick={() => void loadMore()}>{moreBusy ? 'Загружаю…' : 'Показать ещё'}</button>}
     </div>
   )

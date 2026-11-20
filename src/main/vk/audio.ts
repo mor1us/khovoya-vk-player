@@ -1,7 +1,7 @@
 import type { Track, Playlist, ArtistRef, ArtistInfo } from '../../shared/types'
 import { mapTrack, mapPlaylist, vkFlag } from './models'
 import { vkArtistProfile } from './webArtistsLogic'
-import { artistSubscriptionState, catalogSummary, parseCatalog, subscriptionArtists, subscriptionCatalogShape, subscriptionSection, type ForYouBlock } from './catalog'
+import { artistPopularTracks, artistSubscriptionState, catalogSummary, parseCatalog, subscriptionArtists, subscriptionCatalogShape, subscriptionSection, type ForYouBlock } from './catalog'
 
 type Caller = { call<T = any>(method: string, params: Record<string, string | number | undefined>): Promise<T> }
 
@@ -184,14 +184,16 @@ export class VkAudioApi implements AudioApi {
     const best = photo.length ? photo[photo.length - 1]?.url : undefined
     const profileLink = [r?.artist?.url, r?.artist?.link, r?.url]
       .flatMap((url) => typeof url === 'string' ? vkArtistProfile(url) ?? [] : [])[0]
-    const profile = profileLink ? { link: profileLink } : {}
+    let popularTrackIds = artistPopularTracks(r)
     const canFollow = vkFlag(r?.artist?.can_follow ?? r?.can_follow) ?? true
     let followed = artistSubscriptionState(r, id)
     const section = r?.catalog?.default_section
-    if (followed === undefined && typeof section === 'string' && section) {
+    if ((followed === undefined || !popularTrackIds.length) && typeof section === 'string' && section) {
       const page = await this.musicCall<any>('catalog.getSection', { section_id: section, need_blocks: 1, extended: 1 }).catch(() => null)
-      followed = artistSubscriptionState(page, id)
+      followed ??= artistSubscriptionState(page, id)
+      if (!popularTrackIds.length) popularTrackIds = artistPopularTracks(page)
     }
+    const profile = { ...(profileLink && { link: profileLink }), ...(popularTrackIds.length > 0 && { popularTrackIds }) }
     if (followed === undefined) {
       const subscription = await this.artistSubscriptions(false).then((list) => list.find((artist) => artist.id === id)).catch(() => undefined)
       if (subscription) return { id, followed: true, cover: subscription.cover ?? best, can: canFollow, ...profile }

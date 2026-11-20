@@ -20,6 +20,7 @@ export function mapTrack(r: any): Track {
     url: r.url ?? '',
     coverUrl: best(r.album?.thumb),
     addedAt: r.date,
+    ...(Number.isSafeInteger(r.play_count) && r.play_count >= 0 ? { plays: r.play_count } : {}),
     // Список может не отдать ссылку. В таком случае получим её отдельно при запуске.
     available: !r.content_restricted,
     ...(r.album?.id && r.album?.owner_id ? { album: { id: Number(r.album.id), ownerId: Number(r.album.owner_id), accessKey: r.album.access_key, title: String(r.album.title ?? 'Альбом') } } : {}),

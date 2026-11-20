@@ -1,6 +1,21 @@
 import type { ArtistSubscription, Track } from '../../shared/types'
 
 export const FRESH_DAYS = 14
+export type ArtistTrackOrder = 'new' | 'old' | 'mostPlayed' | 'leastPlayed'
+
+export function sortArtistTracks(tracks: Track[], order: ArtistTrackOrder, popularTrackIds?: string[]): Track[] {
+  const byDate = order === 'new' || order === 'old'
+  const direction = order === 'new' || order === 'mostPlayed' ? -1 : 1
+  const counts = !byDate && tracks.some((t) => t.plays !== undefined)
+  const popularity = new Map(popularTrackIds?.map((id, index) => [id, -index]))
+  const value = (track: Track) => byDate ? track.addedAt : counts ? track.plays : popularity.get(track.id)
+  return [...tracks].sort((a, b) => {
+    const left = value(a)
+    const right = value(b)
+    if (left === undefined || right === undefined) return Number(left === undefined) - Number(right === undefined)
+    return direction * (left - right)
+  })
+}
 export type MyArtist = { key: string; name: string; id?: string; count: number; cover?: string }
 
 /** Главный исполнитель трека: из main_artists ВК или первое имя до «feat.», «,», «&». */
