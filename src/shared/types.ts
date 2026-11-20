@@ -9,6 +9,8 @@ export type Track = {
   url: string
   coverUrl?: string
   addedAt?: number
+  releaseDate?: string
+  isrc?: string
   /** Число прослушиваний в сервисе, когда оно есть в ответе каталога. */
   plays?: number
   available: boolean
@@ -101,6 +103,8 @@ export type DiscordUpdate = { track: Track | null; playing: boolean; position: n
 
 export type ArtistRef = { id?: string; name: string }
 export type ArtistSubscription = { id: string; name: string; cover?: string; link?: string }
+export type ArtistTrackMetadata = { releaseDate?: string; releaseSource?: 'musicbrainz' | 'itunes'; listeners?: number; listens?: number }
+export type ArtistTrackLookup = Pick<Track, 'id' | 'title' | 'artist' | 'duration' | 'isrc' | 'releaseDate'>
 /** Что известно об исполнителе сверх его треков. can — можно ли тут вообще подписаться (на телефоне SoundCloud нельзя). */
 export type ArtistInfo = { id?: string; missing?: boolean; followed: boolean; statusUnknown?: boolean; cover?: string; can: boolean; followers?: number; link?: string; popularTrackIds?: string[] }
 

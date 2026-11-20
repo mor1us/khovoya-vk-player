@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { parseVkArtistCards, visibleArtists, vkArtistProfile, vkArtistsPage } from '../src/main/vk/webArtistsLogic'
+import { parseVkArtistCards, visibleArtists, vkArtistProfile, vkArtistsPage, vkArtistsRoute } from '../src/main/vk/webArtistsLogic'
 
 describe('страница «Музыканты» ВК', () => {
   it('запрашивает полный список для текущего аккаунта', () => {
     expect(vkArtistsPage(42).href).toBe('https://vk.ru/audios42?block=my_artists&section=all')
     expect(() => vkArtistsPage(0)).toThrow('Войди в ВК')
+  })
+
+  it('отличает список своего аккаунта от входа, проверки и других страниц', () => {
+    const page = vkArtistsPage(42)
+    expect(vkArtistsRoute('https://vk.com/audios42?section=all&block=my_artists', page)).toBe('list')
+    expect(vkArtistsRoute('https://vk.ru/challenge.html', page)).toBe('verification')
+    expect(vkArtistsRoute('https://id.vk.com/auth', page)).toBe('login')
+    expect(vkArtistsRoute('https://vk.ru/audios43?block=my_artists&section=all', page)).toBe('other')
   })
 
   it('сохраняет ссылки на карточки артистов и объединяет дубли', () => {

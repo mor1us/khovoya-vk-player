@@ -1,4 +1,5 @@
 import type { Track, Playlist } from '../../shared/types'
+import { normalizeIsrc, releaseDateOf } from '../../shared/trackMetadata'
 
 type Thumb = { photo_300?: string; photo_600?: string; photo_1200?: string; photo_270?: string; photo_135?: string }
 const best = (t?: Thumb) => t && (t.photo_600 ?? t.photo_1200 ?? t.photo_300 ?? t.photo_270 ?? t.photo_135)
@@ -20,6 +21,8 @@ export function mapTrack(r: any): Track {
     url: r.url ?? '',
     coverUrl: best(r.album?.thumb),
     addedAt: r.date,
+    releaseDate: releaseDateOf(r.release_date),
+    isrc: normalizeIsrc(r.isrc),
     ...(Number.isSafeInteger(r.play_count) && r.play_count >= 0 ? { plays: r.play_count } : {}),
     // Список может не отдать ссылку. В таком случае получим её отдельно при запуске.
     available: !r.content_restricted,

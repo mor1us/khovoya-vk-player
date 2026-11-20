@@ -1,5 +1,5 @@
 import type {
-  ArtistInfo, ArtistRef, ArtistSubscription, DiscordUpdate, DownloadJob, ForYouBlock, LocalPl, LoginStep, Playlist, ScArtist, ScComment,
+  ArtistInfo, ArtistRef, ArtistSubscription, ArtistTrackLookup, ArtistTrackMetadata, DiscordUpdate, DownloadJob, ForYouBlock, LocalPl, LoginStep, Playlist, ScArtist, ScComment,
   ScMe, ScPlaylistRef, ScResolved, ScStatus, Session, Settings, Track, WaveProfile
 } from './types'
 import type { UpdateState } from './updates'
@@ -29,6 +29,7 @@ export type IpcMap = {
   'vk:artistFollow': (a: ArtistRef, on: boolean) => void
   'vk:openArtistProfile': (url: string) => void
   'artists:subscriptions': (source: 'vk' | 'sc') => ArtistSubscription[] | null
+  'artists:trackMetadata': (artist: string, tracks: ArtistTrackLookup[]) => Record<string, ArtistTrackMetadata>
   'artists:follow': (source: 'vk' | 'sc', account: number, artist: ArtistRef & { link?: string }, on?: boolean) => boolean | null
   'vk:byId': (ids: string[]) => Track[]
   'vk:add': (t: Track) => void
@@ -115,6 +116,7 @@ export type IpcResult<C extends Channel> = Awaited<ReturnType<IpcMap[C]>>
 export const IPC = {
   'scacc:openArtistProfile': true,
   'artists:subscriptions': true,
+  'artists:trackMetadata': true,
   'artists:follow': true,
   'vk:openArtistProfile': true,
   'auth:browser': true, 'auth:logout': true, 'auth:session': true,

@@ -17,6 +17,7 @@ export type RowProps = {
   track: Track
   index?: number
   why?: string
+  details?: string
   selected?: boolean
   compact?: boolean
   /** Показать значок источника (ВК / SoundCloud) — в поиске. */
@@ -93,6 +94,7 @@ export function TrackRow(p: RowProps) {
         <button key={pop} className={'ic heart' + (isLiked ? ' on' : ' hov') + (pop ? ' pop' : '')} title={isLiked ? (t.src === 'sc' ? 'Убрать из лайков SoundCloud' : 'Убрать из «Моё»') : (t.src === 'sc' ? 'Нравится — в лайки SoundCloud' : 'Нравится — в «Моё»')} onClick={like}><I.IHeart size={15} on={isLiked} /></button>
         <button className="ic" title="Играть" disabled={!t.available} onClick={(e) => { e.stopPropagation(); if (e.detail <= 1) p.onPlay() }}><I.IPlay size={14} /></button>
         <button className={'ic' + (done ? ' dl' : '')} title={done ? 'Скачан' : 'Скачать'} onClick={(e) => { e.stopPropagation(); if (!done) void useDownloads.getState().start([t]) }}>{done ? <I.ICheck size={16} /> : <I.IDown size={16} />}</button>
+        {p.details && <button type="button" className="ic track-details" title={p.details} aria-label={p.details.replaceAll('\n', ', ')} onClick={(e) => e.stopPropagation()}><I.IHelp size={16} /></button>}
       </div>}
       <span className="d">{fmtTime(t.duration)}</span>
       <button className="ic" title="Ещё" onClick={(e) => openTrackMenu(e, [t], p.ctxPlaylist)}><I.IMore size={16} /></button>

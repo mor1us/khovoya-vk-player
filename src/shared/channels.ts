@@ -22,6 +22,7 @@ export function registerCore(c: CoreCtx, handle: Handle) {
   handle('scacc:openArtistProfile', () => undefined)
   handle('vk:openArtistProfile', () => undefined)
   handle('artists:subscriptions', () => null)
+  handle('artists:trackMetadata', () => ({}))
   handle('artists:follow', () => null)
   handle('auth:logout', () => c.logout())
   handle('auth:session', () => c.session())

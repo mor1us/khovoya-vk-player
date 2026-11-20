@@ -1,5 +1,6 @@
 import type { ArtistSubscription, ScArtist, ScComment, ScMe, ScPlaylistRef, ScResolved, ScStatus, Track } from '../../shared/types'
 import { uniqueBy } from '../../shared/list'
+import { normalizeIsrc, releaseDateOf } from '../../shared/trackMetadata'
 
 export type { ScArtist, ScComment, ScMe, ScPlaylistRef, ScResolved, ScStatus }
 
@@ -61,6 +62,8 @@ export function mapScTrack(r: any): Track | null {
     url: '',
     coverUrl: artwork(r),
     addedAt: r.created_at ? Math.floor(Date.parse(r.created_at) / 1000) || undefined : undefined,
+    releaseDate: releaseDateOf(r.release_date),
+    isrc: normalizeIsrc(r.publisher_metadata?.isrc),
     ...(Number.isSafeInteger(r.playback_count) && r.playback_count >= 0 ? { plays: r.playback_count } : {}),
     available: !blocked && !!tr,
     src: 'sc',

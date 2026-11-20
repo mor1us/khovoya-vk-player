@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { matchVkArtists, topArtists, isFresh, artistWhy, sortArtistTracks, FRESH_DAYS } from '../src/renderer/store/artistsLogic'
+import { matchVkArtists, topArtists, isFresh, artistTrackDetails, artistWhy, sortArtistTracks, FRESH_DAYS } from '../src/renderer/store/artistsLogic'
 import type { Track } from '../src/shared/types'
 
 const tr = (i: number, artist: string, extra: Partial<Track> = {}): Track => ({ id: 't' + i, ownerId: 1, vkId: i, title: 'T' + i, artist, duration: 100, url: 'u', available: true, coverUrl: 'c' + i, ...extra })
 
 describe('сортировка треков артиста', () => {
   it('сортирует в обе стороны, отличает ноль от отсутствующих данных и сохраняет исходную выдачу', () => {
-    const tracks = [tr(1, 'A'), tr(2, 'A', { plays: 0, addedAt: 40 }), tr(3, 'A', { plays: 18, addedAt: 10 })]
+    const tracks = [tr(1, 'A', { addedAt: 100 }), tr(2, 'A', { plays: 0, releaseDate: '2024-01-03' }), tr(3, 'A', { plays: 18, releaseDate: '2021-12-10' })]
     const ids = (order: Parameters<typeof sortArtistTracks>[1]) => sortArtistTracks(tracks, order).map((t) => t.id)
     expect(ids('mostPlayed')).toEqual(['t3', 't2', 't1'])
     expect(ids('leastPlayed')).toEqual(['t2', 't3', 't1'])
@@ -18,6 +18,19 @@ describe('сортировка треков артиста', () => {
   it('использует порядок «Популярное» ВК для треков с известным местом', () => {
     const tracks = [tr(1, 'A'), tr(2, 'A'), tr(3, 'A')]
     expect(sortArtistTracks(tracks, 'leastPlayed', ['t2', 't3']).map((t) => t.id)).toEqual(['t3', 't2', 't1'])
+  })
+
+  it('принимает уточнённую дату записи и использует сопоставимые счётчики слушателей', () => {
+    const tracks = [tr(1, 'A', { addedAt: 100, plays: 9999 }), tr(2, 'A', { releaseDate: '2020-06-14' }), tr(3, 'A')]
+    const metadata = { t2: { listeners: 3 }, t3: { releaseDate: '1990-07', listeners: 0 } }
+    expect(sortArtistTracks(tracks, 'old', undefined, metadata).map((t) => t.id)).toEqual(['t3', 't2', 't1'])
+    expect(sortArtistTracks(tracks, 'leastPlayed', undefined, metadata).map((t) => t.id)).toEqual(['t3', 't2', 't1'])
+  })
+
+  it('подписывает разные источники релиза и прослушиваний, включая нулевой счётчик', () => {
+    const tip = artistTrackDetails(tr(1, 'A'), { releaseDate: '2024-04-11', releaseSource: 'itunes', listens: 0 })
+    expect(tip).toBe('Дата релиза · 11.04.2024\nУчтено прослушиваний · 0\nИсточник даты · iTunes\nИсточник прослушиваний · ListenBrainz')
+    expect(artistTrackDetails(tr(2, 'A', { addedAt: 100 }))).toBe('Дата релиза · нет данных\nПрослушиваний · нет данных')
   })
 })
 

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ArtistInfo, Track } from '../../shared/types'
+import type { ArtistInfo, ArtistTrackMetadata, Track } from '../../shared/types'
 import { useUi } from '../store/ui'
 import { useLibrary } from '../store/library'
 import { player } from '../store/playerInstance'
 import { TrackRow, SrcBadge } from '../ui/TrackRow'
 import { Cover } from '../ui/Cover'
-import { artistWhy, sortArtistTracks, type ArtistTrackOrder } from '../store/artistsLogic'
+import { artistTrackDetails, artistWhy, sortArtistTracks, type ArtistTrackOrder } from '../store/artistsLogic'
 import * as I from '../ui/icons'
 import { artistSource } from '../ui/source'
 import { useLocalArtists } from '../store/localArtists'
@@ -14,6 +14,12 @@ import { useSc } from '../store/sc'
 import { isPhone } from '../ui/layout'
 
 const NO_INFO: ArtistInfo = { followed: false, can: false }
+const TRACK_ORDERS: { value: ArtistTrackOrder; label: string; needsPopularity?: boolean }[] = [
+  { value: 'new', label: 'Новые' },
+  { value: 'old', label: 'Старые' },
+  { value: 'mostPlayed', label: 'Популярные', needsPopularity: true },
+  { value: 'leastPlayed', label: 'Менее популярные', needsPopularity: true }
+]
 
 /** Экран исполнителя: его треки, новые сверху. Работает и для ВК, и для SoundCloud. */
 export function Artist() {
@@ -41,11 +47,22 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
   const [checked, setChecked] = useState<{ account: number; followed: boolean | null }>()
   const [checkAttempt, setCheckAttempt] = useState(0)
   const [order, setOrder] = useState<ArtistTrackOrder>('new')
+  const [metadata, setMetadata] = useState<Record<string, ArtistTrackMetadata>>({})
+  const [metadataPending, setMetadataPending] = useState(0)
   const [moreBusy, setMoreBusy] = useState(false)
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [now] = useState(() => Date.now())
   const pageSize = sc ? 40 : 30
+  const loadMetadata = useCallback((tracks: Track[]) => {
+    if (phone || !tracks.length) return
+    setMetadataPending((count) => count + 1)
+    const request = tracks.map(({ id, title, artist, duration, releaseDate, isrc }) => ({ id, title, artist, duration, releaseDate, isrc }))
+    void window.api.invoke('artists:trackMetadata', a.name, request)
+      .then((data) => setMetadata((current) => ({ ...current, ...data })))
+      .catch(() => {})
+      .finally(() => setMetadataPending((count) => count - 1))
+  }, [a.name, phone])
   const searchArtist = useCallback(() => {
     const ui = useUi.getState()
     ui.setSearchWhere(sc ? 'sc' : 'vk')
@@ -60,6 +77,7 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
       setList(r)
       setOffset(r.length)
       setHasMore(r.length === pageSize)
+      loadMetadata(r)
     }).catch(() => { if (alive) { setList([]); setFailed(true) } })
     const about = sc ? window.api.invoke('scacc:artistInfo', a.name, a.id) : window.api.invoke('vk:artistInfo', { id: a.id, name: a.name })
     about.then((r) => {
@@ -68,14 +86,14 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
       if (r.missing && !a.link) useUi.getState().toast(`Профиль «${a.name}» не найден. Поискать треки?`, { label: 'Искать', run: searchArtist, dismissLabel: 'Не сейчас' })
     }).catch(() => { if (alive) setInfoFailed(true) })
     return () => { alive = false }
-  }, [a, sc, searchArtist, pageSize])
+  }, [a, sc, searchArtist, pageSize, loadMetadata])
   useEffect(load, [load])
 
 
   const own = new Set(mine.map((t) => t.id))
-  const sorted = phone ? list ?? [] : sortArtistTracks(list ?? [], order, info.popularTrackIds)
+  const sorted = phone ? list ?? [] : sortArtistTracks(list ?? [], order, info.popularTrackIds, metadata)
   const can = sorted.filter((t) => t.available)
-  const hasPopularity = list?.some((t) => t.plays !== undefined || info.popularTrackIds?.includes(t.id)) ?? false
+  const hasPopularity = list?.some((t) => t.plays !== undefined || metadata[t.id]?.listeners !== undefined || info.popularTrackIds?.includes(t.id)) ?? false
   const source = artistSource({ ...a, id: info.id ?? a.id })
   const profileLink = info.link ?? a.link
   const artistId = info.id ?? a.id
@@ -107,6 +125,7 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
         return true
       })
       setList([...list, ...added])
+      loadMetadata(added)
       setOffset(offset + next.length)
       setHasMore(next.length === pageSize && added.length > 0)
     } catch {
@@ -175,15 +194,18 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
       {!!list?.length && <>
         {!phone && <div className="ph">
           <h3>Треки</h3><span className="sp" />
-          <select className="filter" aria-label="Порядок треков" value={order} onChange={(event) => setOrder(event.target.value as ArtistTrackOrder)}>
-            <option value="new">Сначала новые</option>
-            <option value="old">Сначала старые</option>
-            <option value="mostPlayed" disabled={!hasPopularity}>Сначала популярные</option>
-            <option value="leastPlayed" disabled={!hasPopularity}>Сначала менее популярные</option>
-          </select>
-          {!hasPopularity && <span className="artist-muted">Сервис не передал данные о популярности</span>}
+          <div className={'seg artist-sort' + (sc ? ' sc' : '')} role="group" aria-label="Порядок треков">
+            {TRACK_ORDERS.map(({ value, label, needsPopularity }) => (
+              <button key={value} className={order === value ? 'on' : ''} aria-pressed={order === value}
+                disabled={needsPopularity && !hasPopularity} onClick={() => setOrder(value)}>{label}</button>
+            ))}
+          </div>
+          {metadataPending > 0 && <span className="artist-muted" role="status">Уточняю данные треков…</span>}
+          {!metadataPending && !hasPopularity && <span className="artist-muted">Нет данных о популярности</span>}
         </div>}
-        <div className="rows">{sorted.map((t, i) => <TrackRow key={t.id} track={t} why={artistWhy(t, own, now)} index={i} onPlay={() => play(t.id)} />)}</div>
+        <div className="rows">{sorted.map((t, i) => <TrackRow key={t.id} track={t}
+          why={phone ? artistWhy(t, own, now) : own.has(t.id) ? 'в твоей музыке' : undefined}
+          details={phone ? undefined : artistTrackDetails(t, metadata[t.id])} index={i} onPlay={() => play(t.id)} />)}</div>
       </>}
       {hasMore && (!sc || a.id || info.id) && <button className="btn-s" disabled={moreBusy} onClick={() => void loadMore()}>{moreBusy ? 'Загружаю…' : 'Показать ещё'}</button>}
     </div>

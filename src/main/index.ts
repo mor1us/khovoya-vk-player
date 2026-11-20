@@ -23,7 +23,8 @@ import { bootSafely } from './system/boot'
 import { jsonFile } from './system/jsonFile'
 import { SoundCloud, SC_DOWN, SC_NEED_KEY, ScUnavailable, type Fetch } from './sc/soundcloud'
 import { scLoginWindow, scLogout, scProfileWindow, scToken, scWrite } from './sc/scAuth'
-import type { ArtistRef, Session } from '../shared/types'
+import type { ArtistRef, ArtistTrackLookup, Session } from '../shared/types'
+import { ArtistTrackCatalog } from './metadata/artistTracks'
 
 const MOCK = process.env.VK_MOCK === '1'
 let win: BrowserWindow | null = null
@@ -198,6 +199,8 @@ async function setup() {
     return mockScUser ? scSearch('Пустой') : []
   })
   handle('vk:openArtistProfile', (url: string) => vkArtistWindow(win, url))
+  const trackCatalog = new ArtistTrackCatalog((url, init) => net.fetch(url, init), log)
+  handle('artists:trackMetadata', (artist: string, tracks: ArtistTrackLookup[]) => MOCK ? {} : trackCatalog.lookup(artist, tracks))
   const writingArtists = new Set<'vk' | 'sc'>()
   const mockArtistFollows = new Set<string>()
   handle('artists:follow', async (source: 'vk' | 'sc', account: number, artist: ArtistRef & { link?: string }, on?: boolean) => {

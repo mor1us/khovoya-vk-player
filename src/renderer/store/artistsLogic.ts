@@ -1,20 +1,43 @@
-import type { ArtistSubscription, Track } from '../../shared/types'
+import type { ArtistSubscription, ArtistTrackMetadata, Track } from '../../shared/types'
 
 export const FRESH_DAYS = 14
 export type ArtistTrackOrder = 'new' | 'old' | 'mostPlayed' | 'leastPlayed'
 
-export function sortArtistTracks(tracks: Track[], order: ArtistTrackOrder, popularTrackIds?: string[]): Track[] {
+export function sortArtistTracks(tracks: Track[], order: ArtistTrackOrder, popularTrackIds?: string[], metadata: Record<string, ArtistTrackMetadata> = {}): Track[] {
   const byDate = order === 'new' || order === 'old'
   const direction = order === 'new' || order === 'mostPlayed' ? -1 : 1
+  const hasListeners = !byDate && tracks.some((t) => metadata[t.id]?.listeners !== undefined)
   const counts = !byDate && tracks.some((t) => t.plays !== undefined)
   const popularity = new Map(popularTrackIds?.map((id, index) => [id, -index]))
-  const value = (track: Track) => byDate ? track.addedAt : counts ? track.plays : popularity.get(track.id)
+  const value = (track: Track) => {
+    const data = metadata[track.id]
+    if (!byDate) return hasListeners ? data?.listeners : counts ? track.plays : popularity.get(track.id)
+    const date = data?.releaseDate ?? track.releaseDate
+    if (date) return Number(date.replaceAll('-', '').padEnd(8, '0'))
+  }
   return [...tracks].sort((a, b) => {
     const left = value(a)
     const right = value(b)
     if (left === undefined || right === undefined) return Number(left === undefined) - Number(right === undefined)
     return direction * (left - right)
   })
+}
+
+export function artistTrackDetails(track: Track, data?: ArtistTrackMetadata): string {
+  const date = data?.releaseDate ?? track.releaseDate
+  const plays = data?.listens ?? track.plays
+  const release = date ? date.split('-').reverse().join('.') : 'нет данных'
+  const service = track.src === 'sc' ? 'SoundCloud' : 'ВК'
+  const releaseSource = data?.releaseSource === 'musicbrainz' ? 'MusicBrainz' : data?.releaseSource === 'itunes' ? 'iTunes' : service
+  const playsSource = data?.listens !== undefined ? 'ListenBrainz' : service
+  const label = data?.listens !== undefined ? 'Учтено прослушиваний' : 'Прослушиваний'
+  const base = [`Дата релиза · ${release}`, `${label} · ${plays?.toLocaleString('ru-RU') ?? 'нет данных'}`]
+  if (date && plays !== undefined) {
+    if (releaseSource === playsSource) base.push(`Источник · ${releaseSource}`)
+    else base.push(`Источник даты · ${releaseSource}`, `Источник прослушиваний · ${playsSource}`)
+  } else if (date) base.push(`Источник даты · ${releaseSource}`)
+  else if (plays !== undefined) base.push(`Источник прослушиваний · ${playsSource}`)
+  return base.join('\n')
 }
 export type MyArtist = { key: string; name: string; id?: string; count: number; cover?: string }
 

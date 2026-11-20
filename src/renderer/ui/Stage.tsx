@@ -143,9 +143,13 @@ export function Stage() {
       ) : (
         <>
           <div className="nodrag" style={{ display: 'contents' }} onContextMenu={(e) => openTrackMenu(e, [cur])} onWheel={wheelVolume}>
-          <Cover className="cover nodrag" url={cur.coverUrl} seed={cur.id} />
-          <div className="title nodrag" title={cur.title}>{cur.title}</div>
-            <div className="artist nodrag"><SrcBadge src={cur.src === 'sc' ? 'sc' : 'vk'} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}><Artists names={cur.artist} src={cur.src} id={cur.src === 'sc' ? cur.artistId : cur.artists?.[0]?.id} artists={cur.artists} profileName={cur.artistProfileName} /></span></div>
+            <div className="stage-artwork">
+              <Cover className="cover nodrag" url={cur.coverUrl} seed={cur.id} />
+            </div>
+            <div className="stage-track nodrag">
+              <div className="title" title={cur.title}>{cur.title}</div>
+              <div className="artist"><SrcBadge src={cur.src === 'sc' ? 'sc' : 'vk'} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}><Artists names={cur.artist} src={cur.src} id={cur.src === 'sc' ? cur.artistId : cur.artists?.[0]?.id} artists={cur.artists} profileName={cur.artistProfileName} /></span></div>
+            </div>
           </div>
           <ScComments track={cur} pos={pos} />
           <Waveform id={cur.id} track={cur} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} className="wf nodrag" />

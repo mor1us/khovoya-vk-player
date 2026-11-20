@@ -19,6 +19,19 @@ export function vkArtistProfile(value: string): string | undefined {
   if (url && /^\/artist\/[^/]+\/?$/.test(url.pathname)) return url.origin + url.pathname
 }
 
+export function vkArtistsRoute(value: string, target: URL): 'list' | 'verification' | 'login' | 'other' {
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:') return 'other'
+    if (['id.vk.com', 'id.vk.ru', 'login.vk.com', 'login.vk.ru'].includes(url.hostname)) return 'login'
+    if (!vkWebUrl(url.href)) return 'other'
+    if (/^\/(?:challenge\.html|captcha)(?:\/|$)/i.test(url.pathname)) return 'verification'
+    if (/^\/(?:login|join)(?:\/|$)/i.test(url.pathname)) return 'login'
+    if (url.pathname === target.pathname && url.searchParams.get('block') === 'my_artists' && url.searchParams.get('section') === 'all') return 'list'
+  } catch { /* Окно ещё не загрузилось. */ }
+  return 'other'
+}
+
 type WebArtistCard = { href: string; name: string; image?: string }
 
 // Функция выполняется в отдельном мире VK. Все зависимости передаются явно или берутся из страницы.
