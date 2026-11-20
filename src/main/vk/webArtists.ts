@@ -2,7 +2,7 @@ import { BrowserWindow } from 'electron'
 import { setTimeout as pause } from 'node:timers/promises'
 import { log, vkSession } from '../auth/webSession'
 import { WEB_UA } from '../auth/webToken'
-import { parseVkArtistCards, vkArtistProfile, vkArtistsPage, vkWebUrl } from './webArtistsLogic'
+import { parseVkArtistCards, visibleArtists, vkArtistProfile, vkArtistsPage, vkWebUrl } from './webArtistsLogic'
 
 function vkPageWindow(show: boolean, parent?: BrowserWindow) {
   const w = new BrowserWindow({
@@ -13,22 +13,6 @@ function vkPageWindow(show: boolean, parent?: BrowserWindow) {
   w.webContents.on('will-navigate', (event, url) => { if (!vkWebUrl(url)) event.preventDefault() })
   w.webContents.on('will-redirect', (event, url) => { if (!vkWebUrl(url)) event.preventDefault() })
   return w
-}
-
-// Выполняется в отдельном мире страницы. Читаем только видимые карточки в блоке списка.
-function visibleArtists() {
-  const title = Array.from(document.querySelectorAll('h1,h2,h3,span,a,div,p,strong,button')).reverse().find((element) =>
-    element.textContent?.trim() === 'Музыканты' && element.getClientRects().length)
-  if (!title) return []
-  for (let scope = title.parentElement; scope && scope !== document.body; scope = scope.parentElement) {
-    const cards = Array.from(scope.querySelectorAll<HTMLAnchorElement>('a[href*="/artist/"]')).filter((a) => a.getClientRects().length)
-    if (!cards.length) continue
-    return cards.map((a) => {
-      const img = a.querySelector('img')
-      return { href: a.href, name: a.innerText.trim() || a.getAttribute('aria-label') || a.title || img?.alt || '', image: img?.currentSrc || img?.src }
-    })
-  }
-  return []
 }
 
 export async function vkWebSubscriptions(userId: number) {
@@ -44,16 +28,22 @@ export async function vkWebSubscriptions(userId: number) {
         throw new Error('переход со страницы музыкантов')
       }
     }
+    let artists: ReturnType<typeof parseVkArtistCards> = []
+    let waitForImagesUntil: number | undefined
     while (Date.now() < deadline && !w.isDestroyed()) {
       requireListPage()
       const cards = await w.webContents.executeJavaScriptInIsolatedWorld(1001, [{ code: `(${visibleArtists.toString()})()` }])
       requireListPage()
-      const artists = parseVkArtistCards(cards)
+      artists = parseVkArtistCards([...artists.map(({ link, name, cover }) => ({ href: link ?? '', name, image: cover })), ...cards])
       if (artists.length) {
-        log(`Музыканты ВК: загружено карточек ${artists.length}`)
-        return artists
+        waitForImagesUntil ??= Date.now() + 1400
+        if (artists.every((artist) => artist.cover) || Date.now() >= waitForImagesUntil) break
       }
       await pause(350)
+    }
+    if (artists.length) {
+      log(`Музыканты ВК: загружено карточек ${artists.length}, с аватарками ${artists.filter((artist) => artist.cover).length}`)
+      return artists
     }
     log('Музыканты ВК: список карточек не появился')
   } catch {

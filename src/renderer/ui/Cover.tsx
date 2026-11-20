@@ -16,12 +16,12 @@ function placeholder(seed: string): React.CSSProperties {
 }
 
 export function Cover({ url, seed, className, style, onClick }: { url?: string; seed: string; className?: string; style?: React.CSSProperties; onClick?: () => void }) {
-  const [bad, setBad] = useState(false)
+  const [failedUrl, setFailedUrl] = useState<string>()
   const base: React.CSSProperties = { overflow: 'hidden', flex: 'none', ...style }
-  if (!url || bad) return <div className={className} style={{ ...base, ...placeholder(seed) }} onClick={onClick} />
+  if (!url || url === failedUrl) return <div className={className} style={{ ...base, ...placeholder(seed) }} onClick={onClick} />
   return (
     <div className={className} style={{ ...base, background: '#1B1B1B' }} onClick={onClick}>
-      <img src={url} alt="" loading="lazy" draggable={false} onError={() => setBad(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      <img key={url} src={url} alt="" loading="lazy" draggable={false} onError={() => setFailedUrl(url)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
     </div>
   )
 }

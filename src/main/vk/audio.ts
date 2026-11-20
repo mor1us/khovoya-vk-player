@@ -1,5 +1,6 @@
 import type { Track, Playlist, ArtistRef, ArtistInfo } from '../../shared/types'
 import { mapTrack, mapPlaylist, vkFlag } from './models'
+import { vkArtistProfile } from './webArtistsLogic'
 import { artistSubscriptionState, catalogSummary, parseCatalog, subscriptionArtists, subscriptionCatalogShape, subscriptionSection, type ForYouBlock } from './catalog'
 
 type Caller = { call<T = any>(method: string, params: Record<string, string | number | undefined>): Promise<T> }
@@ -181,6 +182,9 @@ export class VkAudioApi implements AudioApi {
     })
     const photo: any[] = r?.photo ?? r?.artist?.photo ?? []
     const best = photo.length ? photo[photo.length - 1]?.url : undefined
+    const profileLink = [r?.artist?.url, r?.artist?.link, r?.url]
+      .flatMap((url) => typeof url === 'string' ? vkArtistProfile(url) ?? [] : [])[0]
+    const profile = profileLink ? { link: profileLink } : {}
     const canFollow = vkFlag(r?.artist?.can_follow ?? r?.can_follow) ?? true
     let followed = artistSubscriptionState(r, id)
     const section = r?.catalog?.default_section
@@ -190,14 +194,14 @@ export class VkAudioApi implements AudioApi {
     }
     if (followed === undefined) {
       const subscription = await this.artistSubscriptions(false).then((list) => list.find((artist) => artist.id === id)).catch(() => undefined)
-      if (subscription) return { id, followed: true, cover: subscription.cover ?? best, can: canFollow }
+      if (subscription) return { id, followed: true, cover: subscription.cover ?? best, can: canFollow, ...profile }
       refs ??= await searchArtistRefs().catch(() => [])
       const states = new Set(refs.filter((artist) => artist.id === id && artist.followed !== undefined).map((artist) => artist.followed))
-      if (states.size === 1) return { id, followed: states.has(true), cover: best, can: canFollow }
+      if (states.size === 1) return { id, followed: states.has(true), cover: best, can: canFollow, ...profile }
       if (r) this.log('getAudioArtist: ВК не вернул состояние подписки')
-      return { id, followed: false, statusUnknown: true, cover: best ? String(best) : undefined, can: canFollow }
+      return { id, followed: false, statusUnknown: true, cover: best ? String(best) : undefined, can: canFollow, ...profile }
     }
-    return { id, followed, cover: best ? String(best) : undefined, can: canFollow }
+    return { id, followed, cover: best ? String(best) : undefined, can: canFollow, ...profile }
   }
 
   /**

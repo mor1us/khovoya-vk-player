@@ -9,6 +9,9 @@ import { artistWhy } from '../store/artistsLogic'
 import * as I from '../ui/icons'
 import { artistSource } from '../ui/source'
 import { useLocalArtists } from '../store/localArtists'
+import { useArtistSubscriptions } from '../store/artistSubscriptions'
+import { useSc } from '../store/sc'
+import { isPhone } from '../ui/layout'
 
 const NO_INFO: ArtistInfo = { followed: false, can: false }
 
@@ -21,8 +24,14 @@ export function Artist() {
 }
 
 function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.getState>['artist']>; refresh: () => void }) {
+  const phone = isPhone()
+  const sc = a.src === 'sc'
+  const service = sc ? 'sc' : 'vk'
   const mine = useLibrary((s) => s.mine)
-  const localFollowed = useLocalArtists((s) => s.has({ source: a.src === 'sc' ? 'sc' : 'vk', id: a.id, name: a.name }))
+  const localFollowed = useLocalArtists((s) => phone && s.has({ source: service, id: a.id, name: a.name }))
+  const vkAccount = useUi((s) => s.session?.userId)
+  const scAccount = useSc((s) => s.me?.id)
+  const account = sc ? scAccount : vkAccount
   const [list, setList] = useState<Track[] | null>(null)
   const [info, setInfo] = useState<ArtistInfo>(NO_INFO)
   const [infoFailed, setInfoFailed] = useState(false)
@@ -33,7 +42,6 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [now] = useState(() => Date.now())
-  const sc = a?.src === 'sc'
   const pageSize = sc ? 40 : 30
   const searchArtist = useCallback(() => {
     const ui = useUi.getState()
@@ -65,13 +73,18 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
   const can = list?.filter((t) => t.available) ?? []
   const source = artistSource({ ...a, id: info.id ?? a.id })
   const profileLink = info.link ?? a.link
+  const refreshSubscriptions = () => {
+    if (!phone && account) void useArtistSubscriptions.getState().load(service, account, true).catch(() => {})
+    if (useUi.getState().artist === a && useUi.getState().tab === 'artist') refresh()
+  }
   const openProfile = async () => {
     if (!profileLink || profileOpen) return
     setProfileOpen(true)
     try {
-      if (sc) await window.api.invoke('scacc:openArtistProfile', profileLink)
+      if (phone && !sc) window.open(profileLink, '_blank')
+      else if (sc) await window.api.invoke('scacc:openArtistProfile', profileLink)
       else await window.api.invoke('vk:openArtistProfile', profileLink)
-      if (useUi.getState().artist === a && useUi.getState().tab === 'artist') refresh()
+      refreshSubscriptions()
     } catch (e) { useUi.getState().toast((e as Error).message) }
     finally { setProfileOpen(false) }
   }
@@ -97,13 +110,22 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
       useUi.getState().toast('Не удалось загрузить ещё треки. Попробуй снова')
     } finally { setMoreBusy(false) }
   }
-  const follow = () => {
+  const follow = async () => {
     if (busy) return
     setBusy(true)
-    const added = useLocalArtists.getState().toggle({ id: info.id ?? a.id ?? '', name: a.name, cover: info.cover ?? a.cover, link: profileLink, source: sc ? 'sc' : 'vk' })
-    useUi.getState().toast(added ? `Добавлен в подписки Хвои: ${a.name}` : `Удалён из подписок Хвои: ${a.name}`)
-    setBusy(false)
+    try {
+      if (phone) {
+        const added = useLocalArtists.getState().toggle({ id: info.id ?? a.id ?? '', name: a.name, cover: info.cover ?? a.cover, link: profileLink, source: service })
+        useUi.getState().toast(added ? `Добавлен в подписки Хвои: ${a.name}` : `Удалён из подписок Хвои: ${a.name}`)
+      } else {
+        await window.api.invoke('vk:artistFollow', { id: info.id, name: a.name }, !info.followed)
+        refreshSubscriptions()
+      }
+    } catch {
+      useUi.getState().toast('ВК не подтвердил изменение подписки. Попробуй через страницу исполнителя в ВК.')
+    } finally { setBusy(false) }
   }
+  const directVk = !phone && !sc && !profileLink && !!info.id && info.can && !info.statusUnknown
 
   return (
     <div className="page artist-page">
@@ -122,10 +144,10 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
           <div className="artist-actions">
             {info.missing && <button className="btn-s" onClick={searchArtist}>Искать треки</button>}
             {!!can.length && <button className="btn-s g" onClick={() => play(can[0].id)}><I.IPlay size={14} />Слушать</button>}
-            {(!info.missing || profileLink) && <button className={'btn-s' + (sc ? ' sco' : '')} disabled={busy} onClick={follow}>
-              <I.IHeart size={14} on={localFollowed} />{busy ? 'Сохраняю…' : localFollowed ? 'Отписаться в Хвое' : 'Подписаться в Хвое'}
+            {((phone && (!info.missing || profileLink)) || directVk) && <button className={'btn-s' + (sc ? ' sco' : '')} disabled={busy} onClick={() => void follow()}>
+              <I.IHeart size={14} on={phone ? localFollowed : info.followed} />{busy ? 'Сохраняю…' : phone ? (localFollowed ? 'Отписаться в Хвое' : 'Подписаться в Хвое') : (info.followed ? 'Отписаться в ВК' : 'Подписаться в ВК')}
             </button>}
-            {profileLink && <button className="btn-s" disabled={profileOpen} onClick={() => void openProfile()}><I.IExternal size={14} />{sc ? 'Открыть профиль' : 'Открыть в ВК'}</button>}
+            {profileLink && <button className="btn-s" disabled={profileOpen} onClick={() => void openProfile()}><I.IExternal size={14} />{phone ? (sc ? 'Открыть профиль' : 'Открыть в ВК') : `Подписка в ${sc ? 'SoundCloud' : 'ВК'}`}</button>}
             <button className="btn-s" title="Загрузить заново" onClick={refresh} disabled={list === null || busy}><I.IRefresh size={14} />Обновить</button>
           </div>
         </div>
