@@ -32,6 +32,22 @@ describe('сортировка треков артиста', () => {
     expect(tip).toBe('Дата релиза · 11.04.2024\nУчтено прослушиваний · 0\nИсточник даты · iTunes\nИсточник прослушиваний · ListenBrainz')
     expect(artistTrackDetails(tr(2, 'A', { addedAt: 100 }))).toBe('Дата релиза · нет данных\nПрослушиваний · нет данных')
   })
+
+  it('ставит счётчики SoundCloud выше внешней статистики и подписывает использованное число', () => {
+    const tracks = [tr(1, 'A', { src: 'sc', plays: 999 }), tr(2, 'A', { src: 'sc', plays: 3 })]
+    const metadata = { t1: { listeners: 1, listens: 2 }, t2: { listeners: 100, listens: 200 } }
+    expect(sortArtistTracks(tracks, 'mostPlayed', undefined, metadata).map((t) => t.id)).toEqual(['t1', 't2'])
+    expect(artistTrackDetails(tracks[0], metadata.t1)).toContain('Прослушиваний · 999\nИсточник прослушиваний · SoundCloud')
+    expect(artistTrackDetails({ ...tracks[1], plays: undefined }, metadata.t2)).toContain('Учтено прослушиваний · 200\nИсточник прослушиваний · ListenBrainz')
+  })
+
+  it('подписывает позицию ВК и отделяет дату загрузки SoundCloud от даты релиза', () => {
+    expect(artistTrackDetails(tr(1, 'A'), undefined, 2)).toContain('Место в «Популярном» ВК · 2')
+    const upload = tr(2, 'A', { src: 'sc', addedAt: Date.UTC(2024, 3, 11) / 1000 })
+    expect(artistTrackDetails(upload)).toContain('Загружен в SoundCloud · 11.04.2024')
+    expect(artistTrackDetails(upload)).toContain('Дата релиза · нет данных')
+    expect(artistTrackDetails(upload, { releaseDate: '2024-04-11' })).not.toContain('Загружен в SoundCloud')
+  })
 })
 
 describe('topArtists', () => {

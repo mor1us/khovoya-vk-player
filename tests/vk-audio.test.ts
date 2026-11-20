@@ -143,6 +143,17 @@ describe('artistTracks', () => {
     expect(calls[0]).toMatchObject({ m: 'audio.getAudiosByArtist', p: { artist_id: 'abc' } })
     expect(r.map((t) => t.vkId)).toEqual([2, 1])
   })
+
+  it('уточняет дату и счётчик в ответе ВК для той же записи', async () => {
+    const { calls, client } = fakeClient((method) => method === 'audio.getById'
+      ? [{ ...raw(1), release_date: '2024-04-11', play_count: 0 }, { ...raw(3), play_count: 999 }]
+      : { items: [raw(1), raw(2)] })
+    const tracks = await new VkAudioApi(client as any, () => 7).artistTracks({ id: 'abc', name: 'A' })
+    expect(calls.map(({ m }) => m)).toEqual(['audio.getAudiosByArtist', 'audio.getById'])
+    expect(tracks[0]).toMatchObject({ releaseDate: '2024-04-11', plays: 0 })
+    expect(tracks[1].plays).toBeUndefined()
+  })
+
   it('without id → search by name, only that artist, newest first', async () => {
     const { calls, client } = fakeClient(() => ({ items: [{ ...raw(1), artist: 'Дворы', date: 5 }, { ...raw(2), artist: 'Другие', date: 9 }, { ...raw(3), artist: 'Дворы feat. X', date: 7 }] }))
     const r = await new VkAudioApi(client as any, () => 7).artistTracks({ name: 'Дворы' })

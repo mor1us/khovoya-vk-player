@@ -8,6 +8,14 @@ it('берёт порядок треков из раздела «Популяр�
   ] } })).toEqual(['-9_5', '10_2'])
 })
 
+it('читает блок популярных треков после отдельного заголовка ВК', () => {
+  expect(artistPopularTracks({ catalog: { sections: [{ blocks: [
+    { layout: { title: 'Популярное' } },
+    { data_type: 'music_audios', audios_ids: ['-9_5', '10_2'] },
+    { data_type: 'music_audios', audios_ids: ['10_3'] }
+  ] }] } })).toEqual(['-9_5', '10_2'])
+})
+
 describe('раздел подписок ВК', () => {
   it('находит переход во вложенном блоке вкладки «Моя музыка»', () => {
     expect(subscriptionSection({ catalog: { sections: [{

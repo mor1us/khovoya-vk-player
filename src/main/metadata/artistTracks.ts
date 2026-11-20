@@ -94,8 +94,8 @@ export class ArtistTrackCatalog {
       const knownDate = releaseDateOf(track.releaseDate)
       const storefrontDate = !recording?.releaseDate && !knownDate ? matchReleaseDate(track, songs) : undefined
       const data: ArtistTrackMetadata = {
-        releaseDate: recording?.releaseDate ?? knownDate ?? storefrontDate,
-        releaseSource: recording?.releaseDate ? 'musicbrainz' : storefrontDate ? 'itunes' : undefined,
+        releaseDate: knownDate ?? recording?.releaseDate ?? storefrontDate,
+        releaseSource: knownDate ? undefined : recording?.releaseDate ? 'musicbrainz' : storefrontDate ? 'itunes' : undefined,
         ...(recording && popularity.get(recording.id))
       }
       if (this.cache.size >= 1500) this.cache.delete(this.cache.keys().next().value!)

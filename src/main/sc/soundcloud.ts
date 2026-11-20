@@ -45,6 +45,25 @@ export function artwork(r: any): string | undefined {
   return u ? u.replace('-large.', '-t500x500.') : undefined
 }
 
+function scReleaseDate(track: { release_date?: unknown; release_year?: unknown; release_month?: unknown; release_day?: unknown }): string | undefined {
+  const direct = releaseDateOf(track.release_date)
+  if (direct) return direct
+  if (typeof track.release_year !== 'number' || !Number.isInteger(track.release_year)) return
+  const parts = [String(track.release_year)]
+  if (track.release_month != null) {
+    if (typeof track.release_month !== 'number' || !Number.isInteger(track.release_month)) return
+    parts.push(String(track.release_month).padStart(2, '0'))
+    if (track.release_day != null) {
+      if (typeof track.release_day !== 'number' || !Number.isInteger(track.release_day)) return
+      parts.push(String(track.release_day).padStart(2, '0'))
+    }
+  }
+  return releaseDateOf(parts.join('-'))
+}
+
+const scPlayCount = (track: any): number | undefined =>
+  track.reveal_stats !== false && Number.isSafeInteger(track.playback_count) && track.playback_count >= 0 ? track.playback_count : undefined
+
 export function mapScTrack(r: any): Track | null {
   if (!r || r.kind !== 'track' || !r.id) return null
   const trs = pickTranscodings(r)
@@ -62,9 +81,9 @@ export function mapScTrack(r: any): Track | null {
     url: '',
     coverUrl: artwork(r),
     addedAt: r.created_at ? Math.floor(Date.parse(r.created_at) / 1000) || undefined : undefined,
-    releaseDate: releaseDateOf(r.release_date),
-    isrc: normalizeIsrc(r.publisher_metadata?.isrc),
-    ...(Number.isSafeInteger(r.playback_count) && r.playback_count >= 0 ? { plays: r.playback_count } : {}),
+    releaseDate: scReleaseDate(r),
+    isrc: normalizeIsrc(r.isrc) ?? normalizeIsrc(r.publisher_metadata?.isrc),
+    plays: scPlayCount(r),
     available: !blocked && !!tr,
     src: 'sc',
     scAuth: r.track_authorization,
@@ -250,7 +269,22 @@ export class SoundCloud {
     const u = userId ? { id: userId } : users.find((x) => String(x?.username ?? '').trim().toLowerCase() === key)
     if (u?.id) {
       const r = await this.api(`/users/${encodeURIComponent(String(u.id))}/tracks`, { limit, linked_partitioning: 1, ...(offset ? { offset } : {}) })
-      const ts = (r?.collection ?? []).map(mapScTrack).filter((t: Track | null): t is Track => !!t)
+      const raw: any[] = r?.collection ?? []
+      const ids = raw.filter((t) => t?.id && ((!scReleaseDate(t)) || (t.reveal_stats !== false && scPlayCount(t) === undefined))).map((t) => t.id)
+      const full = ids.length ? await this.api('/tracks', { ids: ids.join(',') }).catch(() => null) : null
+      const byId = new Map((Array.isArray(full) ? full : []).map((t) => [t.id, t]))
+      const ts = raw.map((t) => {
+        const details = byId.get(t?.id)
+        if (!details) return mapScTrack(t)
+        const mapped = mapScTrack(t)
+        if (!mapped) return mapScTrack(details)
+        return {
+          ...mapped,
+          releaseDate: mapped.releaseDate ?? scReleaseDate(details),
+          isrc: mapped.isrc ?? normalizeIsrc(details.isrc) ?? normalizeIsrc(details.publisher_metadata?.isrc),
+          plays: t.reveal_stats === false || details.reveal_stats === false ? undefined : mapped.plays ?? scPlayCount(details)
+        }
+      }).filter((t): t is Track => !!t)
       return byDate(ts)
     }
     if (offset) return []

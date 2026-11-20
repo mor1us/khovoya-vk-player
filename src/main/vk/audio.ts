@@ -139,7 +139,7 @@ export class VkAudioApi implements AudioApi {
     if (a.id) {
       try {
         const r = await this.musicCall<{ items: any[] }>('audio.getAudiosByArtist', { artist_id: a.id, count: 30, ...(offset ? { offset } : {}) })
-        return byDate(r.items.map(mapTrack))
+        return byDate(await this.artistTrackDetails(r.items.map(mapTrack)))
       } catch (e) { this.log(`getAudiosByArtist: ${(e as Error).message}`) }
     }
     const name = a.name.trim().toLowerCase()
@@ -158,7 +158,28 @@ export class VkAudioApi implements AudioApi {
       }
       if (r.items.length < batch || scanned.size === before) break
     }
-    return byDate([...found.values()]).slice(offset, offset + 30)
+    return this.artistTrackDetails(byDate([...found.values()]).slice(offset, offset + 30))
+  }
+
+  private async artistTrackDetails(tracks: Track[]): Promise<Track[]> {
+    const missing = tracks.filter((track) => !track.releaseDate || track.plays === undefined)
+    if (!missing.length) return tracks
+    try {
+      const details = await this.byId(missing.map((track) => track.accessKey ? `${track.id}_${track.accessKey}` : track.id))
+      const byId = new Map(details.map((track) => [track.id, track]))
+      return tracks.map((track) => {
+        const detail = byId.get(track.id)
+        if (!detail) return track
+        return {
+          ...track,
+          releaseDate: track.releaseDate ?? detail.releaseDate,
+          plays: track.plays ?? detail.plays
+        }
+      })
+    } catch (error) {
+      this.log(`artistTracks: не удалось уточнить метаданные ВК — ${(error as Error).message}`)
+      return tracks
+    }
   }
 
   /** Подписан ли ты на исполнителя и его фотография. Без id ВК про него ничего не знает. */

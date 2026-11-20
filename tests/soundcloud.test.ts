@@ -41,6 +41,34 @@ describe('SoundCloud', () => {
     expect(mapScTrack({ kind: 'playlist', id: 1 })).toBeNull()
   })
 
+  it('читает дату релиза и общий публичный счётчик из полей SoundCloud', () => {
+    const t = mapScTrack(raw({ release_year: 2024, release_month: 4, release_day: 11, playback_count: 0, user_playback_count: 18, isrc: 'US-ABC-24-00001' }))
+    expect(t).toMatchObject({ releaseDate: '2024-04-11', plays: 0, isrc: 'USABC2400001' })
+    expect(mapScTrack(raw({ release_year: 2024, release_month: 4 }))?.releaseDate).toBe('2024-04')
+    expect(mapScTrack(raw({ release_year: 2024, release_month: 2, release_day: 30 }))?.releaseDate).toBeUndefined()
+    expect(mapScTrack(raw({ reveal_stats: false, playback_count: 100 }))?.plays).toBeUndefined()
+  })
+
+  it('дополняет неполные сведения о треках артиста одним запросом', async () => {
+    const calls: URL[] = []
+    const f: Fetch = async (value) => {
+      const url = new URL(value)
+      calls.push(url)
+      if (url.pathname === '/users/7/tracks') return res(200, { collection: [raw(), raw({ id: 43, title: 'Hidden', reveal_stats: false })] })
+      if (url.pathname === '/tracks') return res(200, [
+        raw({ playback_count: 500, release_year: 2024 }),
+        raw({ id: 43, title: 'Hidden', playback_count: 800, release_year: 2023 })
+      ])
+      return res(404, {})
+    }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    const list = await sc.artistTracks('synthboy', 40, '7')
+    expect(list[0]).toMatchObject({ title: 'Night Drive', releaseDate: '2024', plays: 500 })
+    expect(list[1]).toMatchObject({ title: 'Hidden', releaseDate: '2023' })
+    expect(list[1].plays).toBeUndefined()
+    expect(calls.filter((url) => url.pathname === '/tracks').map((url) => url.searchParams.get('ids'))).toEqual(['42,43'])
+  })
+
   it('ищет и обновляет client_id, если старый перестал работать', async () => {
     const calls: string[] = []
     let stored: string | null = 'OLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOL'

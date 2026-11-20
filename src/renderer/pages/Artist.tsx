@@ -55,14 +55,14 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
   const [now] = useState(() => Date.now())
   const pageSize = sc ? 40 : 30
   const loadMetadata = useCallback((tracks: Track[]) => {
-    if (phone || !tracks.length) return
+    if (phone || !sc || !tracks.length) return
     setMetadataPending((count) => count + 1)
     const request = tracks.map(({ id, title, artist, duration, releaseDate, isrc }) => ({ id, title, artist, duration, releaseDate, isrc }))
     void window.api.invoke('artists:trackMetadata', a.name, request)
       .then((data) => setMetadata((current) => ({ ...current, ...data })))
       .catch(() => {})
       .finally(() => setMetadataPending((count) => count - 1))
-  }, [a.name, phone])
+  }, [a.name, phone, sc])
   const searchArtist = useCallback(() => {
     const ui = useUi.getState()
     ui.setSearchWhere(sc ? 'sc' : 'vk')
@@ -93,7 +93,8 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
   const own = new Set(mine.map((t) => t.id))
   const sorted = phone ? list ?? [] : sortArtistTracks(list ?? [], order, info.popularTrackIds, metadata)
   const can = sorted.filter((t) => t.available)
-  const hasPopularity = list?.some((t) => t.plays !== undefined || metadata[t.id]?.listeners !== undefined || info.popularTrackIds?.includes(t.id)) ?? false
+  const vkPopularity = new Map(info.popularTrackIds?.map((id, index) => [id, index + 1]))
+  const hasPopularity = list?.some((t) => t.plays !== undefined || metadata[t.id]?.listeners !== undefined || metadata[t.id]?.listens !== undefined || vkPopularity.has(t.id)) ?? false
   const source = artistSource({ ...a, id: info.id ?? a.id })
   const profileLink = info.link ?? a.link
   const artistId = info.id ?? a.id
@@ -205,7 +206,7 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
         </div>}
         <div className="rows">{sorted.map((t, i) => <TrackRow key={t.id} track={t}
           why={phone ? artistWhy(t, own, now) : own.has(t.id) ? 'в твоей музыке' : undefined}
-          details={phone ? undefined : artistTrackDetails(t, metadata[t.id])} index={i} onPlay={() => play(t.id)} />)}</div>
+          details={phone ? undefined : artistTrackDetails(t, metadata[t.id], vkPopularity.get(t.id))} index={i} onPlay={() => play(t.id)} />)}</div>
       </>}
       {hasMore && (!sc || a.id || info.id) && <button className="btn-s" disabled={moreBusy} onClick={() => void loadMore()}>{moreBusy ? 'Загружаю…' : 'Показать ещё'}</button>}
     </div>

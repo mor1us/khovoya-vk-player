@@ -10,10 +10,20 @@ const blocksOf = (payload: any) => [
 ]
 
 export function artistPopularTracks(payload: unknown): string[] {
-  const ids = blocksOf(payload).filter((block) => /^(популярное|популярные треки)$/i.test(String(block?.layout?.title ?? block?.title ?? '').trim()))
-    .flatMap((block) => list(block?.audios_ids).map((id) => String(id).split('_').slice(0, 2).join('_')))
-    .filter((id) => /^-?\d+_\d+$/.test(id))
-  return [...new Set(ids)]
+  const ids = new Set<string>()
+  let popular = false
+  for (const block of blocksOf(payload)) {
+    const title = String(block?.layout?.title ?? block?.title ?? '').trim()
+    if (title) popular = /^(популярное|популярные треки|popular|popular tracks)$/i.test(title)
+    const audios = list(block?.audios_ids)
+    if (!popular || !audios.length) continue
+    for (const audio of audios) {
+      const id = String(audio).split('_').slice(0, 2).join('_')
+      if (/^-?\d+_\d+$/.test(id)) ids.add(id)
+    }
+    popular = false
+  }
+  return [...ids]
 }
 
 /** Идентификатор раздела приходит из каталога текущего аккаунта. */
