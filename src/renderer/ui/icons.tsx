@@ -21,6 +21,7 @@ export const IClose = () => <svg width="12" height="12" viewBox="0 0 12 12"><pat
 export const IMore = (p: P) => <S {...p} fill><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></S>
 export const IPlus = (p: P) => <S {...p}><path d="M12 5v14M5 12h14" /></S>
 export const IBack = (p: P) => <S {...p}><path d="M15 18l-6-6 6-6" /></S>
+export const IForward = (p: P) => <S {...p}><path d="M9 6l6 6-6 6" /></S>
 export const ICheck = (p: P) => <S {...p}><path d="M5 12l5 5L20 7" /></S>
 export const IHelp = (p: P) => <S {...p}><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5M12 16h.01" /></S>
 export const IX = (p: P) => <S {...p}><path d="M6 6l12 12M18 6L6 18" /></S>

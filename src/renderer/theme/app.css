@@ -221,6 +221,12 @@ select.filter{width:auto}
 .subscription-search .artists,.subscription-search p{margin:0}
 .subscription-search p{color:var(--t2)}
 .subscription-status{color:var(--t2);margin:12px 0}
+.subscription-carousel.paged{display:grid;grid-template-columns:clamp(32px,4vw,44px) minmax(0,1fr) clamp(32px,4vw,44px);gap:6px;align-items:center;margin-top:14px}
+/* На последней неполной странице стрелки остаются в том же месте. */
+.subscription-carousel.paged .artgrid{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,minmax(92px,auto));margin-top:0}
+.subscription-carousel>.ic{width:100%;height:44px}
+.subscription-carousel>.ic:hover:not(:disabled){background:var(--p2)}
+.subscription-carousel>.ic:disabled:hover{background:none;color:var(--t2)}
 .skeleton{height:56px;border-radius:12px;background:var(--p1);margin-bottom:2px;animation:sk 1.2s ease-in-out infinite alternate}
 @keyframes sk{from{opacity:.5}to{opacity:1}}
 
