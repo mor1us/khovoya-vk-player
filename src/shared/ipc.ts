@@ -1,6 +1,6 @@
 import type {
   ArtistInfo, ArtistRef, ArtistSubscription, ArtistTrackLookup, ArtistTrackMetadata, DiscordUpdate, DownloadJob, ForYouBlock, LocalPl, LoginStep, Playlist, ScArtist, ScComment,
-  ScMe, ScPlaylistRef, ScResolved, ScStatus, Session, Settings, Track, WaveProfile
+  ScMe, ScPlaylistRef, ScResolved, ScStatus, Session, Settings, Track, WaveProfile, ArtistTracksPage, VkArtistTracksCursor, VkReleaseRef
 } from './types'
 import type { UpdateState } from './updates'
 
@@ -25,6 +25,8 @@ export type IpcMap = {
   'vk:popular': () => Track[]
   'vk:forYou': () => ForYouBlock[]
   'vk:artistTracks': (a: ArtistRef, offset?: number) => Track[]
+  'vk:artistTracksPage': (a: ArtistRef, cursor?: VkArtistTracksCursor) => ArtistTracksPage<VkArtistTracksCursor>
+  'vk:releasePlays': (album: VkReleaseRef) => number | null
   'vk:artistInfo': (a: ArtistRef) => ArtistInfo
   'vk:artistFollow': (a: ArtistRef, on: boolean) => void
   'vk:openArtistProfile': (url: string) => void
@@ -50,6 +52,7 @@ export type IpcMap = {
   'sc:search': (q: string) => Track[]
   'sc:related': (t: Track) => Track[]
   'sc:artistTracks': (name: string, id?: string, offset?: number) => Track[]
+  'sc:artistTracksPage': (name: string, id?: string, cursor?: string) => ArtistTracksPage<string>
   'scacc:artistInfo': (name: string, id?: string) => ArtistInfo
   'scacc:artistFollow': (name: string, on: boolean, id?: string) => void
   'scacc:openArtistProfile': (url: string) => void
@@ -118,6 +121,7 @@ export const IPC = {
   'scacc:openArtistProfile': true,
   'artists:subscriptions': true,
   'artists:trackMetadata': true,
+  'vk:artistTracksPage': true, 'sc:artistTracksPage': true, 'vk:releasePlays': true,
   'artists:follow': true,
   'vk:openArtistProfile': true,
   'vk:openSubscriptions': true,

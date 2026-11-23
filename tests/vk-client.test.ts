@@ -15,6 +15,18 @@ const base = (f: typeof fetch, extra: Partial<ConstructorParameters<typeof VkCli
   new VkClient({ token: async () => 'TOK', fetch: f, onAuthLost: () => {}, onCaptcha: async () => 'x', sleep: async () => {}, ...extra })
 
 describe('VkClient', () => {
+  it.each([5, 6, 14])('фоновый запрос завершает ошибку %s без диалогов и повторов', async (code) => {
+    const onTokenRejected = vi.fn()
+    const onAuthLost = vi.fn()
+    const onCaptcha = vi.fn(async () => 'key')
+    const { fn } = fakeFetch([{ error: { error_code: code, captcha_sid: '77' } }])
+    const vk = base(fn, { onTokenRejected, onAuthLost, onCaptcha })
+    await expect(vk.call('audio.getPlaylistById', {}, { passive: true })).rejects.toMatchObject({ code })
+    expect(fn).toHaveBeenCalledOnce()
+    expect(onTokenRejected).not.toHaveBeenCalled()
+    expect(onAuthLost).not.toHaveBeenCalled()
+    expect(onCaptcha).not.toHaveBeenCalled()
+  })
   it('POSTs to api.vk.com with token, version and Kate UA', async () => {
     const { fn, calls } = fakeFetch([{ response: { count: 0, items: [] } }])
     const res = await base(fn).call('audio.get', { count: 10 })

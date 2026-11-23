@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { Playlist, Track } from '../../shared/types'
-import { TrackRow } from './TrackRow'
+import { TrackRow, type RowProps } from './TrackRow'
 import { useSelection } from './useSelection'
 
 /**
@@ -10,9 +10,10 @@ import { useSelection } from './useSelection'
  * карточки), передай `scroller` — тогда список живёт в общей прокрутке страницы и до него
  * можно долистать, а не упираться в сплющенный до нуля блок.
  */
-export function VirtualTrackList({ tracks, onPlay, ctxPlaylist, onReorder, showSrc, scroller }: {
+export function VirtualTrackList({ tracks, onPlay, ctxPlaylist, onReorder, showSrc, scroller, rowProps }: {
   tracks: Track[]; onPlay: (t: Track) => void; ctxPlaylist?: Playlist; onReorder?: (id: string, to: number) => void; showSrc?: boolean
   scroller?: RefObject<HTMLElement | null>
+  rowProps?: (track: Track) => Pick<RowProps, 'why' | 'details' | 'onDetails'>
 }) {
   const parent = useRef<HTMLDivElement>(null)
   /** Насколько список смещён от начала общей прокрутки — без этого виртуализатор считает строки не на тех местах. */
@@ -38,6 +39,7 @@ export function VirtualTrackList({ tracks, onPlay, ctxPlaylist, onReorder, showS
     count: tracks.length,
     getScrollElement: () => (shared ? scroller?.current ?? null : parent.current),
     estimateSize: () => 58,
+    ...(rowProps ? { gap: 2, getItemKey: (index: number) => tracks[index].id } : {}),
     overscan: 12,
     scrollMargin: shared ? margin : 0
   })
@@ -49,8 +51,9 @@ export function VirtualTrackList({ tracks, onPlay, ctxPlaylist, onReorder, showS
         {v.getVirtualItems().map((it) => {
           const t = tracks[it.index]
           return (
-            <div key={t.id} style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${it.start - (shared ? margin : 0)}px)` }}>
-              <TrackRow track={t} index={it.index} showSrc={showSrc} selected={sel.has(t.id)} selection={selected} ctxPlaylist={ctxPlaylist}
+            <div key={t.id} data-index={it.index} ref={rowProps ? v.measureElement : undefined}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${it.start - (shared ? margin : 0)}px)` }}>
+              <TrackRow track={t} index={it.index} showSrc={showSrc} selected={sel.has(t.id)} selection={selected} ctxPlaylist={ctxPlaylist} {...rowProps?.(t)}
                 onPlay={() => onPlay(t)} onSelect={(e) => onSelect(t, e)}
                 onDragOver={onReorder ? (e) => { if (e.dataTransfer.types.includes('text/track-ids')) e.preventDefault() } : undefined}
                 onDrop={onReorder ? (e) => { const ids = JSON.parse(e.dataTransfer.getData('text/track-ids') || '[]') as string[]; if (ids.length === 1) onReorder(ids[0], it.index) } : undefined} />

@@ -338,6 +338,33 @@ describe('протухший вход в SoundCloud', () => {
 })
 
 describe('треки артиста SoundCloud', () => {
+  it('продолжает по ссылке сервиса даже если часть треков первой страницы скрыта', async () => {
+    const f: Fetch = async (url) => {
+      const { pathname, searchParams } = new URL(url)
+      expect(pathname).toBe('/users/7/tracks')
+      expect(searchParams.get('client_id')).toBe(CID)
+      expect(searchParams.has('oauth_token')).toBe(false)
+      if (searchParams.get('cursor')) return res(200, { collection: [raw({ id: 2, playback_count: 0 })] })
+      return res(200, {
+        collection: [{ kind: 'playlist' }, raw({ id: 1, playback_count: 27 })],
+        next_href: 'https://api-v2.soundcloud.com/users/7/tracks?cursor=2&client_id=OLD&oauth_token=OLD'
+      })
+    }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    const first = await sc.artistTracksPage('synthboy', '7')
+    expect(first.tracks.map((t) => t.id)).toEqual(['sc_1'])
+    expect(first.next).toBe('https://api-v2.soundcloud.com/users/7/tracks?cursor=2')
+    const second = await sc.artistTracksPage('synthboy', '7', first.next)
+    expect(second.tracks[0]).toMatchObject({ id: 'sc_2', plays: 0 })
+    expect(second.next).toBeUndefined()
+  })
+
+  it('не отправляет запрос по ссылке на другой сайт', async () => {
+    const f: Fetch = async () => { throw new Error('запрос не ожидался') }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    await expect(sc.artistTracksPage('synthboy', '7', 'https://example.org/users/7/tracks')).rejects.toThrow(/неверную страницу/)
+  })
+
   it('берёт страницу артиста и отдаёт свежее сверху', async () => {
     const f: Fetch = async (url) => {
       if (url.includes('/search/users')) return res(200, { collection: [{ id: 9, username: 'other' }, { id: 7, username: 'synthboy' }] })

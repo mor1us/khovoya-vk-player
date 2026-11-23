@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { ArtistInfo, ArtistTrackMetadata, Track } from '../../shared/types'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ArtistInfo, ArtistTrackMetadata, Track, VkArtistTracksCursor, VkReleaseRef } from '../../shared/types'
 import { useUi } from '../store/ui'
 import { useLibrary } from '../store/library'
 import { player } from '../store/playerInstance'
 import { TrackRow, SrcBadge } from '../ui/TrackRow'
+import { VirtualTrackList } from '../ui/VirtualTrackList'
 import { Cover } from '../ui/Cover'
-import { artistTrackDetails, artistWhy, sortArtistTracks, type ArtistTrackOrder } from '../store/artistsLogic'
+import { artistTrackDetails, artistWhy, collectArtistTracks, sortArtistTracks, type ArtistTrackOrder } from '../store/artistsLogic'
 import * as I from '../ui/icons'
 import { artistSource } from '../ui/source'
 import { useLocalArtists } from '../store/localArtists'
@@ -49,20 +50,34 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
   const [order, setOrder] = useState<ArtistTrackOrder>('new')
   const [metadata, setMetadata] = useState<Record<string, ArtistTrackMetadata>>({})
   const [metadataPending, setMetadataPending] = useState(0)
+  const [releasePlays, setReleasePlays] = useState<Record<string, number>>({})
+  const requestedReleases = useRef(new Set<string>())
+  const scroll = useRef<HTMLDivElement>(null)
   const [moreBusy, setMoreBusy] = useState(false)
+  const [moreFailed, setMoreFailed] = useState(false)
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [now] = useState(() => Date.now())
   const pageSize = sc ? 40 : 30
   const loadMetadata = useCallback((tracks: Track[]) => {
     if (phone || !sc || !tracks.length) return
+    const missing = tracks.filter((t) => t.plays === undefined)
+    if (!missing.length) return
     setMetadataPending((count) => count + 1)
-    const request = tracks.map(({ id, title, artist, duration, releaseDate, isrc }) => ({ id, title, artist, duration, releaseDate, isrc }))
+    const request = missing.map(({ id, title, artist, duration, releaseDate, isrc }) => ({ id, title, artist, duration, releaseDate, isrc }))
     void window.api.invoke('artists:trackMetadata', a.name, request)
       .then((data) => setMetadata((current) => ({ ...current, ...data })))
       .catch(() => {})
       .finally(() => setMetadataPending((count) => count - 1))
   }, [a.name, phone, sc])
+  const loadReleasePlays = (album: VkReleaseRef, key: string) => {
+    if (requestedReleases.current.has(key)) return
+    requestedReleases.current.add(key)
+    const { id, ownerId, accessKey } = album
+    void window.api.invoke('vk:releasePlays', { id, ownerId, accessKey })
+      .then((plays) => { if (plays != null) setReleasePlays((current) => ({ ...current, [key]: plays })) })
+      .catch(() => {})
+  }
   const searchArtist = useCallback(() => {
     const ui = useUi.getState()
     ui.setSearchWhere(sc ? 'sc' : 'vk')
@@ -71,14 +86,33 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
 
   const load = useCallback(() => {
     let alive = true
-    const tracks = sc ? window.api.invoke('sc:artistTracks', a.name, a.id) : window.api.invoke('vk:artistTracks', { id: a.id, name: a.name })
-    tracks.then((r) => {
-      if (!alive) return
-      setList(r)
-      setOffset(r.length)
-      setHasMore(r.length === pageSize)
-      loadMetadata(r)
-    }).catch(() => { if (alive) { setList([]); setFailed(true) } })
+    const artist = { id: a.id, name: a.name }
+    if (phone) {
+      const tracks = sc ? window.api.invoke('sc:artistTracks', a.name, a.id) : window.api.invoke('vk:artistTracks', artist)
+      tracks.then((r) => {
+        if (!alive) return
+        setList(r)
+        setOffset(r.length)
+        setHasMore(r.length === pageSize)
+      }).catch(() => { if (alive) { setList([]); setFailed(true) } })
+    } else {
+      let loaded = false
+      const onPage = (tracks: Track[], added: Track[], hasNext: boolean) => {
+        loaded = tracks.length > 0
+        setList(tracks)
+        setMoreBusy(hasNext)
+        loadMetadata(added)
+      }
+      const collect = sc
+        ? collectArtistTracks<string>((cursor) => window.api.invoke('sc:artistTracksPage', a.name, a.id, cursor), () => alive, onPage)
+        : collectArtistTracks<VkArtistTracksCursor>((cursor) => window.api.invoke('vk:artistTracksPage', artist, cursor), () => alive, onPage)
+      void collect.catch(() => {
+        if (!alive) return
+        setMoreBusy(false)
+        if (loaded) setMoreFailed(true)
+        else { setList([]); setFailed(true) }
+      })
+    }
     const about = sc ? window.api.invoke('scacc:artistInfo', a.name, a.id) : window.api.invoke('vk:artistInfo', { id: a.id, name: a.name })
     about.then((r) => {
       if (!alive) return
@@ -86,7 +120,7 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
       if (r.missing && !a.link) useUi.getState().toast(`Профиль «${a.name}» не найден. Поискать треки?`, { label: 'Искать', run: searchArtist, dismissLabel: 'Не сейчас' })
     }).catch(() => { if (alive) setInfoFailed(true) })
     return () => { alive = false }
-  }, [a, sc, searchArtist, pageSize, loadMetadata])
+  }, [a, sc, phone, searchArtist, pageSize, loadMetadata])
   useEffect(load, [load])
 
 
@@ -126,7 +160,6 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
         return true
       })
       setList([...list, ...added])
-      loadMetadata(added)
       setOffset(offset + next.length)
       setHasMore(next.length === pageSize && added.length > 0)
     } catch {
@@ -156,9 +189,18 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
   }
   const canFollow = phone ? (!info.missing || !!profileLink) : !!account && followed !== undefined
   const isFollowed = phone ? localFollowed : followed === true
+  const artistRow = (track: Track) => {
+    const album = !track.src && track.plays === undefined ? track.album : undefined
+    const key = album ? album.ownerId + '/' + album.id : ''
+    return {
+      why: own.has(track.id) ? 'в твоей музыке' : undefined,
+      details: artistTrackDetails(track, metadata[track.id], vkPopularity.get(track.id), releasePlays[key]),
+      onDetails: album ? () => loadReleasePlays(album, key) : undefined
+    }
+  }
 
   return (
-    <div className="page artist-page">
+    <div className="page artist-page" ref={scroll}>
       <button className="back" onClick={() => useUi.getState().back()}><I.IBack size={16} />Назад</button>
       <div className="artist-hero">
         <Cover className="artist-cover" url={info.cover ?? a.cover} seed={a.name} />
@@ -204,11 +246,13 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
           {metadataPending > 0 && <span className="artist-muted" role="status">Уточняю данные треков…</span>}
           {!metadataPending && !hasPopularity && <span className="artist-muted">Нет данных о популярности</span>}
         </div>}
-        <div className="rows">{sorted.map((t, i) => <TrackRow key={t.id} track={t}
-          why={phone ? artistWhy(t, own, now) : own.has(t.id) ? 'в твоей музыке' : undefined}
-          details={phone ? undefined : artistTrackDetails(t, metadata[t.id], vkPopularity.get(t.id))} index={i} onPlay={() => play(t.id)} />)}</div>
+        {phone
+          ? <div className="rows">{sorted.map((t, i) => <TrackRow key={t.id} track={t} why={artistWhy(t, own, now)} index={i} onPlay={() => play(t.id)} />)}</div>
+          : <VirtualTrackList tracks={sorted} scroller={scroll} rowProps={artistRow} onPlay={(t) => play(t.id)} />}
       </>}
-      {hasMore && (!sc || a.id || info.id) && <button className="btn-s" disabled={moreBusy} onClick={() => void loadMore()}>{moreBusy ? 'Загружаю…' : 'Показать ещё'}</button>}
+      {phone && hasMore && (!sc || a.id || info.id) && <button className="btn-s" disabled={moreBusy} onClick={() => void loadMore()}>{moreBusy ? 'Загружаю…' : 'Показать ещё'}</button>}
+      {!phone && moreBusy && <div className="empty-state" role="status">Загружаю остальные треки…</div>}
+      {moreFailed && <div className="empty-state" role="status">Загрузилась часть треков. Попробуй обновить страницу артиста.</div>}
     </div>
   )
 }

@@ -24,28 +24,35 @@ function steal(root: ParentNode) {
 export function Tooltips() {
   const [tip, setTip] = useState<Tip | null>(null)
   useEffect(() => {
+    let host: HTMLElement | null = null
     steal(document.body)
     const mo = new MutationObserver((recs) => {
       for (const r of recs) {
-        if (r.type === 'attributes') { if ((r.target as Element).hasAttribute('title')) steal(r.target as Element) }
-        else r.addedNodes.forEach((n) => { if (n.nodeType === 1) steal(n as Element) })
+        if (r.type === 'attributes') {
+          const target = r.target as HTMLElement
+          if (!target.hasAttribute('title')) continue
+          steal(target)
+          if (target === host) {
+            const text = target.dataset.tip
+            setTip((current) => current && text && text !== current.text ? { ...current, text } : current)
+          }
+        } else r.addedNodes.forEach((n) => { if (n.nodeType === 1) steal(n as Element) })
       }
     })
     mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['title'] })
 
-    let host: HTMLElement | null = null
     let timer = 0
     const hide = () => { window.clearTimeout(timer); host = null; setTip(null) }
     const over = (e: MouseEvent) => {
       const el = (e.target as HTMLElement | null)?.closest?.('[data-tip]') as HTMLElement | null
       if (el === host) return
       hide()
-      const text = el?.dataset.tip
-      if (!el || !text) return
+      if (!el?.dataset.tip) return
       host = el
       timer = window.setTimeout(() => {
+        const text = el.dataset.tip
         const r = el.getBoundingClientRect()
-        if (!r.width && !r.height) return
+        if (!text || (!r.width && !r.height)) return
         const below = r.top < 96 // у верхнего края окна подсказка уходит вниз, иначе обрежется
         setTip({ text, x: Math.round(r.left + r.width / 2), y: Math.round(below ? r.bottom + 8 : r.top - 8), below })
       }, 350)

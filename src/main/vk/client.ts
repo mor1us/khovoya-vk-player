@@ -24,7 +24,7 @@ export class VkClient {
     this.sleep = o.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)))
   }
 
-  async call<T = unknown>(method: string, params: Record<string, string | number | undefined>): Promise<T> {
+  async call<T = unknown>(method: string, params: Record<string, string | number | undefined>, options?: { passive?: boolean }): Promise<T> {
     let token = await this.o.token()
     if (!token) throw new VkError(5, 'Нужно войти в ВК')
     const extra: Record<string, string> = {}
@@ -40,6 +40,7 @@ export class VkClient {
       const json = (await res.json()) as { response?: T; error?: { error_code: number; error_msg?: string; captcha_sid?: string; captcha_img?: string } }
       if (!json.error) return json.response as T
       const { error_code: code, error_msg } = json.error
+      if (options?.passive) throw new VkError(code, error_msg ?? 'Ошибка ВК')
       if (code === 6 && attempt < 3) { await this.sleep(400 * attempt); continue }
       if (code === 5 && !renewed && this.o.onTokenRejected) {
         renewed = true; this.o.onTokenRejected()

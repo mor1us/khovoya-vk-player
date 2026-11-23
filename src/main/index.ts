@@ -133,6 +133,7 @@ async function setup() {
   handle('sc:search', (q: string) => scSearch(q).catch(scLog('поиск')))
   handle('sc:related', (t: Track) => (MOCK ? scSearch(t.artist) : sc.related(t)))
   handle('sc:artistTracks', (name: string, id?: string, offset?: number) => (MOCK ? (offset ? [] : scSearch(name)) : sc.artistTracks(name, 40, id, offset)))
+  handle('sc:artistTracksPage', async (name, id, cursor) => MOCK ? { tracks: await scSearch(name) } : sc.artistTracksPage(name, id, cursor))
   handle('scacc:artistInfo', (name: string, id?: string) => (MOCK ? { followed: false, can: false } : sc.artistInfo(name, id)))
   handle('scacc:artistFollow', (name: string, on: boolean, id?: string) => (MOCK ? undefined : sc.followArtist(name, on, id)))
   handle('scacc:openArtistProfile', (url: string) => scProfileWindow(win, url))
@@ -202,6 +203,8 @@ async function setup() {
   handle('vk:openArtistProfile', (url: string) => vkArtistWindow(win, url))
   const trackCatalog = new ArtistTrackCatalog((url, init) => net.fetch(url, init), log)
   handle('artists:trackMetadata', (artist: string, tracks: ArtistTrackLookup[]) => MOCK ? {} : trackCatalog.lookup(artist, tracks))
+  handle('vk:artistTracksPage', async (artist, cursor) => api instanceof VkAudioApi ? api.artistTracksPage(artist, cursor) : { tracks: await api.artistTracks(artist) })
+  handle('vk:releasePlays', (album) => api instanceof VkAudioApi && keeper.userId() ? api.releasePlays(album) : null)
   const writingArtists = new Set<'vk' | 'sc'>()
   const mockArtistFollows = new Set<string>()
   handle('artists:follow', async (source: 'vk' | 'sc', account: number, artist: ArtistRef & { link?: string }, on?: boolean) => {

@@ -50,6 +50,10 @@ export type Playlist = {
   sc?: boolean
 }
 
+export type VkReleaseRef = Pick<NonNullable<Track['album']>, 'id' | 'ownerId' | 'accessKey'>
+export type VkArtistTracksCursor = { offset: number; search?: boolean; previousPage?: string }
+export type ArtistTracksPage<Cursor> = { tracks: Track[]; next?: Cursor }
+
 export type Settings = {
   downloadDir: string
   closeToTray: boolean

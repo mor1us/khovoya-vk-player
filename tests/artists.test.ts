@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { matchVkArtists, topArtists, isFresh, artistTrackDetails, artistWhy, sortArtistTracks, FRESH_DAYS } from '../src/renderer/store/artistsLogic'
+import { matchVkArtists, topArtists, isFresh, artistTrackDetails, artistWhy, collectArtistTracks, sortArtistTracks, FRESH_DAYS } from '../src/renderer/store/artistsLogic'
 import type { Track } from '../src/shared/types'
 
 const tr = (i: number, artist: string, extra: Partial<Track> = {}): Track => ({ id: 't' + i, ownerId: 1, vkId: i, title: 'T' + i, artist, duration: 100, url: 'u', available: true, coverUrl: 'c' + i, ...extra })
@@ -41,14 +41,14 @@ describe('сортировка треков артиста', () => {
 
   it('подписывает разные источники релиза и прослушиваний, включая нулевой счётчик', () => {
     const tip = artistTrackDetails(tr(1, 'A'), { releaseDate: '2024-04-11', releaseSource: 'itunes', listens: 0 })
-    expect(tip).toBe('Дата релиза · 11.04.2024\nУчтено прослушиваний · 0\nИсточник даты · iTunes\nИсточник прослушиваний · ListenBrainz')
-    expect(artistTrackDetails(tr(2, 'A'))).toBe('Дата релиза · нет данных\nПрослушиваний · нет данных')
+    expect(tip).toBe('ListenBrainz · 0\nРелиз · 11.04.2024 · iTunes')
+    expect(artistTrackDetails(tr(2, 'A'))).toBe('Сведений о треке пока нет')
   })
 
   it('показывает дату загрузки ВК с родным счётчиком и использует её при отсутствии даты релиза', () => {
     const uploaded = tr(1, 'A', { addedAt: Date.UTC(2024, 3, 11) / 1000, plays: 300 })
     const released = tr(2, 'A', { releaseDate: '2025-01-03', addedAt: 100 })
-    expect(artistTrackDetails(uploaded)).toBe('Загружен в ВК · 11.04.2024\nПрослушиваний · 300\nИсточник прослушиваний · ВК')
+    expect(artistTrackDetails(uploaded)).toBe('Прослушиваний · 300\nЗагружен · 11.04.2024')
     expect(sortArtistTracks([uploaded, released], 'new').map((t) => t.id)).toEqual(['t2', 't1'])
     expect(sortArtistTracks([released, uploaded], 'old').map((t) => t.id)).toEqual(['t1', 't2'])
   })
@@ -57,16 +57,51 @@ describe('сортировка треков артиста', () => {
     const tracks = [tr(1, 'A', { src: 'sc', plays: 999 }), tr(2, 'A', { src: 'sc', plays: 3 })]
     const metadata = { t1: { listeners: 1, listens: 2 }, t2: { listeners: 100, listens: 200 } }
     expect(sortArtistTracks(tracks, 'mostPlayed', undefined, metadata).map((t) => t.id)).toEqual(['t1', 't2'])
-    expect(artistTrackDetails(tracks[0], metadata.t1)).toContain('Прослушиваний · 999\nИсточник прослушиваний · SoundCloud')
-    expect(artistTrackDetails({ ...tracks[1], plays: undefined }, metadata.t2)).toContain('Учтено прослушиваний · 200\nИсточник прослушиваний · ListenBrainz')
+    expect(artistTrackDetails(tracks[0], metadata.t1)).toBe('Прослушиваний · 999')
+    expect(artistTrackDetails({ ...tracks[1], plays: undefined }, metadata.t2)).toBe('ListenBrainz · 200')
   })
 
-  it('подписывает позицию ВК и отделяет дату загрузки SoundCloud от даты релиза', () => {
-    expect(artistTrackDetails(tr(1, 'A'), undefined, 2)).toContain('Место в «Популярном» ВК · 2')
-    const upload = tr(2, 'A', { src: 'sc', addedAt: Date.UTC(2024, 3, 11) / 1000 })
-    expect(artistTrackDetails(upload)).toContain('Загружен в SoundCloud · 11.04.2024')
-    expect(artistTrackDetails(upload)).toContain('Дата релиза · нет данных')
-    expect(artistTrackDetails(upload, { releaseDate: '2024-04-11' })).not.toContain('Загружен в SoundCloud')
+  it('показывает точный счётчик трека ВК, счётчик релиза или место в популярном', () => {
+    const track = tr(1, 'A')
+    expect(artistTrackDetails(track, undefined, 2)).toBe('Популярное ВК · №2')
+    expect(artistTrackDetails(track, undefined, 2, 32_028)).toBe('Прослушивания релиза · 32\u00a0028')
+    expect(artistTrackDetails({ ...track, plays: 0 }, undefined, 2, 32_028)).toBe('Прослушиваний · 0')
+  })
+
+  it('оставляет в SoundCloud только число прослушиваний и дату загрузки', () => {
+    const upload = tr(2, 'A', { src: 'sc', plays: 32_028, releaseDate: '2020-02-01', addedAt: Date.UTC(2026, 8, 20) / 1000 })
+    expect(artistTrackDetails(upload, { releaseDate: '2024-04-11' })).toBe('Прослушиваний · 32\u00a0028\nЗагружен · 20.09.2026')
+    expect(artistTrackDetails({ ...upload, plays: undefined })).toBe('Загружен · 20.09.2026')
+  })
+})
+
+describe('автоматическая загрузка треков артиста', () => {
+  it('публикует первую страницу сразу, проходит пустую и убирает дубли', async () => {
+    const published: { ids: string[]; more: boolean }[] = []
+    await collectArtistTracks<string>(async (cursor) => {
+      if (!cursor) return { tracks: [tr(1, 'A')], next: '2' }
+      expect(published[0]).toEqual({ ids: ['t1'], more: true })
+      return cursor === '2' ? { tracks: [], next: '3' } : { tracks: [tr(1, 'A'), tr(2, 'A')] }
+    }, () => true, (tracks, _added, more) => published.push({ ids: tracks.map((t) => t.id), more }))
+    expect(published).toEqual([{ ids: ['t1'], more: true }, { ids: ['t1', 't2'], more: false }])
+  })
+
+  it('останавливается на повторе курсора и оставляет загруженные треки', async () => {
+    let ids: string[] = []
+    await expect(collectArtistTracks<string>(async () => ({ tracks: [tr(1, 'A')], next: 'same' }),
+      () => true, (tracks) => { ids = tracks.map((t) => t.id) })).rejects.toThrow(/повторил страницу/)
+    expect(ids).toEqual(['t1'])
+  })
+
+  it('не публикует страницу после ухода с артиста', async () => {
+    let active = true
+    let calls = 0
+    await collectArtistTracks<string>(async (cursor) => {
+      calls++
+      if (cursor) active = false
+      return { tracks: [tr(calls, 'A')], next: String(calls) }
+    }, () => active, (tracks) => expect(tracks.map((t) => t.id)).toEqual(['t1']))
+    expect(calls).toBe(2)
   })
 })
 

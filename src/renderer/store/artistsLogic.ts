@@ -1,4 +1,4 @@
-import type { ArtistSubscription, ArtistTrackMetadata, Track } from '../../shared/types'
+import type { ArtistSubscription, ArtistTrackMetadata, ArtistTracksPage, Track } from '../../shared/types'
 
 export const FRESH_DAYS = 14
 export type ArtistTrackOrder = 'new' | 'old' | 'mostPlayed' | 'leastPlayed'
@@ -26,31 +26,49 @@ export function sortArtistTracks(tracks: Track[], order: ArtistTrackOrder, popul
   })
 }
 
-export function artistTrackDetails(track: Track, data?: ArtistTrackMetadata, vkRank?: number): string {
-  const date = data?.releaseDate ?? track.releaseDate
-  const externalPlays = data?.listens !== undefined && (track.src !== 'sc' || track.plays === undefined)
-  const plays = externalPlays ? data.listens : track.plays
-  const release = date ? date.split('-').reverse().join('.') : 'нет данных'
-  const service = track.src === 'sc' ? 'SoundCloud' : 'ВК'
-  const releaseSource = data?.releaseSource === 'musicbrainz' ? 'MusicBrainz' : data?.releaseSource === 'itunes' ? 'iTunes' : service
-  const playsSource = externalPlays ? 'ListenBrainz' : service
-  const label = externalPlays ? 'Учтено прослушиваний' : 'Прослушиваний'
-  const base = [`Дата релиза · ${release}`, `${label} · ${plays?.toLocaleString('ru-RU') ?? 'нет данных'}`]
-  if (track.src !== 'sc' && !date && track.addedAt) {
-    const uploaded = new Date(track.addedAt * 1000).toLocaleDateString('ru-RU', { timeZone: 'UTC' })
-    base[0] = `Загружен в ВК · ${uploaded}`
+export function artistTrackDetails(track: Track, data?: ArtistTrackMetadata, vkRank?: number, vkReleasePlays?: number): string {
+  const sc = track.src === 'sc'
+  const lines: string[] = []
+  if (track.plays !== undefined) lines.push('Прослушиваний · ' + track.plays.toLocaleString('ru-RU'))
+  else if (!sc && vkReleasePlays !== undefined) lines.push('Прослушивания релиза · ' + vkReleasePlays.toLocaleString('ru-RU'))
+  else if (data?.listens !== undefined) lines.push('ListenBrainz · ' + data.listens.toLocaleString('ru-RU'))
+  else if (!sc && vkRank !== undefined) lines.push('Популярное ВК · №' + vkRank)
+
+  const date = sc ? undefined : data?.releaseDate ?? track.releaseDate
+  if (date) {
+    const source = data?.releaseSource === 'musicbrainz' ? 'MusicBrainz' : data?.releaseSource === 'itunes' ? 'iTunes' : undefined
+    lines.push('Релиз · ' + date.split('-').reverse().join('.') + (source ? ' · ' + source : ''))
+  } else if (track.addedAt) {
+    lines.push('Загружен · ' + new Date(track.addedAt * 1000).toLocaleDateString('ru-RU', { timeZone: 'UTC' }))
   }
-  if (date && plays !== undefined) {
-    if (releaseSource === playsSource) base.push(`Источник · ${releaseSource}`)
-    else base.push(`Источник даты · ${releaseSource}`, `Источник прослушиваний · ${playsSource}`)
-  } else if (date) base.push(`Источник даты · ${releaseSource}`)
-  else if (plays !== undefined) base.push(`Источник прослушиваний · ${playsSource}`)
-  if (!date && track.src === 'sc' && track.addedAt) {
-    const uploaded = new Date(track.addedAt * 1000).toLocaleDateString('ru-RU', { timeZone: 'UTC' })
-    base.push(`Загружен в SoundCloud · ${uploaded}`)
-  }
-  if (plays === undefined && vkRank !== undefined) base.push(`Место в «Популярном» ВК · ${vkRank}`)
-  return base.join('\n')
+  return lines.join('\n') || 'Сведений о треке пока нет'
+}
+
+export async function collectArtistTracks<Cursor>(
+  fetchPage: (cursor?: Cursor) => Promise<ArtistTracksPage<Cursor>>,
+  active: () => boolean,
+  onPage: (tracks: Track[], added: Track[], hasMore: boolean) => void
+): Promise<void> {
+  const tracks = new Map<string, Track>()
+  const cursors = new Set<string>()
+  let cursor: Cursor | undefined
+  do {
+    const page = await fetchPage(cursor)
+    if (!active()) return
+    const added: Track[] = []
+    for (const track of page.tracks) {
+      if (tracks.has(track.id)) continue
+      tracks.set(track.id, track)
+      added.push(track)
+    }
+    cursor = page.next
+    const hasMore = cursor !== undefined
+    if (added.length || !hasMore) onPage([...tracks.values()], added, hasMore)
+    if (!hasMore) return
+    const key = JSON.stringify(cursor)
+    if (cursors.has(key)) throw new Error('Сервис повторил страницу треков')
+    cursors.add(key)
+  } while (active())
 }
 export type MyArtist = { key: string; name: string; id?: string; count: number; cover?: string }
 

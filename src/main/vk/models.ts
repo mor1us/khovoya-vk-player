@@ -9,7 +9,7 @@ export function vkFlag(value: unknown): boolean | undefined {
   if (value === false || value === 0 || value === '0') return false
 }
 
-function vkNonNegativeInteger(value: unknown): number | undefined {
+export function vkNonNegativeInteger(value: unknown): number | undefined {
   const number = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value
   if (typeof number === 'number' && Number.isSafeInteger(number) && number >= 0) return number
 }

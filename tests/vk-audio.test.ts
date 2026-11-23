@@ -166,6 +166,34 @@ describe('artistTracks', () => {
 })
 
 describe('листание страниц', () => {
+  it('дочитывает каталог артиста по общему числу записей при неполной странице', async () => {
+    const { calls, client } = fakeClient((method, params) => method === 'audio.getById' ? [] : {
+      count: 3, items: params.offset ? [raw(3)] : [raw(1), raw(2)]
+    })
+    const api = new VkAudioApi(client as any, () => 7)
+    const artist = { id: 'x', name: 'A' }
+    const first = await api.artistTracksPage(artist)
+    expect(first.next?.offset).toBe(2)
+    const second = await api.artistTracksPage(artist, first.next)
+    expect(second.tracks.map((t) => t.vkId)).toEqual([3])
+    expect(second.next).toBeUndefined()
+    expect(calls.filter((c) => c.m === 'audio.getAudiosByArtist').map((c) => c.p.offset)).toEqual([undefined, 2])
+  })
+
+  it('в поиске ВК считает смещение по всем записям, включая чужие', async () => {
+    const { client } = fakeClient((method, params) => {
+      if (method === 'audio.getAudiosByArtist') throw new Error('Каталог недоступен')
+      if (method === 'audio.getById') return []
+      return { count: 2, items: params.offset === 1 ? [{ ...raw(2), artist: 'A' }] : [{ ...raw(1), artist: 'Другой' }] }
+    })
+    const api = new VkAudioApi(client as any, () => 7)
+    const artist = { id: 'x', name: 'A' }
+    const first = await api.artistTracksPage(artist)
+    expect(first.tracks).toEqual([])
+    expect(first.next).toMatchObject({ offset: 1, search: true })
+    expect((await api.artistTracksPage(artist, first.next)).tracks.map((t) => t.vkId)).toEqual([2])
+  })
+
   it('без поля count не уходит в вечный цикл', async () => {
     // ВК обязан присылать count, но если не прислал — лучше отдать что есть,
     // чем долбить его запросами до бесконечности
@@ -175,6 +203,22 @@ describe('листание страниц', () => {
     const got = await api.myTracks()
     expect(calls).toBe(1)
     expect(got.length).toBe(1)
+  })
+})
+
+describe('прослушивания релиза ВК', () => {
+  it('читает счётчик совпадающего релиза, включая ноль', async () => {
+    const { calls, client } = fakeClient(() => ({ owner_id: -7, id: 3, plays: '0' }))
+    const api = new VkAudioApi(client as any, () => 7)
+    expect(await api.releasePlays({ ownerId: -7, id: 3, accessKey: 'key' })).toBe(0)
+    expect(calls).toEqual([{ m: 'audio.getPlaylistById', p: { owner_id: -7, playlist_id: 3, access_key: 'key', extended: 1, v: '8.154' } }])
+  })
+
+  it('отбрасывает чужой релиз и отсутствие счётчика', async () => {
+    const { client } = fakeClient((_method, params) => ({ owner_id: -7, id: 3, plays: params.playlist_id === 4 ? 300 : undefined }))
+    const api = new VkAudioApi(client as any, () => 7)
+    expect(await api.releasePlays({ ownerId: -7, id: 4 })).toBeNull()
+    expect(await api.releasePlays({ ownerId: -7, id: 3 })).toBeNull()
   })
 })
 

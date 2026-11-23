@@ -1,4 +1,4 @@
-import type { ArtistSubscription, ScArtist, ScComment, ScMe, ScPlaylistRef, ScResolved, ScStatus, Track } from '../../shared/types'
+import type { ArtistSubscription, ArtistTracksPage, ScArtist, ScComment, ScMe, ScPlaylistRef, ScResolved, ScStatus, Track } from '../../shared/types'
 import { uniqueBy } from '../../shared/list'
 import { normalizeIsrc, releaseDateOf } from '../../shared/trackMetadata'
 
@@ -12,6 +12,19 @@ export type Fetch = (url: string, init?: { headers?: Record<string, string>; sig
 
 export const SC_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
 const API = 'https://api-v2.soundcloud.com'
+
+function artistTracksUrl(cursor: string, userId?: string): URL {
+  const url = new URL(cursor, API)
+  const profile = /^\/users\/(\d+)\/tracks$/.exec(url.pathname)
+  if (url.origin !== API || url.username || url.password ||
+    (url.pathname !== '/search/tracks' && (!profile || (userId && userId !== profile[1])))) {
+    throw new Error('SoundCloud вернул неверную страницу треков')
+  }
+  url.searchParams.delete('client_id')
+  url.searchParams.delete('oauth_token')
+  url.hash = ''
+  return url
+}
 
 export function findScriptUrls(html: string): string[] {
   return [...html.matchAll(/<script[^>]+src="(https:\/\/[^"]*sndcdn\.com\/[^"]+\.js)"/g)].map((m) => m[1])
@@ -63,6 +76,7 @@ function scReleaseDate(track: { release_date?: unknown; release_year?: unknown; 
 
 const scPlayCount = (track: any): number | undefined =>
   track.reveal_stats !== false && Number.isSafeInteger(track.playback_count) && track.playback_count >= 0 ? track.playback_count : undefined
+const scUploadedAt = (track: any): number | undefined => track.created_at ? Math.floor(Date.parse(track.created_at) / 1000) || undefined : undefined
 
 export function mapScTrack(r: any): Track | null {
   if (!r || r.kind !== 'track' || !r.id) return null
@@ -80,7 +94,7 @@ export function mapScTrack(r: any): Track | null {
     duration: Math.round((Number(r.full_duration || r.duration) || 0) / 1000),
     url: '',
     coverUrl: artwork(r),
-    addedAt: r.created_at ? Math.floor(Date.parse(r.created_at) / 1000) || undefined : undefined,
+    addedAt: scUploadedAt(r),
     releaseDate: scReleaseDate(r),
     isrc: normalizeIsrc(r.isrc) ?? normalizeIsrc(r.publisher_metadata?.isrc),
     plays: scPlayCount(r),
@@ -269,27 +283,46 @@ export class SoundCloud {
     const u = userId ? { id: userId } : users.find((x) => String(x?.username ?? '').trim().toLowerCase() === key)
     if (u?.id) {
       const r = await this.api(`/users/${encodeURIComponent(String(u.id))}/tracks`, { limit, linked_partitioning: 1, ...(offset ? { offset } : {}) })
-      const raw: any[] = r?.collection ?? []
-      const ids = raw.filter((t) => t?.id && ((!scReleaseDate(t)) || (t.reveal_stats !== false && scPlayCount(t) === undefined))).map((t) => t.id)
-      const full = ids.length ? await this.api('/tracks', { ids: ids.join(',') }).catch(() => null) : null
-      const byId = new Map((Array.isArray(full) ? full : []).map((t) => [t.id, t]))
-      const ts = raw.map((t) => {
-        const details = byId.get(t?.id)
-        if (!details) return mapScTrack(t)
-        const mapped = mapScTrack(t)
-        if (!mapped) return mapScTrack(details)
-        return {
-          ...mapped,
-          releaseDate: mapped.releaseDate ?? scReleaseDate(details),
-          isrc: mapped.isrc ?? normalizeIsrc(details.isrc) ?? normalizeIsrc(details.publisher_metadata?.isrc),
-          plays: t.reveal_stats === false || details.reveal_stats === false ? undefined : mapped.plays ?? scPlayCount(details)
-        }
-      }).filter((t): t is Track => !!t)
-      return byDate(ts)
+      return byDate(await this.artistTrackCollection(r?.collection ?? []))
     }
     if (offset) return []
     const found = await this.search(name, limit)
     return byDate(found.filter((t) => t.artist.trim().toLowerCase() === key))
+  }
+
+  private async artistTrackCollection(raw: any[], needsReleaseDate = true): Promise<Track[]> {
+    const ids = raw.filter((t) => t?.id && ((needsReleaseDate && !scReleaseDate(t)) || (t.reveal_stats !== false && scPlayCount(t) === undefined))).map((t) => t.id)
+    const full = ids.length ? await this.api('/tracks', { ids: ids.join(',') }).catch(() => null) : null
+    const byId = new Map((Array.isArray(full) ? full : []).map((t) => [String(t.id), t]))
+    return raw.map((t) => {
+      const details = byId.get(String(t?.id))
+      if (!details) return mapScTrack(t)
+      const mapped = mapScTrack(t)
+      if (!mapped) return mapScTrack(details)
+      return {
+        ...mapped,
+        addedAt: mapped.addedAt ?? scUploadedAt(details),
+        releaseDate: mapped.releaseDate ?? scReleaseDate(details),
+        isrc: mapped.isrc ?? normalizeIsrc(details.isrc) ?? normalizeIsrc(details.publisher_metadata?.isrc),
+        plays: t.reveal_stats === false || details.reveal_stats === false ? undefined : mapped.plays ?? scPlayCount(details)
+      }
+    }).filter((t): t is Track => !!t)
+  }
+
+  async artistTracksPage(name: string, userId?: string, cursor?: string): Promise<ArtistTracksPage<string>> {
+    const user = cursor ? null : await this.userByName(name, userId).catch(() => null)
+    const path = cursor || (user ? '/users/' + user.id + '/tracks' : '/search/tracks')
+    const url = artistTracksUrl(path, userId)
+    const search = url.pathname === '/search/tracks'
+    if (search) url.searchParams.set('q', name)
+    const r = await this.api(url.href, { limit: 40, linked_partitioning: 1 })
+    if (!Array.isArray(r?.collection)) throw new Error('SoundCloud не вернул список треков')
+    const list = await this.artistTrackCollection(r.collection, false)
+    const key = name.trim().toLowerCase()
+    const tracks = search ? list.filter((t) => t.artist.trim().toLowerCase() === key) : list
+    const next = typeof r.next_href === 'string' && r.next_href ? artistTracksUrl(r.next_href, userId) : undefined
+    if (next && next.pathname !== url.pathname) throw new Error('SoundCloud сменил источник списка треков')
+    return { tracks, ...(next ? { next: next.href } : {}) }
   }
 
   /** Плейлисты SoundCloud по запросу (для поиска). */

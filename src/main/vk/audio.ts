@@ -1,9 +1,9 @@
-import type { Track, Playlist, ArtistRef, ArtistInfo } from '../../shared/types'
-import { mapTrack, mapPlaylist, vkFlag } from './models'
+import type { Track, Playlist, ArtistRef, ArtistInfo, ArtistTracksPage, VkArtistTracksCursor, VkReleaseRef } from '../../shared/types'
+import { mapTrack, mapPlaylist, vkFlag, vkNonNegativeInteger } from './models'
 import { vkArtistProfile } from './webArtistsLogic'
 import { artistPopularTracks, artistSubscriptionState, catalogSummary, parseCatalog, subscriptionArtists, subscriptionCatalogShape, subscriptionSection, type ForYouBlock } from './catalog'
 
-type Caller = { call<T = any>(method: string, params: Record<string, string | number | undefined>): Promise<T> }
+type Caller = { call<T = any>(method: string, params: Record<string, string | number | undefined>, options?: { passive?: boolean }): Promise<T> }
 
 export interface AudioApi {
   myTracks(): Promise<Track[]>
@@ -33,6 +33,8 @@ const PAGE = 1000
 // Каталог и аудио используют внутреннюю версию VK Music, она не совпадает с публичной v=5.x.
 const MUSIC_API_VERSION = '8.154'
 const vkId = (id: string) => Number(id.split('_')[1])
+const matchesArtist = (t: Track, a: ArtistRef, name: string) => t.artists?.some((artist) => a.id ? artist.id === a.id : artist.name.trim().toLowerCase() === name)
+  ?? t.artist.toLowerCase().split(/\s+(?:feat\.?|ft\.?|x|&)\s+|,/).some((artist) => artist.trim() === name)
 
 export class VkAudioApi implements AudioApi {
   constructor(private vk: Caller, private me: () => number, private log: (m: string) => void = () => {}) {}
@@ -40,6 +42,27 @@ export class VkAudioApi implements AudioApi {
 
   private async musicCall<T = any>(method: string, params: Record<string, string | number | undefined>): Promise<T> {
     return this.vk.call<T>(method, { ...params, v: MUSIC_API_VERSION })
+  }
+
+  async releasePlays(album: VkReleaseRef): Promise<number | null> {
+    if (!album || !Number.isSafeInteger(album.id) || album.id <= 0 || !Number.isSafeInteger(album.ownerId) || !album.ownerId) return null
+    const { id, ownerId, accessKey } = album
+    try {
+      const release = await this.vk.call<{ id?: unknown; owner_id?: unknown; plays?: unknown }>('audio.getPlaylistById', {
+        owner_id: ownerId, playlist_id: id, access_key: typeof accessKey === 'string' ? accessKey : undefined, extended: 1, v: MUSIC_API_VERSION
+      }, { passive: true })
+      if (!release || String(release.id) !== String(id) || String(release.owner_id) !== String(ownerId)) {
+        this.log('сведения о релизе ВК: ответ не совпал с запрошенным релизом')
+        return null
+      }
+      const plays = vkNonNegativeInteger(release.plays)
+      if (plays === undefined) this.log('сведения о релизе ВК: счётчик не передан')
+      return plays ?? null
+    } catch (error) {
+      const code = (error as { code?: unknown })?.code
+      this.log('сведения о релизе ВК: запрос не удался' + (typeof code === 'number' ? ' (код ВК ' + code + ')' : ''))
+      return null
+    }
   }
 
   artistSubscriptions(force = true) {
@@ -133,12 +156,20 @@ export class VkAudioApi implements AudioApi {
     return [...result.values()]
   }
 
+  private artistAudios(id: string, count: number, offset: number) {
+    return this.musicCall<{ items: any[]; count?: number }>('audio.getAudiosByArtist', { artist_id: id, count, ...(offset ? { offset } : {}) })
+  }
+
+  private searchArtistAudios(name: string, count: number, offset: number) {
+    return this.vk.call<{ items: any[]; count?: number }>('audio.search', { q: name, count, sort: 0, performer_only: 1, ...(offset ? { offset } : {}) })
+  }
+
   /** Треки исполнителя, новые сверху. */
   async artistTracks(a: ArtistRef, offset = 0): Promise<Track[]> {
     const byDate = (xs: Track[]) => xs.sort((x, y) => (y.addedAt ?? 0) - (x.addedAt ?? 0))
     if (a.id) {
       try {
-        const r = await this.musicCall<{ items: any[] }>('audio.getAudiosByArtist', { artist_id: a.id, count: 30, ...(offset ? { offset } : {}) })
+        const r = await this.artistAudios(a.id, 30, offset)
         this.logArtistTrackFields('список артиста', r.items)
         return byDate(await this.artistTrackDetails(r.items.map(mapTrack)))
       } catch (e) { this.log(`getAudiosByArtist: ${(e as Error).message}`) }
@@ -149,17 +180,47 @@ export class VkAudioApi implements AudioApi {
     // Смещение в выдаче ВК включает чужие треки, а смещение страницы — только совпадения.
     const batch = 60
     for (let start = 0; start < 1200 && found.size < offset + 30; start += batch) {
-      const r = await this.vk.call<{ items: any[] }>('audio.search', { q: a.name, count: batch, sort: 0, performer_only: 1, ...(start ? { offset: start } : {}) })
+      const r = await this.searchArtistAudios(a.name, batch, start)
       const before = scanned.size
       for (const t of r.items.map(mapTrack)) {
         scanned.add(t.id)
-        const matches = t.artists?.some((artist) => a.id ? artist.id === a.id : artist.name.trim().toLowerCase() === name)
-          ?? t.artist.toLowerCase().split(/\s+(?:feat\.?|ft\.?|x|&)\s+|,/).some((artist) => artist.trim() === name)
-        if (matches) found.set(t.id, t)
+        if (matchesArtist(t, a, name)) found.set(t.id, t)
       }
       if (r.items.length < batch || scanned.size === before) break
     }
     return this.artistTrackDetails(byDate([...found.values()]).slice(offset, offset + 30))
+  }
+
+  async artistTracksPage(a: ArtistRef, cursor?: VkArtistTracksCursor): Promise<ArtistTracksPage<VkArtistTracksCursor>> {
+    const offset = cursor?.offset ?? 0
+    if (!Number.isSafeInteger(offset) || offset < 0) return { tracks: [] }
+    const id = cursor?.search ? undefined : a.id
+    const size = id ? 30 : 60
+    const raw = id
+      ? await this.artistAudios(id, size, offset).catch((error: unknown) => {
+        if (cursor) throw error
+        this.log('треки артиста ВК: каталог не ответил, поиск по имени')
+        return null
+      })
+      : await this.searchArtistAudios(a.name, size, offset)
+    if (!Array.isArray(raw?.items)) {
+      if (id && !cursor) return this.artistTracksPage(a, { offset: 0, search: true })
+      this.log('треки артиста ВК: ответ без списка треков')
+      throw new Error('ВК не вернул список треков')
+    }
+    this.logArtistTrackFields('список артиста', raw.items)
+    const items = raw.items.map(mapTrack)
+    const previousPage = items.map((t) => t.id).join(',')
+    if (previousPage && previousPage === cursor?.previousPage) {
+      this.log('треки артиста ВК: сервис повторил страницу')
+      throw new Error('ВК повторил страницу треков')
+    }
+    const name = a.name.trim().toLowerCase()
+    const tracks = id ? items : items.filter((t) => matchesArtist(t, a, name))
+    const nextOffset = offset + items.length
+    const total = vkNonNegativeInteger(raw.count)
+    const hasMore = items.length > 0 && (total === undefined ? items.length >= size : nextOffset < total)
+    return { tracks: await this.artistTrackDetails(tracks), ...(hasMore ? { next: { offset: nextOffset, search: !id, previousPage } } : {}) }
   }
 
   private logArtistTrackFields(source: string, tracks: any[]) {
@@ -187,6 +248,7 @@ export class VkAudioApi implements AudioApi {
         if (!detail) return track
         return {
           ...track,
+          album: track.album ?? detail.album,
           addedAt: track.addedAt ?? detail.addedAt,
           releaseDate: track.releaseDate ?? detail.releaseDate,
           plays: track.plays ?? detail.plays
