@@ -26,6 +26,7 @@ export type IpcMap = {
   'vk:forYou': () => ForYouBlock[]
   'vk:artistTracks': (a: ArtistRef, offset?: number) => Track[]
   'vk:artistTracksPage': (a: ArtistRef, cursor?: VkArtistTracksCursor) => ArtistTracksPage<VkArtistTracksCursor>
+  'vk:artistSearch': (query: string) => Track[]
   'vk:artistInfo': (a: ArtistRef) => ArtistInfo
   'vk:artistFollow': (a: ArtistRef, on: boolean) => void
   'vk:openArtistProfile': (url: string) => void
@@ -120,7 +121,7 @@ export const IPC = {
   'scacc:openArtistProfile': true,
   'artists:subscriptions': true,
   'artists:trackMetadata': true,
-  'vk:artistTracksPage': true, 'sc:artistTracksPage': true,
+  'vk:artistTracksPage': true, 'sc:artistTracksPage': true, 'vk:artistSearch': true,
   'artists:follow': true,
   'vk:openArtistProfile': true,
   'vk:openSubscriptions': true,

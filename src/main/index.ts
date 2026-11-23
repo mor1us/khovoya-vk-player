@@ -204,6 +204,7 @@ async function setup() {
   const trackCatalog = new ArtistTrackCatalog((url, init) => net.fetch(url, init), log)
   handle('artists:trackMetadata', (artist: string, tracks: ArtistTrackLookup[]) => MOCK ? {} : trackCatalog.lookup(artist, tracks))
   handle('vk:artistTracksPage', async (artist, cursor) => api instanceof VkAudioApi ? api.artistTracksPage(artist, cursor) : { tracks: await api.artistTracks(artist) })
+  handle('vk:artistSearch', async (query) => api instanceof VkAudioApi ? api.searchTracks(query) : (await api.search(query)).tracks)
   const writingArtists = new Set<'vk' | 'sc'>()
   const mockArtistFollows = new Set<string>()
   handle('artists:follow', async (source: 'vk' | 'sc', account: number, artist: ArtistRef & { link?: string }, on?: boolean) => {

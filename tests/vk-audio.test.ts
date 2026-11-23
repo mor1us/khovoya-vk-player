@@ -11,6 +11,13 @@ function fakeClient(handler: (m: string, p: Record<string, any>) => unknown) {
 }
 
 describe('VkAudioApi', () => {
+  it('для поиска артистов можно загрузить треки без запроса плейлистов', async () => {
+    const { calls, client } = fakeClient(() => ({ items: [raw(1)] }))
+    const api = new VkAudioApi(client as any, () => 7)
+    expect(await api.searchTracks('ива')).toMatchObject([{ id: '7_1' }])
+    expect(calls).toEqual([{ m: 'audio.search', p: { q: 'ива', count: 100, offset: 0, auto_complete: 1, sort: 2 } }])
+  })
+
   it('myTracks pages audio.get by 1000 and concatenates', async () => {
     const { calls, client } = fakeClient((_m, p) => {
       const off = Number(p.offset); const n = Math.min(1000, 2500 - off)

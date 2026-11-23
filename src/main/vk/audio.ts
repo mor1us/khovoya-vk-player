@@ -350,12 +350,17 @@ export class VkAudioApi implements AudioApi {
   myTracks() { return this.pages({ owner_id: this.me() }) }
   playlistTracks(p: Playlist) { return this.pages({ owner_id: p.ownerId, playlist_id: p.id, access_key: p.accessKey }) }
 
+  async searchTracks(q: string, offset = 0, byDate = false): Promise<Track[]> {
+    const result = await this.vk.call<{ items: any[] }>('audio.search', { q, count: 100, offset, auto_complete: 1, sort: byDate ? 0 : 2 })
+    return result.items.map(mapTrack)
+  }
+
   async search(q: string, offset = 0, byDate = false) {
     const [t, p] = await Promise.all([
-      this.vk.call<{ items: any[] }>('audio.search', { q, count: 100, offset, auto_complete: 1, sort: byDate ? 0 : 2 }),
+      this.searchTracks(q, offset, byDate),
       this.vk.call<{ items: any[] }>('audio.searchPlaylists', { q, count: 20 }).catch(() => ({ items: [] }))
     ])
-    return { tracks: t.items.map(mapTrack), playlists: p.items.map((x) => mapPlaylist(x, this.me())) }
+    return { tracks: t, playlists: p.items.map((x) => mapPlaylist(x, this.me())) }
   }
 
   async playlists() {
