@@ -6,7 +6,7 @@ import { player } from '../store/playerInstance'
 import { TrackRow, SrcBadge } from '../ui/TrackRow'
 import { VirtualTrackList } from '../ui/VirtualTrackList'
 import { Cover } from '../ui/Cover'
-import { artistTrackDetails, artistWhy, collectArtistTracks, sortArtistTracks, type ArtistTrackOrder } from '../store/artistsLogic'
+import { artistTrackDetails, artistWhy, collectArtistTracks, sortArtistTracks, toggleArtistTrackOrder, type ArtistTrackOrder } from '../store/artistsLogic'
 import * as I from '../ui/icons'
 import { artistSource } from '../ui/source'
 import { useLocalArtists } from '../store/localArtists'
@@ -19,8 +19,8 @@ const DATE_ORDERS = [
   { value: 'new', label: 'Новые' },
   { value: 'old', label: 'Старые' }
 ] as const
-type OrderOption = { value: ArtistTrackOrder; label: string; needsPopularity?: boolean }
-const VK_TRACK_ORDERS: OrderOption[] = [{ value: 'catalog', label: 'Как в ВК' }, ...DATE_ORDERS]
+type OrderOption = { value: Exclude<ArtistTrackOrder, 'catalog'>; label: string; needsPopularity?: boolean }
+const VK_TRACK_ORDERS: readonly OrderOption[] = DATE_ORDERS
 const SC_TRACK_ORDERS: OrderOption[] = [
   ...DATE_ORDERS,
   { value: 'mostPlayed', label: 'Популярные', needsPopularity: true },
@@ -204,8 +204,8 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
           </div>
           <div className="artist-actions">
             {info.missing && <button className="btn-s" onClick={searchArtist}>Искать треки</button>}
-            {!!can.length && <button className="btn-s g" onClick={() => play(can[0].id)}><I.IPlay size={14} />Слушать</button>}
-            {canFollow && <button className={'btn-s' + (sc ? ' sco' : '')} disabled={busy} onClick={() => void follow()}>
+            {!!can.length && <button className={'btn-s ' + (sc && !phone ? 'sco' : 'g')} onClick={() => play(can[0].id)}><I.IPlay size={14} />Слушать</button>}
+            {canFollow && <button className={'btn-s' + (sc && phone ? ' sco' : '')} disabled={busy} onClick={() => void follow()}>
               <I.IHeart size={14} on={isFollowed} />{busy ? 'Сохраняю…' : (isFollowed ? 'Отписаться' : 'Подписаться') + (phone ? ' в Хвое' : '')}
             </button>}
             {!phone && account && profileLink && followed === undefined && <button className="btn-s" disabled={checkedStatus !== null} onClick={() => {
@@ -229,7 +229,7 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
           <div className={'seg artist-sort' + (sc ? ' sc' : '')} role="group" aria-label="Порядок треков">
             {(sc ? SC_TRACK_ORDERS : VK_TRACK_ORDERS).map(({ value, label, needsPopularity }) => (
               <button key={value} className={order === value ? 'on' : ''} aria-pressed={order === value}
-                disabled={needsPopularity && !hasPopularity} onClick={() => setOrder(value)}>{label}</button>
+                disabled={needsPopularity && !hasPopularity} onClick={() => setOrder((current) => toggleArtistTrackOrder(current, value))}>{label}</button>
             ))}
           </div>
           {metadataPending > 0 && <span className="artist-muted" role="status">Уточняю данные треков…</span>}

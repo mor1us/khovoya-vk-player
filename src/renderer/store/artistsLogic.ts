@@ -3,6 +3,10 @@ import type { ArtistSubscription, ArtistTrackMetadata, ArtistTracksPage, Track }
 export const FRESH_DAYS = 14
 export type ArtistTrackOrder = 'catalog' | 'new' | 'old' | 'mostPlayed' | 'leastPlayed'
 
+export function toggleArtistTrackOrder(current: ArtistTrackOrder, selected: Exclude<ArtistTrackOrder, 'catalog'>): ArtistTrackOrder {
+  return current === selected ? 'catalog' : selected
+}
+
 export function sortArtistTracks(tracks: Track[], order: ArtistTrackOrder, metadata: Record<string, ArtistTrackMetadata> = {}): Track[] {
   if (order === 'catalog') return tracks
   const byDate = order === 'new' || order === 'old'

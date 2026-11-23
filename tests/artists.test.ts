@@ -1,10 +1,24 @@
 import { describe, it, expect } from 'vitest'
-import { matchVkArtists, topArtists, isFresh, artistTrackDetails, artistWhy, collectArtistTracks, sortArtistTracks, FRESH_DAYS } from '../src/renderer/store/artistsLogic'
+import { matchVkArtists, topArtists, isFresh, artistTrackDetails, artistWhy, collectArtistTracks, sortArtistTracks, toggleArtistTrackOrder, FRESH_DAYS } from '../src/renderer/store/artistsLogic'
 import type { Track } from '../src/shared/types'
 
 const tr = (i: number, artist: string, extra: Partial<Track> = {}): Track => ({ id: 't' + i, ownerId: 1, vkId: i, title: 'T' + i, artist, duration: 100, url: 'u', available: true, coverUrl: 'c' + i, ...extra })
 
 describe('сортировка треков артиста', () => {
+  it('меняет сортировку по нажатию и возвращает порядок каталога при повторном нажатии', () => {
+    const tracks = [tr(1, 'A', { addedAt: 100 }), tr(2, 'A', { addedAt: 300 })]
+    const selected = toggleArtistTrackOrder('old', 'new')
+    expect(sortArtistTracks(tracks, selected).map((t) => t.id)).toEqual(['t2', 't1'])
+    expect(sortArtistTracks(tracks, toggleArtistTrackOrder(selected, 'new'))).toBe(tracks)
+  })
+
+  it('позволяет снять сортировку SoundCloud по популярности', () => {
+    const tracks = [tr(1, 'A', { src: 'sc', plays: 1 }), tr(2, 'A', { src: 'sc', plays: 10 })]
+    const selected = toggleArtistTrackOrder('new', 'mostPlayed')
+    expect(sortArtistTracks(tracks, selected).map((t) => t.id)).toEqual(['t2', 't1'])
+    expect(sortArtistTracks(tracks, toggleArtistTrackOrder(selected, 'mostPlayed'))).toBe(tracks)
+  })
+
   it('сортирует в обе стороны, отличает ноль от отсутствующих данных и сохраняет исходную выдачу', () => {
     const tracks = [tr(1, 'A', { src: 'sc' }), tr(2, 'A', { src: 'sc', plays: 0, addedAt: 300 }), tr(3, 'A', { src: 'sc', plays: 18, addedAt: 100 })]
     const ids = (order: Parameters<typeof sortArtistTracks>[1]) => sortArtistTracks(tracks, order).map((t) => t.id)
