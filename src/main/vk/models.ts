@@ -9,6 +9,11 @@ export function vkFlag(value: unknown): boolean | undefined {
   if (value === false || value === 0 || value === '0') return false
 }
 
+function vkNonNegativeInteger(value: unknown): number | undefined {
+  const number = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value
+  if (typeof number === 'number' && Number.isSafeInteger(number) && number >= 0) return number
+}
+
 export function mapTrack(r: any): Track {
   return {
     id: `${r.owner_id}_${r.id}`,
@@ -20,10 +25,10 @@ export function mapTrack(r: any): Track {
     duration: Number(r.duration) || 0,
     url: r.url ?? '',
     coverUrl: best(r.album?.thumb),
-    addedAt: r.date,
+    addedAt: vkNonNegativeInteger(r.date) || undefined,
     releaseDate: releaseDateOf(r.release_date),
     isrc: normalizeIsrc(r.isrc),
-    ...(Number.isSafeInteger(r.play_count) && r.play_count >= 0 ? { plays: r.play_count } : {}),
+    plays: vkNonNegativeInteger(r.play_count),
     // Список может не отдать ссылку. В таком случае получим её отдельно при запуске.
     available: !r.content_restricted,
     ...(r.album?.id && r.album?.owner_id ? { album: { id: Number(r.album.id), ownerId: Number(r.album.owner_id), accessKey: r.album.access_key, title: String(r.album.title ?? 'Альбом') } } : {}),

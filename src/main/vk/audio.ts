@@ -139,6 +139,7 @@ export class VkAudioApi implements AudioApi {
     if (a.id) {
       try {
         const r = await this.musicCall<{ items: any[] }>('audio.getAudiosByArtist', { artist_id: a.id, count: 30, ...(offset ? { offset } : {}) })
+        this.logArtistTrackFields('список артиста', r.items)
         return byDate(await this.artistTrackDetails(r.items.map(mapTrack)))
       } catch (e) { this.log(`getAudiosByArtist: ${(e as Error).message}`) }
     }
@@ -161,17 +162,32 @@ export class VkAudioApi implements AudioApi {
     return this.artistTrackDetails(byDate([...found.values()]).slice(offset, offset + 30))
   }
 
+  private logArtistTrackFields(source: string, tracks: any[]) {
+    const fields = ['date', 'release_date', 'play_count', 'playback_count', 'plays_count', 'listen_count']
+    const shape = fields.map((field) => {
+      const values = tracks.map((track) => track?.[field]).filter((value) => value != null)
+      const types = [...new Set(values.map((value) => typeof value))]
+      return `${field}=${values.length}${types.length ? ` (${types.join(', ')})` : ''}`
+    })
+    this.log(`сведения о треках ВК, ${source}: ${tracks.length} записей, ${shape.join(', ')}`)
+  }
+
   private async artistTrackDetails(tracks: Track[]): Promise<Track[]> {
     const missing = tracks.filter((track) => !track.releaseDate || track.plays === undefined)
     if (!missing.length) return tracks
     try {
-      const details = await this.byId(missing.map((track) => track.accessKey ? `${track.id}_${track.accessKey}` : track.id))
+      const ids = missing.map((track) => track.accessKey ? `${track.id}_${track.accessKey}` : track.id)
+      const rows = await this.getAudiosById(ids)
+      this.logArtistTrackFields('уточнение по ID', rows)
+      const details = rows.map(mapTrack)
       const byId = new Map(details.map((track) => [track.id, track]))
+      this.log(`сведения о треках ВК: по ID совпало ${missing.filter((track) => byId.has(track.id)).length} из ${missing.length}`)
       return tracks.map((track) => {
         const detail = byId.get(track.id)
         if (!detail) return track
         return {
           ...track,
+          addedAt: track.addedAt ?? detail.addedAt,
           releaseDate: track.releaseDate ?? detail.releaseDate,
           plays: track.plays ?? detail.plays
         }
@@ -210,10 +226,15 @@ export class VkAudioApi implements AudioApi {
     let followed = artistSubscriptionState(r, id)
     const section = r?.catalog?.default_section
     if ((followed === undefined || !popularTrackIds.length) && typeof section === 'string' && section) {
-      const page = await this.musicCall<any>('catalog.getSection', { section_id: section, need_blocks: 1, extended: 1 }).catch(() => null)
+      const page = await this.musicCall<any>('catalog.getSection', { section_id: section, need_blocks: 1, extended: 1 }).catch((error: unknown) => {
+        const code = (error as { code?: unknown })?.code
+        this.log(`Популярное ВК: раздел каталога не загрузился${typeof code === 'number' ? ` (код ВК ${code})` : ''}`)
+        return null
+      })
       followed ??= artistSubscriptionState(page, id)
       if (!popularTrackIds.length) popularTrackIds = artistPopularTracks(page)
     }
+    this.log(`Популярное ВК: найдено ${popularTrackIds.length} треков`)
     const profile = { ...(profileLink && { link: profileLink }), ...(popularTrackIds.length > 0 && { popularTrackIds }) }
     if (followed === undefined) {
       const subscription = await this.artistSubscriptions(false).then((list) => list.find((artist) => artist.id === id)).catch(() => undefined)
@@ -315,10 +336,14 @@ export class VkAudioApi implements AudioApi {
     return (Array.isArray(r) ? r : (r as any).items ?? []).map(mapTrack)
   }
 
-  async byId(ids: string[]) {
-    const r = await this.vk.call<any[]>('audio.getById', { audios: ids.join(',') })
-    return r.map(mapTrack)
+  private async getAudiosById(ids: string[]) {
+    const r = await this.vk.call<any[] | { items?: any[] }>('audio.getById', { audios: ids.join(',') })
+    if (Array.isArray(r)) return r
+    if (Array.isArray(r?.items)) return r.items
+    throw new Error('ВК не вернул список аудиозаписей')
   }
+
+  async byId(ids: string[]) { return (await this.getAudiosById(ids)).map(mapTrack) }
 
   async add(t: Track) { await this.vk.call('audio.add', { audio_id: t.vkId, owner_id: t.ownerId, access_key: t.accessKey }) }
   async remove(t: Track) { await this.vk.call('audio.delete', { audio_id: t.vkId, owner_id: t.ownerId }) }

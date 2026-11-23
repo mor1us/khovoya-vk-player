@@ -14,8 +14,9 @@ export function sortArtistTracks(tracks: Track[], order: ArtistTrackOrder, popul
   const value = (track: Track) => {
     const data = metadata[track.id]
     if (!byDate) return hasListeners ? data?.listeners : counts ? track.plays : hasListens ? data?.listens : popularity.get(track.id)
+    if (track.src === 'sc') return track.addedAt
     const date = data?.releaseDate ?? track.releaseDate
-    if (date) return Number(date.replaceAll('-', '').padEnd(8, '0'))
+    return date ? Date.parse(date) / 1000 : track.addedAt
   }
   return [...tracks].sort((a, b) => {
     const left = value(a)
@@ -35,6 +36,10 @@ export function artistTrackDetails(track: Track, data?: ArtistTrackMetadata, vkR
   const playsSource = externalPlays ? 'ListenBrainz' : service
   const label = externalPlays ? 'Учтено прослушиваний' : 'Прослушиваний'
   const base = [`Дата релиза · ${release}`, `${label} · ${plays?.toLocaleString('ru-RU') ?? 'нет данных'}`]
+  if (track.src !== 'sc' && !date && track.addedAt) {
+    const uploaded = new Date(track.addedAt * 1000).toLocaleDateString('ru-RU', { timeZone: 'UTC' })
+    base[0] = `Загружен в ВК · ${uploaded}`
+  }
   if (date && plays !== undefined) {
     if (releaseSource === playsSource) base.push(`Источник · ${releaseSource}`)
     else base.push(`Источник даты · ${releaseSource}`, `Источник прослушиваний · ${playsSource}`)

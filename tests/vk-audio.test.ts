@@ -146,12 +146,15 @@ describe('artistTracks', () => {
 
   it('уточняет дату и счётчик в ответе ВК для той же записи', async () => {
     const { calls, client } = fakeClient((method) => method === 'audio.getById'
-      ? [{ ...raw(1), release_date: '2024-04-11', play_count: 0 }, { ...raw(3), play_count: 999 }]
+      ? { items: [{ ...raw(1), release_date: '2024-04-11', date: '1712793600', play_count: '0' }, { ...raw(3), play_count: 999 }] }
       : { items: [raw(1), raw(2)] })
-    const tracks = await new VkAudioApi(client as any, () => 7).artistTracks({ id: 'abc', name: 'A' })
+    const messages: string[] = []
+    const tracks = await new VkAudioApi(client as any, () => 7, (message) => messages.push(message)).artistTracks({ id: 'abc', name: 'A' })
     expect(calls.map(({ m }) => m)).toEqual(['audio.getAudiosByArtist', 'audio.getById'])
-    expect(tracks[0]).toMatchObject({ releaseDate: '2024-04-11', plays: 0 })
+    expect(tracks[0]).toMatchObject({ releaseDate: '2024-04-11', addedAt: 1712793600, plays: 0 })
     expect(tracks[1].plays).toBeUndefined()
+    expect(messages).toContain('сведения о треках ВК: по ID совпало 1 из 2')
+    expect(messages.join('\n')).not.toContain('1712793600')
   })
 
   it('without id → search by name, only that artist, newest first', async () => {
