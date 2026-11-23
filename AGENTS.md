@@ -10,7 +10,8 @@ npm install
 node dev/make-fixtures.mjs   # тестовые mp3 для режима без ВК (один раз)
 npm run dev:mock             # запуск с поддельным ВК (VK_MOCK=1) — основной способ проверять правки
 npm run dev                  # запуск с настоящим ВК (нужен вход)
-npm test                     # vitest, 34 файла / 222 теста — запускать после каждой правки логики
+npm test                     # все тесты Vitest
+npm test -- tests/имя.test.ts # проверка нужного участка
 npm run typecheck            # tsc по двум конфигам (node + web)
 npm run lint                 # ESLint: ошибок быть не должно, предупреждения — к сведению
 npm run check                # lint + typecheck + тесты одной командой
@@ -56,6 +57,31 @@ npm run dist                 # установщик локально (падае
 Новый экран: тип в `store/ui.ts` (`Tab`) → ветка в `pages/Pages.tsx` → если это полноценный раздел,
 кнопка в `TABS` в `ui/TopBar.tsx`; если нет — пункт в меню аватара, иначе до него будет не добраться
 (особенно в узком окне, где левой половины нет совсем).
+
+## Где искать причину сбоя
+
+Пути `main/`, `renderer/`, `shared/`, `preload/` и `mobile/` в таблице считаются от `src/`.
+Имена тестов ищи в `tests/`.
+
+| Симптом | Откуда начать | Что проверить рядом |
+|---|---|---|
+| Приложение не стартует, пустое окно, F5 или настройки | `main/index.ts` создаёт окно, `main/system/boot.ts` запускает службы, `renderer/main.tsx` и `renderer/App.tsx` запускают интерфейс | `boot.test.ts`, `settings.test.ts`, `layout.test.ts` |
+| Неправильный экран, переход назад, переход из очереди | `renderer/store/ui.ts` и `navLogic.ts`, `renderer/pages/Pages.tsx`, `renderer/store/sourceNav.ts` | `nav.test.ts`, `source.test.ts` |
+| Трек не играет, пропускается, повторяется, проблемы кроссфейда | `renderer/store/playerInstance.ts` связывает плеер с сервисами, `player.ts` управляет воспроизведением, `renderer/player/engine.ts`, `media.ts`, `queue.ts`, `crossfade.ts` исполняют его | `player-store.test.ts`, `engine-refresh.test.ts`, `queue.test.ts`, `crossfade.test.ts` |
+| Не тот трек в Волне, истории или плейлисте дня | `renderer/store/wave.ts`, `renderer/wave/{picker,profile,tune}.ts`, `renderer/store/{historyLogic,statsLogic,dailyLogic}.ts` | `wave.test.ts`, `wave-tune.test.ts`, `history.test.ts`, `stats.test.ts`, `daily.test.ts` |
+| Не работает ВК или вход в аккаунт | `main/auth/{webSession,webToken,captcha}.ts`, `main/vk/{client,audio,models,catalog}.ts`, `renderer/pages/Login.tsx` | `web-session.test.ts`, `captcha.test.ts`, `vk-client.test.ts`, `vk-audio.test.ts`, `vk-models.test.ts` |
+| Не работает SoundCloud, его вход, комментарии или лайки | `main/sc/{scAuth,soundcloud}.ts`, `renderer/store/sc.ts`, `renderer/ui/ScComments.tsx` | `sc-auth.test.ts`, `soundcloud.test.ts`, `sc-store.test.ts`, `sc-comments.test.ts` |
+| Артист, чарт, сортировка или подпись «?» | `renderer/pages/Artist.tsx`, `renderer/store/artistsLogic.ts`, `main/metadata/artistTracks.ts`, `main/vk/{audio,models,catalog}.ts` | `artists.test.ts`, `artist-track-metadata.test.ts`, `catalog.test.ts` |
+| Поиск, подсказки, одноимённые треки | `renderer/pages/Search.tsx`, `renderer/ui/{searchSuggest,mergeSearch,searchTags}.ts`, `shared/match.ts` | `search-suggest.test.ts`, `merge-search.test.ts`, `search-tags.test.ts`, `match.test.ts` |
+| Пропали настройки, история, плейлисты или очередь | `main/system/{jsonFile,settings}.ts` хранит файлы приложения, `renderer/store/json.ts` читает состояние окна, владельцы данных лежат в `renderer/store/` | `storage.test.ts`, `settings.test.ts`, `history.test.ts`, `playlists-store.test.ts`, `player-store.test.ts` |
+| Загрузки, трей, Discord, обновление | `main/downloads/`, `main/system/{tray,discord,updater}.ts`, `renderer/store/{downloads,discord,updates}.ts` | `downloads.test.ts`, `filename.test.ts`, `discord.test.ts`, `updates.test.ts` |
+| Ошибка IPC, вызов пропал на одной платформе | `shared/ipc.ts` описывает контракт, `preload/index.ts` пропускает вызов, `shared/channels.ts` регистрирует общие каналы, `main/ipc/` и `main/index.ts` подключают Windows | `ipc.test.ts`, `register-core.test.ts`, `mobile-bridge.test.ts`. Для Windows-канала сохрани совместимость общего контракта |
+| Проверка типов, сборка, релиз | `package.json`, `tsconfig.{node,web}.json`, `eslint.config.mjs`, `vitest.config.ts`, `electron.vite.config.ts`, `.github/workflows/release.yml` | `npm run check` на чистой копии изменений, затем `npm run build` при правке сборки |
+
+Если видишь текст ошибки, найди его через `rg` в `src`, затем проследи вызов от экрана через хранилище
+и IPC до ответа сервиса. Для сетевых сбоев сверь время и этап в журнале по пути `%APPDATA%/Хвоя/khvoya.log`.
+Записывай названия этапов, формат ответа, количество записей и код ошибки. Ключи, cookie, ссылки на аудиопотоки
+и полные ответы могут содержать данные входа.
 
 ## Как тут принято
 
@@ -154,6 +180,26 @@ npm run dist                 # установщик локально (падае
 - **Счётчик артиста показывает загруженные треки.** Для продолжения списка есть «Показать ещё».
   Блок на главной «Свежее из подписок SoundCloud» берётся из ленты сервиса.
 
+### Как устроены подписки ВК
+
+| Участок | Файл |
+|---|---|
+| Загрузка раздела «Музыканты» в сессии ВК и видимое окно восстановления | `src/main/vk/webArtists.ts` |
+| Маршрут текущего аккаунта, вход, проверка ВК, разбор карточек и аватарок | `src/main/vk/webArtistsLogic.ts` |
+| Каналы `artists:subscriptions` и `vk:openSubscriptions` | `src/main/ipc/artistSubscriptions.ts`, сигнатуры в `src/shared/ipc.ts` |
+| Причины отказа ВК, состояние списка и кнопки | `src/shared/vkSubscriptionStatus.ts`, `src/renderer/store/artistSubscriptions.ts`, `src/renderer/pages/Subscriptions.tsx` |
+
+- Различай успешный пустой список, временный сбой, редирект на вход и проверку ВК. При сбое сохраняй
+  последний успешный список того же аккаунта в памяти и показывай причину. Ручное «Обновить» работает сразу,
+  автоматические попытки после сбоя ВК ограничены по частоте. Результат старого аккаунта не заменяет новый.
+- При входе или проверке пользователь сам открывает ВК кнопкой «Открыть ВК». Окно использует сессию
+  приложения и разрешённые адреса ВК. После закрытия обновляем список текущего аккаунта. Фоновая загрузка
+  не открывает окно сама. Диагностика пишет этап и причину сбоя без ключей и данных входа.
+- После правок этого участка проверь `tests/vk-web-artists.test.ts`, `tests/artist-subscriptions.test.ts`
+  и `tests/artist-subscriptions-ipc.test.ts`,
+  затем запусти `npm run check`. Если Мориус просит проверить живой ВК, пройди обычную загрузку,
+  ручное обновление и сценарий восстановления после входа или проверки на уже установленной новой версии.
+
 ## Проверка интерфейса Windows
 
 - Когда Мориус просит посмотреть живую Хвою, используй встроенный Windows-скилл
@@ -166,16 +212,18 @@ npm run dist                 # установщик локально (падае
 
 ## Выпуск
 
-После push выпуска всегда присылай ссылку на GitHub Actions `https://github.com/mor1us/khovoya-vk-player/actions` — там видно, как идёт сборка обновления.
+- Готовую правку Windows сразу выпускай на GitHub, если проверки прошли и от Мориуса не требуется
+  ответ или решение. Отдельного подтверждения выпуска в этом случае не жди. Следуй текущей просьбе
+  Мориуса, если он просит отложить выпуск или ограничиться разбором.
+- После push сразу присылай ссылку на конкретную сборку в GitHub Actions. [Все сборки](https://github.com/mor1us/khovoya-vk-player/actions).
 
 Поднять `version` в `package.json` и `package-lock.json` и запушить `master` → GitHub Actions соберёт установщик и портативную
 версию для Windows (`.github/workflows/release.yml`). Хвоя на компьютере обновится через
 `electron-updater`. Релиз не создаётся повторно, если тег `v<version>` уже есть.
 Портативную сборку отдельно Мориусу не присылай, пока он не попросит.
 
-Последний отправленный выпуск на момент этой записи — Windows 0.4.31, коммит `47d53f3`.
-Для его файлов прошли 322 теста, проверка типов и сборка. Поведение новых кнопок подписки
-и плашки поиска в установленной 0.4.31 ещё надо проверить после обновления.
+Перед сборкой Windows GitHub Actions запускает `npm run check`. Версию смотри в `package.json`,
+а ход конкретного выпуска — в истории GitHub Actions.
 
 ### Android на паузе
 
@@ -201,7 +249,11 @@ npm run dist                 # установщик локально (падае
 ## Рабочий процесс над задачами
 
 - Перед правкой прочитай связанные файлы и коротко опиши, что нашёл.
-- Меняй минимум: только то, что нужно для задачи.
-- После правки запусти `npm run check` и покажи результат.
+- Перед изменением общего метода проверь, кто его вызывает. Зафиксируй в тестах рабочий сценарий,
+  исправляемую ошибку и состояние после повторной попытки. Проверяй обе платформы на уровне контракта,
+  если правишь общие типы или IPC.
+- Меняй минимум. При переносе кода обнови путь в карте и сохрани нормальную точку входа.
+- Запусти тесты изменённого участка, затем `npm run check`. Если локальные черновики в `src/` мешают
+  проверке, проверь чистую копию с нужными изменениями и сообщи оба результата.
 - Вход в ВК нельзя проверить без настоящего ВК. Не говори «исправлено», а напиши, что именно Мориус должен проверить руками.
 - Если причина не ясна, добавь запись в журнал (log) вместо угадывания.

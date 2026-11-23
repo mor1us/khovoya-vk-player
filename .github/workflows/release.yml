@@ -19,8 +19,8 @@ jobs:
           cache: npm
       - name: Зависимости
         run: npm ci
-      - name: Тесты
-        run: npm test
+      - name: Линтер, типы и тесты
+        run: npm run check
       - name: Проверить, выпущена ли уже эта версия
         id: ver
         shell: bash

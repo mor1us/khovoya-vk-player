@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { ArtistRef, ArtistSubscription } from '../../shared/types'
+import { vkSubscriptionIssue, type VkSubscriptionIssue } from '../../shared/vkSubscriptionStatus'
 
 export type ArtistService = 'vk' | 'sc'
 type AccountList = {
@@ -7,6 +8,7 @@ type AccountList = {
   artists: ArtistSubscription[] | null
   status: 'loading' | 'ready' | 'failed'
   updatedAt: number
+  reason?: VkSubscriptionIssue
 }
 
 type Subscriptions = {
@@ -46,13 +48,19 @@ export const useArtistSubscriptions = create<Subscriptions>((set, get) => ({
     if (running?.account === account && !force) return running.request
     const current = get()[source]
     const previous = current?.account === account ? current : null
-    if (!force && previous?.status === 'ready' && Date.now() - previous.updatedAt < CACHE_MS) return Promise.resolve(previous.artists)
+    const recent = previous && Date.now() - previous.updatedAt < CACHE_MS
+    if (!force && recent && (previous.status === 'ready' || (source === 'vk' && previous.status === 'failed'))) {
+      return Promise.resolve(previous.artists)
+    }
     set({ [source]: { account, artists: previous?.artists ?? null, status: 'loading', updatedAt: 0 } })
     const request = window.api.invoke('artists:subscriptions', source).then((artists) => {
       if (pending[source]?.request === request) set({ [source]: { account, artists, status: 'ready', updatedAt: Date.now() } })
       return artists
     }).catch((error: unknown) => {
-      if (pending[source]?.request === request) set({ [source]: { account, artists: previous?.artists ?? null, status: 'failed', updatedAt: 0 } })
+      if (pending[source]?.request === request) {
+        const reason = source === 'vk' ? vkSubscriptionIssue(error) : undefined
+        set({ [source]: { account, artists: previous?.artists ?? null, status: 'failed', updatedAt: Date.now(), reason } })
+      }
       throw error
     }).finally(() => {
       if (pending[source]?.request === request) delete pending[source]

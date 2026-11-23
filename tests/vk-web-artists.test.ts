@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseVkArtistCards, visibleArtists, vkArtistProfile, vkArtistsPage, vkArtistsRoute } from '../src/main/vk/webArtistsLogic'
+import { parseVkArtistCards, visibleArtists, vkArtistProfile, vkArtistsPage, vkArtistsRoute, vkSignInUrl } from '../src/main/vk/webArtistsLogic'
 
 describe('страница «Музыканты» ВК', () => {
   it('запрашивает полный список для текущего аккаунта', () => {
@@ -13,6 +13,14 @@ describe('страница «Музыканты» ВК', () => {
     expect(vkArtistsRoute('https://vk.ru/challenge.html', page)).toBe('verification')
     expect(vkArtistsRoute('https://id.vk.com/auth', page)).toBe('login')
     expect(vkArtistsRoute('https://vk.ru/audios43?block=my_artists&section=all', page)).toBe('other')
+  })
+
+  it('разрешает открывать только точные адреса входа ВК по HTTPS', () => {
+    expect(vkSignInUrl('https://id.vk.ru/auth')).toBe(true)
+    expect(vkSignInUrl('https://login.vk.com/?act=login')).toBe(true)
+    expect(vkSignInUrl('https://id.vk.ru.attacker.example/auth')).toBe(false)
+    expect(vkSignInUrl('https://id.vk.ru:444/auth')).toBe(false)
+    expect(vkSignInUrl('https://user@id.vk.ru/auth')).toBe(false)
   })
 
   it('сохраняет ссылки на карточки артистов и объединяет дубли', () => {

@@ -1,6 +1,14 @@
 import type { ArtistSubscription } from '../../shared/types'
 
 const origins = ['https://vk.ru', 'https://vk.com']
+const signInOrigins = ['https://id.vk.com', 'https://id.vk.ru', 'https://login.vk.com', 'https://login.vk.ru']
+
+export function vkSignInUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return signInOrigins.includes(url.origin) && !url.username && !url.password
+  } catch { return false }
+}
 
 export function vkArtistsPage(userId: number): URL {
   if (!Number.isSafeInteger(userId) || userId <= 0) throw new Error('Войди в ВК, чтобы загрузить подписки')
@@ -23,7 +31,7 @@ export function vkArtistsRoute(value: string, target: URL): 'list' | 'verificati
   try {
     const url = new URL(value)
     if (url.protocol !== 'https:') return 'other'
-    if (['id.vk.com', 'id.vk.ru', 'login.vk.com', 'login.vk.ru'].includes(url.hostname)) return 'login'
+    if (vkSignInUrl(url.href)) return 'login'
     if (!vkWebUrl(url.href)) return 'other'
     if (/^\/(?:challenge\.html|captcha)(?:\/|$)/i.test(url.pathname)) return 'verification'
     if (/^\/(?:login|join)(?:\/|$)/i.test(url.pathname)) return 'login'

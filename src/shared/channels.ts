@@ -21,6 +21,7 @@ export type CoreCtx = {
 export function registerCore(c: CoreCtx, handle: Handle) {
   handle('scacc:openArtistProfile', () => undefined)
   handle('vk:openArtistProfile', () => undefined)
+  handle('vk:openSubscriptions', () => undefined)
   handle('artists:subscriptions', () => null)
   handle('artists:trackMetadata', () => ({}))
   handle('artists:follow', () => null)

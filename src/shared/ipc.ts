@@ -28,6 +28,7 @@ export type IpcMap = {
   'vk:artistInfo': (a: ArtistRef) => ArtistInfo
   'vk:artistFollow': (a: ArtistRef, on: boolean) => void
   'vk:openArtistProfile': (url: string) => void
+  'vk:openSubscriptions': () => void
   'artists:subscriptions': (source: 'vk' | 'sc') => ArtistSubscription[] | null
   'artists:trackMetadata': (artist: string, tracks: ArtistTrackLookup[]) => Record<string, ArtistTrackMetadata>
   'artists:follow': (source: 'vk' | 'sc', account: number, artist: ArtistRef & { link?: string }, on?: boolean) => boolean | null
@@ -119,6 +120,7 @@ export const IPC = {
   'artists:trackMetadata': true,
   'artists:follow': true,
   'vk:openArtistProfile': true,
+  'vk:openSubscriptions': true,
   'auth:browser': true, 'auth:logout': true, 'auth:session': true,
   'vk:myTracks': true, 'vk:search': true, 'vk:playlists': true, 'vk:playlistTracks': true,
   'vk:recommendations': true, 'vk:popular': true, 'vk:forYou': true, 'vk:artistTracks': true, 'vk:artistInfo': true, 'vk:artistFollow': true, 'vk:byId': true, 'vk:add': true, 'vk:remove': true,
