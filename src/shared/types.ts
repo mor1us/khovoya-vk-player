@@ -50,7 +50,6 @@ export type Playlist = {
   sc?: boolean
 }
 
-export type VkReleaseRef = Pick<NonNullable<Track['album']>, 'id' | 'ownerId' | 'accessKey'>
 export type VkArtistTracksCursor = { offset: number; search?: boolean; previousPage?: string }
 export type ArtistTracksPage<Cursor> = { tracks: Track[]; next?: Cursor }
 
@@ -110,7 +109,7 @@ export type ArtistSubscription = { id: string; name: string; cover?: string; lin
 export type ArtistTrackMetadata = { releaseDate?: string; releaseSource?: 'musicbrainz' | 'itunes'; listeners?: number; listens?: number }
 export type ArtistTrackLookup = Pick<Track, 'id' | 'title' | 'artist' | 'duration' | 'isrc' | 'releaseDate'>
 /** Что известно об исполнителе сверх его треков. can — можно ли тут вообще подписаться (на телефоне SoundCloud нельзя). */
-export type ArtistInfo = { id?: string; missing?: boolean; followed: boolean; statusUnknown?: boolean; cover?: string; can: boolean; followers?: number; link?: string; popularTrackIds?: string[] }
+export type ArtistInfo = { id?: string; missing?: boolean; followed: boolean; statusUnknown?: boolean; cover?: string; can: boolean; followers?: number; link?: string }
 
 /** SoundCloud: всё, что ходит между окном и главным процессом. */
 export type ScMe = { id: number; name: string; avatar?: string }

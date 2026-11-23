@@ -1,9 +1,9 @@
-import type { Track, Playlist, ArtistRef, ArtistInfo, ArtistTracksPage, VkArtistTracksCursor, VkReleaseRef } from '../../shared/types'
+import type { Track, Playlist, ArtistRef, ArtistInfo, ArtistTracksPage, VkArtistTracksCursor } from '../../shared/types'
 import { mapTrack, mapPlaylist, vkFlag, vkNonNegativeInteger } from './models'
 import { vkArtistProfile } from './webArtistsLogic'
-import { artistPopularTracks, artistSubscriptionState, catalogSummary, parseCatalog, subscriptionArtists, subscriptionCatalogShape, subscriptionSection, type ForYouBlock } from './catalog'
+import { artistSubscriptionState, catalogSummary, parseCatalog, subscriptionArtists, subscriptionCatalogShape, subscriptionSection, type ForYouBlock } from './catalog'
 
-type Caller = { call<T = any>(method: string, params: Record<string, string | number | undefined>, options?: { passive?: boolean }): Promise<T> }
+type Caller = { call<T = any>(method: string, params: Record<string, string | number | undefined>): Promise<T> }
 
 export interface AudioApi {
   myTracks(): Promise<Track[]>
@@ -42,27 +42,6 @@ export class VkAudioApi implements AudioApi {
 
   private async musicCall<T = any>(method: string, params: Record<string, string | number | undefined>): Promise<T> {
     return this.vk.call<T>(method, { ...params, v: MUSIC_API_VERSION })
-  }
-
-  async releasePlays(album: VkReleaseRef): Promise<number | null> {
-    if (!album || !Number.isSafeInteger(album.id) || album.id <= 0 || !Number.isSafeInteger(album.ownerId) || !album.ownerId) return null
-    const { id, ownerId, accessKey } = album
-    try {
-      const release = await this.vk.call<{ id?: unknown; owner_id?: unknown; plays?: unknown }>('audio.getPlaylistById', {
-        owner_id: ownerId, playlist_id: id, access_key: typeof accessKey === 'string' ? accessKey : undefined, extended: 1, v: MUSIC_API_VERSION
-      }, { passive: true })
-      if (!release || String(release.id) !== String(id) || String(release.owner_id) !== String(ownerId)) {
-        this.log('сведения о релизе ВК: ответ не совпал с запрошенным релизом')
-        return null
-      }
-      const plays = vkNonNegativeInteger(release.plays)
-      if (plays === undefined) this.log('сведения о релизе ВК: счётчик не передан')
-      return plays ?? null
-    } catch (error) {
-      const code = (error as { code?: unknown })?.code
-      this.log('сведения о релизе ВК: запрос не удался' + (typeof code === 'number' ? ' (код ВК ' + code + ')' : ''))
-      return null
-    }
   }
 
   artistSubscriptions(force = true) {
@@ -171,7 +150,7 @@ export class VkAudioApi implements AudioApi {
       try {
         const r = await this.artistAudios(a.id, 30, offset)
         this.logArtistTrackFields('список артиста', r.items)
-        return byDate(await this.artistTrackDetails(r.items.map(mapTrack)))
+        return byDate(await this.artistTrackDates(r.items.map(mapTrack)))
       } catch (e) { this.log(`getAudiosByArtist: ${(e as Error).message}`) }
     }
     const name = a.name.trim().toLowerCase()
@@ -188,7 +167,7 @@ export class VkAudioApi implements AudioApi {
       }
       if (r.items.length < batch || scanned.size === before) break
     }
-    return this.artistTrackDetails(byDate([...found.values()]).slice(offset, offset + 30))
+    return this.artistTrackDates(byDate([...found.values()]).slice(offset, offset + 30))
   }
 
   async artistTracksPage(a: ArtistRef, cursor?: VkArtistTracksCursor): Promise<ArtistTracksPage<VkArtistTracksCursor>> {
@@ -220,11 +199,11 @@ export class VkAudioApi implements AudioApi {
     const nextOffset = offset + items.length
     const total = vkNonNegativeInteger(raw.count)
     const hasMore = items.length > 0 && (total === undefined ? items.length >= size : nextOffset < total)
-    return { tracks: await this.artistTrackDetails(tracks), ...(hasMore ? { next: { offset: nextOffset, search: !id, previousPage } } : {}) }
+    return { tracks: await this.artistTrackDates(tracks), ...(hasMore ? { next: { offset: nextOffset, search: !id, previousPage } } : {}) }
   }
 
   private logArtistTrackFields(source: string, tracks: any[]) {
-    const fields = ['date', 'release_date', 'play_count', 'playback_count', 'plays_count', 'listen_count']
+    const fields = ['date', 'release_date']
     const shape = fields.map((field) => {
       const values = tracks.map((track) => track?.[field]).filter((value) => value != null)
       const types = [...new Set(values.map((value) => typeof value))]
@@ -233,8 +212,8 @@ export class VkAudioApi implements AudioApi {
     this.log(`сведения о треках ВК, ${source}: ${tracks.length} записей, ${shape.join(', ')}`)
   }
 
-  private async artistTrackDetails(tracks: Track[]): Promise<Track[]> {
-    const missing = tracks.filter((track) => !track.releaseDate || track.plays === undefined)
+  private async artistTrackDates(tracks: Track[]): Promise<Track[]> {
+    const missing = tracks.filter((track) => !track.releaseDate || !track.addedAt)
     if (!missing.length) return tracks
     try {
       const ids = missing.map((track) => track.accessKey ? `${track.id}_${track.accessKey}` : track.id)
@@ -250,8 +229,7 @@ export class VkAudioApi implements AudioApi {
           ...track,
           album: track.album ?? detail.album,
           addedAt: track.addedAt ?? detail.addedAt,
-          releaseDate: track.releaseDate ?? detail.releaseDate,
-          plays: track.plays ?? detail.plays
+          releaseDate: track.releaseDate ?? detail.releaseDate
         }
       })
     } catch (error) {
@@ -283,21 +261,18 @@ export class VkAudioApi implements AudioApi {
     const best = photo.length ? photo[photo.length - 1]?.url : undefined
     const profileLink = [r?.artist?.url, r?.artist?.link, r?.url]
       .flatMap((url) => typeof url === 'string' ? vkArtistProfile(url) ?? [] : [])[0]
-    let popularTrackIds = artistPopularTracks(r)
     const canFollow = vkFlag(r?.artist?.can_follow ?? r?.can_follow) ?? true
     let followed = artistSubscriptionState(r, id)
     const section = r?.catalog?.default_section
-    if ((followed === undefined || !popularTrackIds.length) && typeof section === 'string' && section) {
+    if (followed === undefined && typeof section === 'string' && section) {
       const page = await this.musicCall<any>('catalog.getSection', { section_id: section, need_blocks: 1, extended: 1 }).catch((error: unknown) => {
         const code = (error as { code?: unknown })?.code
-        this.log(`Популярное ВК: раздел каталога не загрузился${typeof code === 'number' ? ` (код ВК ${code})` : ''}`)
+        this.log(`профиль артиста ВК: раздел каталога не загрузился${typeof code === 'number' ? ` (код ВК ${code})` : ''}`)
         return null
       })
-      followed ??= artistSubscriptionState(page, id)
-      if (!popularTrackIds.length) popularTrackIds = artistPopularTracks(page)
+      followed = artistSubscriptionState(page, id)
     }
-    this.log(`Популярное ВК: найдено ${popularTrackIds.length} треков`)
-    const profile = { ...(profileLink && { link: profileLink }), ...(popularTrackIds.length > 0 && { popularTrackIds }) }
+    const profile = { ...(profileLink && { link: profileLink }) }
     if (followed === undefined) {
       const subscription = await this.artistSubscriptions(false).then((list) => list.find((artist) => artist.id === id)).catch(() => undefined)
       if (subscription) return { id, followed: true, cover: subscription.cover ?? best, can: canFollow, ...profile }

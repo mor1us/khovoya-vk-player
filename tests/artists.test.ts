@@ -6,7 +6,7 @@ const tr = (i: number, artist: string, extra: Partial<Track> = {}): Track => ({ 
 
 describe('сортировка треков артиста', () => {
   it('сортирует в обе стороны, отличает ноль от отсутствующих данных и сохраняет исходную выдачу', () => {
-    const tracks = [tr(1, 'A'), tr(2, 'A', { plays: 0, releaseDate: '2024-01-03' }), tr(3, 'A', { plays: 18, releaseDate: '2021-12-10' })]
+    const tracks = [tr(1, 'A', { src: 'sc' }), tr(2, 'A', { src: 'sc', plays: 0, addedAt: 300 }), tr(3, 'A', { src: 'sc', plays: 18, addedAt: 100 })]
     const ids = (order: Parameters<typeof sortArtistTracks>[1]) => sortArtistTracks(tracks, order).map((t) => t.id)
     expect(ids('mostPlayed')).toEqual(['t3', 't2', 't1'])
     expect(ids('leastPlayed')).toEqual(['t2', 't3', 't1'])
@@ -15,9 +15,13 @@ describe('сортировка треков артиста', () => {
     expect(tracks.map((t) => t.id)).toEqual(['t1', 't2', 't3'])
   })
 
-  it('использует порядок «Популярное» ВК для треков с известным местом', () => {
-    const tracks = [tr(1, 'A'), tr(2, 'A'), tr(3, 'A')]
-    expect(sortArtistTracks(tracks, 'leastPlayed', ['t2', 't3']).map((t) => t.id)).toEqual(['t3', 't2', 't1'])
+  it('сохраняет порядок ВК по умолчанию и сортирует по датам только по выбору', () => {
+    const uploaded = tr(1, 'A', { addedAt: Date.UTC(2024, 3, 11) / 1000, plays: 300 })
+    const released = tr(2, 'A', { releaseDate: '2025-01-03', addedAt: 100 })
+    const tracks = [uploaded, released]
+    expect(sortArtistTracks(tracks, 'catalog')).toBe(tracks)
+    expect(sortArtistTracks(tracks, 'new').map((t) => t.id)).toEqual(['t2', 't1'])
+    expect(sortArtistTracks(tracks, 'old').map((t) => t.id)).toEqual(['t1', 't2'])
   })
 
   it('в SoundCloud сортирует по дате загрузки и ставит треки без неё в конец', () => {
@@ -28,44 +32,32 @@ describe('сортировка треков артиста', () => {
       tr(4, 'A', { src: 'sc', addedAt: 200 })
     ]
     const metadata = { t3: { releaseDate: '2020-01-01' } }
-    expect(sortArtistTracks(tracks, 'new', undefined, metadata).map((t) => t.id)).toEqual(['t3', 't4', 't2', 't1'])
-    expect(sortArtistTracks(tracks, 'old', undefined, metadata).map((t) => t.id)).toEqual(['t2', 't4', 't3', 't1'])
+    expect(sortArtistTracks(tracks, 'new', metadata).map((t) => t.id)).toEqual(['t3', 't4', 't2', 't1'])
+    expect(sortArtistTracks(tracks, 'old', metadata).map((t) => t.id)).toEqual(['t2', 't4', 't3', 't1'])
   })
 
   it('принимает уточнённую дату записи и использует сопоставимые счётчики слушателей', () => {
     const tracks = [tr(1, 'A', { plays: 9999 }), tr(2, 'A', { releaseDate: '2020-06-14' }), tr(3, 'A')]
     const metadata = { t2: { listeners: 3 }, t3: { releaseDate: '1990-07', listeners: 0 } }
-    expect(sortArtistTracks(tracks, 'old', undefined, metadata).map((t) => t.id)).toEqual(['t3', 't2', 't1'])
-    expect(sortArtistTracks(tracks, 'leastPlayed', undefined, metadata).map((t) => t.id)).toEqual(['t3', 't2', 't1'])
+    expect(sortArtistTracks(tracks, 'old', metadata).map((t) => t.id)).toEqual(['t3', 't2', 't1'])
+    const scTracks = tracks.map(({ plays: _plays, ...track }) => ({ ...track, src: 'sc' as const }))
+    expect(sortArtistTracks(scTracks, 'leastPlayed', metadata).map((t) => t.id)).toEqual(['t3', 't2', 't1'])
   })
 
-  it('подписывает разные источники релиза и прослушиваний, включая нулевой счётчик', () => {
-    const tip = artistTrackDetails(tr(1, 'A'), { releaseDate: '2024-04-11', releaseSource: 'itunes', listens: 0 })
-    expect(tip).toBe('ListenBrainz · 0\nРелиз · 11.04.2024 · iTunes')
+  it('показывает у ВК только дату, даже если у трека сохранились счётчики', () => {
+    const tip = artistTrackDetails(tr(1, 'A', { plays: 0 }), { releaseDate: '2024-04-11', releaseSource: 'itunes', listens: 23 })
+    expect(tip).toBe('Релиз · 11.04.2024 · iTunes')
     expect(artistTrackDetails(tr(2, 'A'))).toBe('Сведений о треке пока нет')
-  })
-
-  it('показывает дату загрузки ВК с родным счётчиком и использует её при отсутствии даты релиза', () => {
     const uploaded = tr(1, 'A', { addedAt: Date.UTC(2024, 3, 11) / 1000, plays: 300 })
-    const released = tr(2, 'A', { releaseDate: '2025-01-03', addedAt: 100 })
-    expect(artistTrackDetails(uploaded)).toBe('Прослушиваний · 300\nЗагружен · 11.04.2024')
-    expect(sortArtistTracks([uploaded, released], 'new').map((t) => t.id)).toEqual(['t2', 't1'])
-    expect(sortArtistTracks([released, uploaded], 'old').map((t) => t.id)).toEqual(['t1', 't2'])
+    expect(artistTrackDetails(uploaded)).toBe('Загружен · 11.04.2024')
   })
 
   it('ставит счётчики SoundCloud выше внешней статистики и подписывает использованное число', () => {
     const tracks = [tr(1, 'A', { src: 'sc', plays: 999 }), tr(2, 'A', { src: 'sc', plays: 3 })]
     const metadata = { t1: { listeners: 1, listens: 2 }, t2: { listeners: 100, listens: 200 } }
-    expect(sortArtistTracks(tracks, 'mostPlayed', undefined, metadata).map((t) => t.id)).toEqual(['t1', 't2'])
+    expect(sortArtistTracks(tracks, 'mostPlayed', metadata).map((t) => t.id)).toEqual(['t1', 't2'])
     expect(artistTrackDetails(tracks[0], metadata.t1)).toBe('Прослушиваний · 999')
     expect(artistTrackDetails({ ...tracks[1], plays: undefined }, metadata.t2)).toBe('ListenBrainz · 200')
-  })
-
-  it('показывает точный счётчик трека ВК, счётчик релиза или место в популярном', () => {
-    const track = tr(1, 'A')
-    expect(artistTrackDetails(track, undefined, 2)).toBe('Популярное ВК · №2')
-    expect(artistTrackDetails(track, undefined, 2, 32_028)).toBe('Прослушивания релиза · 32\u00a0028')
-    expect(artistTrackDetails({ ...track, plays: 0 }, undefined, 2, 32_028)).toBe('Прослушиваний · 0')
   })
 
   it('оставляет в SoundCloud только число прослушиваний и дату загрузки', () => {

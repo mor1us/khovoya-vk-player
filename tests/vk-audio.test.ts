@@ -144,15 +144,15 @@ describe('artistTracks', () => {
     expect(r.map((t) => t.vkId)).toEqual([2, 1])
   })
 
-  it('уточняет дату и счётчик в ответе ВК для той же записи', async () => {
+  it('уточняет дату для той же записи без переноса счётчика', async () => {
     const { calls, client } = fakeClient((method) => method === 'audio.getById'
       ? { items: [{ ...raw(1), release_date: '2024-04-11', date: '1712793600', play_count: '0' }, { ...raw(3), play_count: 999 }] }
       : { items: [raw(1), raw(2)] })
     const messages: string[] = []
     const tracks = await new VkAudioApi(client as any, () => 7, (message) => messages.push(message)).artistTracks({ id: 'abc', name: 'A' })
     expect(calls.map(({ m }) => m)).toEqual(['audio.getAudiosByArtist', 'audio.getById'])
-    expect(tracks[0]).toMatchObject({ releaseDate: '2024-04-11', addedAt: 1712793600, plays: 0 })
-    expect(tracks[1].plays).toBeUndefined()
+    expect(tracks[0]).toMatchObject({ releaseDate: '2024-04-11', addedAt: 1712793600 })
+    expect(tracks.every((t) => t.plays === undefined)).toBe(true)
     expect(messages).toContain('сведения о треках ВК: по ID совпало 1 из 2')
     expect(messages.join('\n')).not.toContain('1712793600')
   })
@@ -166,18 +166,21 @@ describe('artistTracks', () => {
 })
 
 describe('листание страниц', () => {
-  it('дочитывает каталог артиста по общему числу записей при неполной странице', async () => {
-    const { calls, client } = fakeClient((method, params) => method === 'audio.getById' ? [] : {
-      count: 3, items: params.offset ? [raw(3)] : [raw(1), raw(2)]
-    })
+  it('дочитывает каталог при неполной странице, сохраняя порядок ВК', async () => {
+    const dated = (id: number, day: number) => ({ ...raw(id), date: day, release_date: '2024-04-11' })
+    const { calls, client } = fakeClient((_method, params) => ({
+      count: 3, items: params.offset ? [dated(3, 500)] : [dated(2, 100), dated(1, 300)]
+    }))
     const api = new VkAudioApi(client as any, () => 7)
     const artist = { id: 'x', name: 'A' }
     const first = await api.artistTracksPage(artist)
+    expect(first.tracks.map((t) => t.vkId)).toEqual([2, 1])
     expect(first.next?.offset).toBe(2)
     const second = await api.artistTracksPage(artist, first.next)
     expect(second.tracks.map((t) => t.vkId)).toEqual([3])
     expect(second.next).toBeUndefined()
     expect(calls.filter((c) => c.m === 'audio.getAudiosByArtist').map((c) => c.p.offset)).toEqual([undefined, 2])
+    expect(calls.map((c) => c.m)).toEqual(['audio.getAudiosByArtist', 'audio.getAudiosByArtist'])
   })
 
   it('в поиске ВК считает смещение по всем записям, включая чужие', async () => {
@@ -203,22 +206,6 @@ describe('листание страниц', () => {
     const got = await api.myTracks()
     expect(calls).toBe(1)
     expect(got.length).toBe(1)
-  })
-})
-
-describe('прослушивания релиза ВК', () => {
-  it('читает счётчик совпадающего релиза, включая ноль', async () => {
-    const { calls, client } = fakeClient(() => ({ owner_id: -7, id: 3, plays: '0' }))
-    const api = new VkAudioApi(client as any, () => 7)
-    expect(await api.releasePlays({ ownerId: -7, id: 3, accessKey: 'key' })).toBe(0)
-    expect(calls).toEqual([{ m: 'audio.getPlaylistById', p: { owner_id: -7, playlist_id: 3, access_key: 'key', extended: 1, v: '8.154' } }])
-  })
-
-  it('отбрасывает чужой релиз и отсутствие счётчика', async () => {
-    const { client } = fakeClient((_method, params) => ({ owner_id: -7, id: 3, plays: params.playlist_id === 4 ? 300 : undefined }))
-    const api = new VkAudioApi(client as any, () => 7)
-    expect(await api.releasePlays({ ownerId: -7, id: 4 })).toBeNull()
-    expect(await api.releasePlays({ ownerId: -7, id: 3 })).toBeNull()
   })
 })
 

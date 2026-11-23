@@ -9,23 +9,6 @@ const blocksOf = (payload: any) => [
   ...sectionsOf(payload).flatMap((section) => list(section?.blocks))
 ]
 
-export function artistPopularTracks(payload: unknown): string[] {
-  const ids = new Set<string>()
-  let popular = false
-  for (const block of blocksOf(payload)) {
-    const title = String(block?.layout?.title ?? block?.title ?? '').trim()
-    if (title) popular = /^(популярное|популярные треки|popular|popular tracks)$/i.test(title)
-    const audios = list(block?.audios_ids)
-    if (!popular || !audios.length) continue
-    for (const audio of audios) {
-      const id = String(audio).split('_').slice(0, 2).join('_')
-      if (/^-?\d+_\d+$/.test(id)) ids.add(id)
-    }
-    popular = false
-  }
-  return [...ids]
-}
-
 /** Идентификатор раздела приходит из каталога текущего аккаунта. */
 export function subscriptionSection(payload: any): string | undefined {
   const sections = sectionsOf(payload)

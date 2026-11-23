@@ -13,7 +13,7 @@ import { useSelection } from './useSelection'
 export function VirtualTrackList({ tracks, onPlay, ctxPlaylist, onReorder, showSrc, scroller, rowProps }: {
   tracks: Track[]; onPlay: (t: Track) => void; ctxPlaylist?: Playlist; onReorder?: (id: string, to: number) => void; showSrc?: boolean
   scroller?: RefObject<HTMLElement | null>
-  rowProps?: (track: Track) => Pick<RowProps, 'why' | 'details' | 'onDetails'>
+  rowProps?: (track: Track) => Pick<RowProps, 'why' | 'details'>
 }) {
   const parent = useRef<HTMLDivElement>(null)
   /** Насколько список смещён от начала общей прокрутки — без этого виртуализатор считает строки не на тех местах. */

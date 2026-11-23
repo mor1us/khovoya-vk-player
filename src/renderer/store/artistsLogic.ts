@@ -1,19 +1,18 @@
 import type { ArtistSubscription, ArtistTrackMetadata, ArtistTracksPage, Track } from '../../shared/types'
 
 export const FRESH_DAYS = 14
-export type ArtistTrackOrder = 'new' | 'old' | 'mostPlayed' | 'leastPlayed'
+export type ArtistTrackOrder = 'catalog' | 'new' | 'old' | 'mostPlayed' | 'leastPlayed'
 
-export function sortArtistTracks(tracks: Track[], order: ArtistTrackOrder, popularTrackIds?: string[], metadata: Record<string, ArtistTrackMetadata> = {}): Track[] {
+export function sortArtistTracks(tracks: Track[], order: ArtistTrackOrder, metadata: Record<string, ArtistTrackMetadata> = {}): Track[] {
+  if (order === 'catalog') return tracks
   const byDate = order === 'new' || order === 'old'
   const direction = order === 'new' || order === 'mostPlayed' ? -1 : 1
   const counts = !byDate && tracks.some((t) => t.plays !== undefined)
   const hasExternal = !byDate && (!counts || !tracks.every((t) => t.src === 'sc'))
   const hasListeners = hasExternal && tracks.some((t) => metadata[t.id]?.listeners !== undefined)
-  const hasListens = hasExternal && tracks.some((t) => metadata[t.id]?.listens !== undefined)
-  const popularity = new Map(popularTrackIds?.map((id, index) => [id, -index]))
   const value = (track: Track) => {
     const data = metadata[track.id]
-    if (!byDate) return hasListeners ? data?.listeners : counts ? track.plays : hasListens ? data?.listens : popularity.get(track.id)
+    if (!byDate) return hasListeners ? data?.listeners : counts ? track.plays : data?.listens
     if (track.src === 'sc') return track.addedAt
     const date = data?.releaseDate ?? track.releaseDate
     return date ? Date.parse(date) / 1000 : track.addedAt
@@ -26,13 +25,11 @@ export function sortArtistTracks(tracks: Track[], order: ArtistTrackOrder, popul
   })
 }
 
-export function artistTrackDetails(track: Track, data?: ArtistTrackMetadata, vkRank?: number, vkReleasePlays?: number): string {
+export function artistTrackDetails(track: Track, data?: ArtistTrackMetadata): string {
   const sc = track.src === 'sc'
   const lines: string[] = []
-  if (track.plays !== undefined) lines.push('Прослушиваний · ' + track.plays.toLocaleString('ru-RU'))
-  else if (!sc && vkReleasePlays !== undefined) lines.push('Прослушивания релиза · ' + vkReleasePlays.toLocaleString('ru-RU'))
-  else if (data?.listens !== undefined) lines.push('ListenBrainz · ' + data.listens.toLocaleString('ru-RU'))
-  else if (!sc && vkRank !== undefined) lines.push('Популярное ВК · №' + vkRank)
+  if (sc && track.plays !== undefined) lines.push('Прослушиваний · ' + track.plays.toLocaleString('ru-RU'))
+  else if (sc && data?.listens !== undefined) lines.push('ListenBrainz · ' + data.listens.toLocaleString('ru-RU'))
 
   const date = sc ? undefined : data?.releaseDate ?? track.releaseDate
   if (date) {

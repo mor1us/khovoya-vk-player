@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ArtistInfo, ArtistTrackMetadata, Track, VkArtistTracksCursor, VkReleaseRef } from '../../shared/types'
+import type { ArtistInfo, ArtistTrackMetadata, Track, VkArtistTracksCursor } from '../../shared/types'
 import { useUi } from '../store/ui'
 import { useLibrary } from '../store/library'
 import { player } from '../store/playerInstance'
@@ -15,14 +15,19 @@ import { useSc } from '../store/sc'
 import { isPhone } from '../ui/layout'
 
 const NO_INFO: ArtistInfo = { followed: false, can: false }
-const TRACK_ORDERS: { value: ArtistTrackOrder; label: string; needsPopularity?: boolean }[] = [
+const DATE_ORDERS = [
   { value: 'new', label: 'Новые' },
-  { value: 'old', label: 'Старые' },
+  { value: 'old', label: 'Старые' }
+] as const
+type OrderOption = { value: ArtistTrackOrder; label: string; needsPopularity?: boolean }
+const VK_TRACK_ORDERS: OrderOption[] = [{ value: 'catalog', label: 'Как в ВК' }, ...DATE_ORDERS]
+const SC_TRACK_ORDERS: OrderOption[] = [
+  ...DATE_ORDERS,
   { value: 'mostPlayed', label: 'Популярные', needsPopularity: true },
   { value: 'leastPlayed', label: 'Менее популярные', needsPopularity: true }
 ]
 
-/** Экран исполнителя: его треки, новые сверху. Работает и для ВК, и для SoundCloud. */
+/** Экран исполнителя ВК или SoundCloud. */
 export function Artist() {
   const a = useUi((s) => s.artist)
   const [refresh, setRefresh] = useState(0)
@@ -47,11 +52,9 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
   const [busy, setBusy] = useState(false)
   const [checked, setChecked] = useState<{ account: number; followed: boolean | null }>()
   const [checkAttempt, setCheckAttempt] = useState(0)
-  const [order, setOrder] = useState<ArtistTrackOrder>('new')
+  const [order, setOrder] = useState<ArtistTrackOrder>(sc ? 'new' : 'catalog')
   const [metadata, setMetadata] = useState<Record<string, ArtistTrackMetadata>>({})
   const [metadataPending, setMetadataPending] = useState(0)
-  const [releasePlays, setReleasePlays] = useState<Record<string, number>>({})
-  const requestedReleases = useRef(new Set<string>())
   const scroll = useRef<HTMLDivElement>(null)
   const [moreBusy, setMoreBusy] = useState(false)
   const [moreFailed, setMoreFailed] = useState(false)
@@ -70,14 +73,6 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
       .catch(() => {})
       .finally(() => setMetadataPending((count) => count - 1))
   }, [a.name, phone, sc])
-  const loadReleasePlays = (album: VkReleaseRef, key: string) => {
-    if (requestedReleases.current.has(key)) return
-    requestedReleases.current.add(key)
-    const { id, ownerId, accessKey } = album
-    void window.api.invoke('vk:releasePlays', { id, ownerId, accessKey })
-      .then((plays) => { if (plays != null) setReleasePlays((current) => ({ ...current, [key]: plays })) })
-      .catch(() => {})
-  }
   const searchArtist = useCallback(() => {
     const ui = useUi.getState()
     ui.setSearchWhere(sc ? 'sc' : 'vk')
@@ -125,10 +120,9 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
 
 
   const own = new Set(mine.map((t) => t.id))
-  const sorted = phone ? list ?? [] : sortArtistTracks(list ?? [], order, info.popularTrackIds, metadata)
+  const sorted = phone ? list ?? [] : sortArtistTracks(list ?? [], order, metadata)
   const can = sorted.filter((t) => t.available)
-  const vkPopularity = new Map(info.popularTrackIds?.map((id, index) => [id, index + 1]))
-  const hasPopularity = list?.some((t) => t.plays !== undefined || metadata[t.id]?.listeners !== undefined || metadata[t.id]?.listens !== undefined || vkPopularity.has(t.id)) ?? false
+  const hasPopularity = sc && (list?.some((t) => t.plays !== undefined || metadata[t.id]?.listeners !== undefined || metadata[t.id]?.listens !== undefined) ?? false)
   const source = artistSource({ ...a, id: info.id ?? a.id })
   const profileLink = info.link ?? a.link
   const artistId = info.id ?? a.id
@@ -189,15 +183,10 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
   }
   const canFollow = phone ? (!info.missing || !!profileLink) : !!account && followed !== undefined
   const isFollowed = phone ? localFollowed : followed === true
-  const artistRow = (track: Track) => {
-    const album = !track.src && track.plays === undefined ? track.album : undefined
-    const key = album ? album.ownerId + '/' + album.id : ''
-    return {
-      why: own.has(track.id) ? 'в твоей музыке' : undefined,
-      details: artistTrackDetails(track, metadata[track.id], vkPopularity.get(track.id), releasePlays[key]),
-      onDetails: album ? () => loadReleasePlays(album, key) : undefined
-    }
-  }
+  const artistRow = (track: Track) => ({
+    why: own.has(track.id) ? 'в твоей музыке' : undefined,
+    details: artistTrackDetails(track, metadata[track.id])
+  })
 
   return (
     <div className="page artist-page" ref={scroll}>
@@ -238,13 +227,13 @@ function ArtistProfile({ a, refresh }: { a: NonNullable<ReturnType<typeof useUi.
         {!phone && <div className="ph">
           <h3>Треки</h3><span className="sp" />
           <div className={'seg artist-sort' + (sc ? ' sc' : '')} role="group" aria-label="Порядок треков">
-            {TRACK_ORDERS.map(({ value, label, needsPopularity }) => (
+            {(sc ? SC_TRACK_ORDERS : VK_TRACK_ORDERS).map(({ value, label, needsPopularity }) => (
               <button key={value} className={order === value ? 'on' : ''} aria-pressed={order === value}
                 disabled={needsPopularity && !hasPopularity} onClick={() => setOrder(value)}>{label}</button>
             ))}
           </div>
           {metadataPending > 0 && <span className="artist-muted" role="status">Уточняю данные треков…</span>}
-          {!metadataPending && !hasPopularity && <span className="artist-muted">Нет данных о популярности</span>}
+          {sc && !metadataPending && !hasPopularity && <span className="artist-muted">Нет данных о популярности</span>}
         </div>}
         {phone
           ? <div className="rows">{sorted.map((t, i) => <TrackRow key={t.id} track={t} why={artistWhy(t, own, now)} index={i} onPlay={() => play(t.id)} />)}</div>

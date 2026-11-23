@@ -26,7 +26,6 @@ export function registerCore(c: CoreCtx, handle: Handle) {
   handle('artists:trackMetadata', () => ({}))
   handle('vk:artistTracksPage', async (artist) => ({ tracks: await c.api().artistTracks(artist) }))
   handle('sc:artistTracksPage', () => ({ tracks: [] }))
-  handle('vk:releasePlays', () => null)
   handle('artists:follow', () => null)
   handle('auth:logout', () => c.logout())
   handle('auth:session', () => c.session())
