@@ -41,7 +41,7 @@ function SubscriptionGroup({ source, account }: { source: ArtistService; account
   }
 
   useEffect(() => {
-    if (account) void useArtistSubscriptions.getState().load(source, account, true).catch(() => {})
+    if (account) void useArtistSubscriptions.getState().load(source, account, source === 'sc').catch(() => {})
   }, [source, account])
 
   return (

@@ -24,6 +24,7 @@ type ListFailure = 'verification' | 'login' | 'load' | 'route' | 'no-cards'
 
 async function readVkArtistList(target: URL): Promise<{ artists: ReturnType<typeof parseVkArtistCards> } | { failure: ListFailure }> {
   const w = vkPageWindow(false)
+  const started = Date.now()
   const deadline = Date.now() + 12_000
   const watchdog = setTimeout(() => { if (!w.isDestroyed()) w.destroy() }, 13_000)
   let restricted: 'login' | 'verification' | undefined
@@ -35,24 +36,34 @@ async function readVkArtistList(target: URL): Promise<{ artists: ReturnType<type
   w.webContents.on('will-navigate', rememberRestriction)
   const route = () => vkArtistsRoute(w.webContents.getURL(), target)
   try {
-    await w.loadURL(target.href, { userAgent: WEB_UA })
+    let loaded = false
+    let loadFailed = false
+    const documentReady = new Promise<void>((resolve) => w.webContents.once('dom-ready', resolve))
+    const pageLoaded = w.loadURL(target.href, { userAgent: WEB_UA })
+      .then(() => { loaded = true })
+      .catch((error: unknown) => { loadFailed = true; throw error })
+    await Promise.race([documentReady, pageLoaded])
+    const documentMs = Date.now() - started
     let artists: ReturnType<typeof parseVkArtistCards> = []
-    let waitForImagesUntil: number | undefined
+    let firstCardsAt: number | undefined
     while (Date.now() < deadline && !w.isDestroyed()) {
+      if (loadFailed) return { failure: restricted ?? 'load' }
       const before = route()
       if (before !== 'list') return { failure: before === 'other' ? 'route' : before }
       const cards = await w.webContents.executeJavaScriptInIsolatedWorld(1001, [{ code: `(${visibleArtists.toString()})()` }])
       const after = route()
       if (after !== 'list') return { failure: after === 'other' ? 'route' : after }
+      const previousCount = artists.length
       artists = parseVkArtistCards([...artists.map(({ link, name, cover }) => ({ href: link ?? '', name, image: cover })), ...cards])
       if (artists.length) {
-        waitForImagesUntil ??= Date.now() + 1400
-        if (artists.every((artist) => artist.cover) || Date.now() >= waitForImagesUntil) break
+        firstCardsAt ??= Date.now()
+        const stable = loaded || artists.length === previousCount
+        if (stable && (artists.every((artist) => artist.cover) || Date.now() - firstCardsAt >= 1400)) break
       }
       await pause(350)
     }
     if (artists.length) {
-      log(`Музыканты ВК: загружено карточек ${artists.length}, с аватарками ${artists.filter((artist) => artist.cover).length}`)
+      log(`Музыканты ВК: загружено карточек ${artists.length}, с аватарками ${artists.filter((artist) => artist.cover).length}, страница ${documentMs} мс, первые карточки ${(firstCardsAt ?? started) - started} мс, всего ${Date.now() - started} мс`)
       return { artists }
     }
     return { failure: 'no-cards' }

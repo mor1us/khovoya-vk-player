@@ -11,6 +11,22 @@ afterEach(() => {
 })
 
 describe('подписки аккаунтов', () => {
+  it('переиспользует фоновую загрузку и свежий список при открытии вкладки ВК', async () => {
+    let finish!: (artists: ArtistSubscription[]) => void
+    const first = new Promise<ArtistSubscription[]>((resolve) => { finish = resolve })
+    const invoke = vi.fn().mockReturnValueOnce(first).mockResolvedValueOnce([artist('Новая подписка')])
+    vi.stubGlobal('window', { api: { invoke } })
+    const { load } = useArtistSubscriptions.getState()
+    const background = load('vk', 10)
+    expect(load('vk', 10)).toBe(background)
+    finish([artist('Hxlkart')])
+    expect(await load('vk', 10)).toEqual([artist('Hxlkart')])
+    expect(await load('vk', 10)).toEqual([artist('Hxlkart')])
+    expect(invoke).toHaveBeenCalledTimes(1)
+    expect(await load('vk', 10, true)).toEqual([artist('Новая подписка')])
+    expect(invoke).toHaveBeenCalledTimes(2)
+  })
+
   it('заменяет список ВК, включая удалённых артистов, и держит SoundCloud отдельно', async () => {
     const invoke = vi.fn().mockResolvedValueOnce([artist('Hxlkart')]).mockResolvedValueOnce([artist('SC')]).mockResolvedValueOnce([])
     vi.stubGlobal('window', { api: { invoke } })

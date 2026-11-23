@@ -22,6 +22,7 @@ import { bindUpdates } from './store/updates'
 import { UpdateBanner } from './ui/UpdateBanner'
 import { Tooltips } from './ui/Tooltip'
 import { bindDownloads } from './store/downloads'
+import { useArtistSubscriptions } from './store/artistSubscriptions'
 
 let booted = false
 function boot() {
@@ -121,6 +122,12 @@ export function App() {
     void useSc.getState().load()
   }, [session?.loggedIn])
 
+  useEffect(() => {
+    if (!phone && session?.loggedIn && session.userId) {
+      void useArtistSubscriptions.getState().load('vk', session.userId).catch(() => {})
+    }
+  }, [phone, session?.loggedIn, session?.userId])
+
   async function logout() {
     await window.api.invoke('auth:logout')
     player.getState().pause()
@@ -129,7 +136,7 @@ export function App() {
   }
 
   if (checking) return <div style={{ height: '100%' }} />
-  if (!session?.loggedIn) return <><Login onDone={(r) => useUi.getState().setSession({ loggedIn: true, userName: r.userName, avatar: r.avatar })} /><Toasts /><Offline /><Tooltips /></>
+  if (!session?.loggedIn) return <><Login onDone={(r) => useUi.getState().setSession({ loggedIn: true, userName: r.userName, avatar: r.avatar, userId: r.userId })} /><Toasts /><Offline /><Tooltips /></>
 
   if (phone) return (
     <div className="app phone">

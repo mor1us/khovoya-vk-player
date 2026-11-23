@@ -283,13 +283,13 @@ async function setup() {
     return r.canceled ? null : r.filePaths[0]
   })
   handle('auth:browser', async (): Promise<LoginStep> => {
-    if (MOCK) { mockLoggedIn = true; return { kind: 'ok', userName: 'Мориус' } }
+    if (MOCK) { mockLoggedIn = true; return { kind: 'ok', userName: 'Мориус', userId: 1 } }
     const r = await loginWindow(win)
     if ('error' in r) return { kind: 'error', message: r.error }
     keeper.set(r)
     const t = r
     const me = await userInfo(t.token)
-    return { kind: 'ok', userName: me.name, avatar: me.avatar }
+    return { kind: 'ok', userName: me.name, avatar: me.avatar, userId: t.userId }
   })
   handle('upd:state', () => updates.state())
   handle('upd:check', () => updates.check())

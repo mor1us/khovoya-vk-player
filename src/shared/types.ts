@@ -70,7 +70,7 @@ export type Settings = {
 }
 
 export type LoginStep =
-  | { kind: 'ok'; userName: string; avatar?: string }
+  | { kind: 'ok'; userName: string; avatar?: string; userId?: number }
   | { kind: 'error'; message: string }
 
 export type Session = { loggedIn: boolean; userName?: string; avatar?: string; userId?: number }
