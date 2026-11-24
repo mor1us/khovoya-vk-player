@@ -52,8 +52,8 @@
 /* правая часть */
 .main{display:flex;flex-direction:column;min-width:0;min-height:0}
 .bar{display:flex;align-items:center;gap:10px;padding:20px 14px 0 36px;height:72px;flex:none}
-.tabs{display:flex;gap:13px;font:800 19px var(--H);letter-spacing:-.6px;white-space:nowrap;min-width:0}
-.tabs button{color:#474747}
+.tabs{display:flex;flex-wrap:wrap;gap:2px 11px;font:800 18px var(--H);letter-spacing:-.6px;white-space:nowrap;min-width:0}
+.tabs button{flex:none;color:#474747}
 .tabs button:hover{color:#777}
 .tabs button.on{color:var(--g)}
 .search{margin-left:auto;display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border-radius:12px;background:var(--p1);border:1px solid var(--ln);color:var(--t3);width:170px;transition:width .2s}
@@ -463,9 +463,6 @@ html.no-anim *{animation:none!important;transition:none!important}
 .search:hover{border-color:#3a3a3a;color:var(--text)}
 .search:focus-within,.search.filled{width:clamp(112px,23%,230px);gap:10px;cursor:text;overflow:visible}
 .search:focus-within input,.search.filled input{opacity:1}
-.tabs{overflow-x:auto;flex:0 1 auto;scrollbar-width:thin;scrollbar-color:var(--ln) transparent}
-.tabs button{flex:none}
-.tabs{gap:11px;font-size:18px}
 .bar{padding-left:28px}
 /* подсказки поиска */
 .sugg{-webkit-app-region:no-drag;position:absolute;top:46px;right:0;width:380px;max-height:520px;overflow:auto;background:var(--p1);border:1px solid var(--ln);border-radius:16px;padding:6px;z-index:60;box-shadow:0 18px 40px rgba(0,0,0,.55)}

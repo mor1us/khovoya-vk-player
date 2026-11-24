@@ -8,7 +8,7 @@ import { SrcBadge } from './TrackRow'
 import { player } from '../store/playerInstance'
 import { readJson } from '../store/json'
 
-const TABS: [Tab, string][] = [['home', 'Главная'], ['subscriptions', 'Подписки'], ['mine', 'Моё'], ['playlists', 'Плейлисты'], ['downloads', 'Загрузки'], ['soundcloud', 'SoundCloud']]
+const TABS: [Tab, string][] = [['home', 'Главная'], ['subscriptions', 'Подписки'], ['mine', 'Моё'], ['soundcloud', 'SoundCloud']]
 export const searchRef: { current: HTMLInputElement | null } = { current: null }
 
 const fmtFollowers = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1).replace('.0', '')} млн` : n >= 1e3 ? `${Math.round(n / 1e3)} тыс.` : String(n)) + ' подписчиков'
@@ -54,10 +54,9 @@ export function TopBar({ onLogout }: { onLogout: () => void }) {
     else void player.getState().playList([it.track], it.track.id, `search:${query.trim()}`)
     input.current?.blur()
   }
-  const active = (t: Tab) => tab === t || (t === 'playlists' && tab === 'playlist')
   return (
     <div className="bar drag">
-      <nav className="tabs nodrag">{TABS.map(([t, l]) => <button key={t} className={(active(t) ? 'on' : '') + (t === 'soundcloud' ? ' sc' : '')} onClick={() => useUi.getState().go(t)}>{l}</button>)}</nav>
+      <nav className="tabs nodrag" aria-label="Разделы">{TABS.map(([t, l]) => <button key={t} className={(tab === t ? 'on' : '') + (t === 'soundcloud' ? ' sc' : '')} aria-current={tab === t ? 'page' : undefined} onClick={() => useUi.getState().go(t)}>{l}</button>)}</nav>
       <div className={'search nodrag' + (query ? ' filled' : '')} style={{ position: 'relative' }} title={focus || query ? undefined : 'Поиск'}
         onMouseDown={(e) => { if (e.target === e.currentTarget || !(e.target as HTMLElement).closest('input,button,.menu')) { e.preventDefault(); input.current?.focus() } }}>
         <I.ISearch size={17} />
@@ -100,6 +99,7 @@ export function TopBar({ onLogout }: { onLogout: () => void }) {
             <button onClick={() => { setMenu(false); useUi.getState().go('settings') }}>Настройки</button>
             <div className="sep" />
             <button onClick={() => { setMenu(false); useUi.getState().go('history') }}>История</button>
+            <button aria-current={tab === 'downloads' ? 'page' : undefined} onClick={() => { setMenu(false); useUi.getState().go('downloads') }}>Загрузки</button>
             <button onClick={() => { setMenu(false); useUi.getState().go('similar') }}>Похожее</button>
             <button onClick={() => { setMenu(false); useUi.getState().go('disliked') }}>Не нравится</button>
             <div className="sep" />
