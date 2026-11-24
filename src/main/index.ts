@@ -224,6 +224,14 @@ async function setup() {
         return mockArtistFollows.has(key)
       }
       if (artist.link) return await profileFollow(source, artist.link, on, assertAccount)
+      if (source === 'vk' && api instanceof VkAudioApi && on !== undefined) {
+        const id = artist.id || (await api.artistInfo(artist)).id
+        if (!id) throw new Error('ВК не знает такого исполнителя')
+        await assertAccount()
+        const confirmed = await api.confirmArtistFollow({ ...artist, id }, on)
+        await assertAccount()
+        return confirmed
+      }
       const read = () => source === 'sc' ? sc.artistInfo(artist.name, artist.id) : api.artistInfo(artist)
       const before = await read()
       if (!before.can || before.statusUnknown || before.missing) throw new Error('Сервис не показал состояние подписки')

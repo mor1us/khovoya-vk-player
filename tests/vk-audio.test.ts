@@ -217,6 +217,31 @@ describe('листание страниц', () => {
 })
 
 describe('подписка на исполнителя', () => {
+  it('принимает явное подтверждение ВК и не перечитывает отстающий каталог', async () => {
+    const { calls, client } = fakeClient(() => 1)
+    const api = new VkAudioApi(client as any, () => 7)
+    const artist = { id: 'a1', name: 'Артист' }
+    await expect(api.confirmArtistFollow(artist, true)).resolves.toBe(true)
+    await expect(api.confirmArtistFollow(artist, false)).resolves.toBe(false)
+    expect(calls.map(({ m }) => m)).toEqual(['audio.followArtist', 'audio.unfollowArtist'])
+  })
+
+  it.each([false, true])('после неоднозначного ответа проверяет каталог со статусом %s', async (followed) => {
+    const { calls, client } = fakeClient((method) => method === 'audio.followArtist' ? {} : { artist: { is_followed: followed } })
+    const api = new VkAudioApi(client as any, () => 7)
+    const changing = api.confirmArtistFollow({ id: 'a1', name: 'Артист' }, true)
+    if (followed) await expect(changing).resolves.toBe(true)
+    else await expect(changing).rejects.toThrow('ВК не подтвердил изменение подписки')
+    expect(calls.map(({ m }) => m)).toEqual(['audio.followArtist', 'catalog.getAudioArtist'])
+  })
+
+  it('после явного отказа от подписки не делает второй запрос', async () => {
+    const { calls, client } = fakeClient(() => 0)
+    const api = new VkAudioApi(client as any, () => 7)
+    await expect(api.confirmArtistFollow({ id: 'a1', name: 'Артист' }, true)).rejects.toThrow('ВК не принял подписку')
+    expect(calls.map(({ m }) => m)).toEqual(['audio.followArtist'])
+  })
+
   it('подписка — один простой вызов', async () => {
     const { calls, client } = fakeClient(() => ({}))
     await new VkAudioApi(client as any, () => 7).followArtist({ id: 'a1', name: 'Heronwater' }, true)

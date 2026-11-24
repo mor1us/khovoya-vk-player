@@ -291,14 +291,31 @@ export class VkAudioApi implements AudioApi {
    * Поэтому пробуем известные по очереди и пишем в журнал, что ответил каждый.
    */
   async followArtist(a: ArtistRef, on: boolean): Promise<void> {
+    await this.writeArtistFollow(a, on)
+  }
+
+  async confirmArtistFollow(a: ArtistRef, on: boolean): Promise<boolean> {
+    const accepted = await this.writeArtistFollow(a, on)
+    // Единица подтверждает выполненную операцию. Чтение каталога сразу после неё может вернуть старый статус.
+    if (accepted) return on
+    const after = await this.artistInfo(a)
+    if (!after.can || after.missing || after.statusUnknown || after.followed !== on) {
+      this.log('подписка ВК: после неоднозначного ответа каталог не подтвердил изменение')
+      throw new Error('ВК не подтвердил изменение подписки')
+    }
+    return after.followed
+  }
+
+  private async writeArtistFollow(a: ArtistRef, on: boolean): Promise<boolean> {
     if (!a.id) throw new Error('ВК не знает такого исполнителя')
     const target = { artist_id: a.id, ref: 'audio_player', v: MUSIC_API_VERSION }
     if (on) {
       const response = await this.musicCall<unknown>('audio.followArtist', target)
-      this.log(`audio.followArtist: ответ ${JSON.stringify(response).slice(0, 120)}`)
-      if (response === 0 || response === false || response === '0') throw new Error('ВК не принял подписку на этого артиста')
+      const accepted = vkFlag(response)
+      this.log('audio.followArtist: ' + (accepted === undefined ? 'неоднозначный ответ' : accepted ? 'принято' : 'отказ'))
+      if (accepted === false) throw new Error('ВК не принял подписку на этого артиста')
       this.subscriptions = undefined
-      return
+      return accepted === true
     }
     const ways: Array<[string, Record<string, string | number>]> = [
       ['audio.unfollowArtist', target],
@@ -314,10 +331,11 @@ export class VkAudioApi implements AudioApi {
         if (method === 'audio.unfollowArtist' && (code === 3 || /unknown method/i.test(last.message))) continue
         throw e
       }
-      this.log(`${method}: ответ ${JSON.stringify(response).slice(0, 120)}`)
-      if (response === 0 || response === false || response === '0') throw new Error('ВК не принял отписку от этого артиста')
+      const accepted = vkFlag(response)
+      this.log(method + ': ' + (accepted === undefined ? 'неоднозначный ответ' : accepted ? 'принято' : 'отказ'))
+      if (accepted === false) throw new Error('ВК не принял отписку от этого артиста')
       this.subscriptions = undefined
-      return
+      return accepted === true
     }
     throw last ?? new Error('ВК не дал отписаться')
   }
