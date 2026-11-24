@@ -19,6 +19,25 @@ const raw = (over: any = {}) => ({
 const res = (status: number, body: unknown) => ({ ok: status < 400, status, text: async () => String(body), json: async () => body })
 
 describe('SoundCloud', () => {
+  it('в поиске артистов исключает профили без подтверждённых публичных треков', async () => {
+    const calls: URL[] = []
+    const f: Fetch = async (url) => {
+      calls.push(new URL(url))
+      return res(200, { collection: [
+        { id: 1, username: 'Слушатель', track_count: 0, followers_count: 200 },
+        { id: 2, username: 'Без данных' },
+        { id: 3, username: 'Один трек', track_count: 1, followers_count: 0 },
+        { id: 4, username: 'Много треков', track_count: 5 },
+        { id: 5, username: 'За лимитом', track_count: 2 }
+      ] })
+    }
+    const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
+    expect((await sc.users('артист', 2)).map((u) => u.name)).toEqual(['Один трек', 'Много треков'])
+    expect(calls).toHaveLength(1)
+    expect(calls[0].pathname).toBe('/search/users')
+    expect(calls[0].searchParams.get('limit')).toBe('6')
+  })
+
   it('находит скрипты сайта и client_id', () => {
     expect(findScriptUrls('<script crossorigin src="https://a-v2.sndcdn.com/assets/0-abc.js"></script><script src="https://a-v2.sndcdn.com/assets/50-def.js"></script>'))
       .toEqual(['https://a-v2.sndcdn.com/assets/0-abc.js', 'https://a-v2.sndcdn.com/assets/50-def.js'])

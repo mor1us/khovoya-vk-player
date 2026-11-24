@@ -338,10 +338,10 @@ export class SoundCloud {
     return [...new Set<string>((j?.collection ?? []).map((x: any) => String(x?.output || x?.query || '').trim()).filter(Boolean))]
   }
 
-  /** Артисты SoundCloud по запросу (для подсказок). */
+  /** Для поиска артистов подходят профили хотя бы с одним публичным треком. */
   async users(q: string, limit = 4): Promise<ScArtist[]> {
-    const j = await this.api('/search/users', { q, limit })
-    return (j?.collection ?? []).filter((u: any) => u?.username).map((u: any) => ({
+    const j = await this.api('/search/users', { q, limit: Math.min(50, limit * 3) })
+    return (j?.collection ?? []).filter((u: any) => u?.username && Number.isSafeInteger(u.track_count) && u.track_count > 0).slice(0, limit).map((u: any) => ({
       id: u.id ? String(u.id) : undefined, name: String(u.username), avatar: u.avatar_url ? String(u.avatar_url).replace('-large.', '-t200x200.') : undefined, link: u.permalink_url, followers: Number(u.followers_count) || 0
     }))
   }
