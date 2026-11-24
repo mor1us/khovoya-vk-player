@@ -38,7 +38,7 @@ function ArtistMatches({ source, service, query }: { source: Source; service: st
       try {
         const found = source === 'vk'
           ? matchVkArtists(await window.api.invoke('vk:artistSearch', query), query)
-          : (await window.api.invoke('sc:users', query, 12)).map((a) => ({ id: a.id ?? '', name: a.name, cover: a.avatar, link: a.link }))
+          : (await window.api.invoke('sc:users', query, 12, true)).map((a) => ({ id: a.id ?? '', name: a.name, cover: a.avatar, link: a.link }))
         const matches = mergeLocalArtists([], found.map((artist) => ({ ...artist, source })))
         if (active) setResult({ source, query, artists: matches.slice(0, 12) })
       } catch {

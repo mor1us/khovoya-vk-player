@@ -19,7 +19,7 @@ const raw = (over: any = {}) => ({
 const res = (status: number, body: unknown) => ({ ok: status < 400, status, text: async () => String(body), json: async () => body })
 
 describe('SoundCloud', () => {
-  it('в поиске артистов исключает профили без подтверждённых публичных треков', async () => {
+  it('оставляет профили без треков в общем поиске и исключает их в поиске артистов', async () => {
     const calls: URL[] = []
     const f: Fetch = async (url) => {
       calls.push(new URL(url))
@@ -32,10 +32,10 @@ describe('SoundCloud', () => {
       ] })
     }
     const sc = new SoundCloud(f, { get: () => CID, set: () => {} })
-    expect((await sc.users('артист', 2)).map((u) => u.name)).toEqual(['Один трек', 'Много треков'])
-    expect(calls).toHaveLength(1)
-    expect(calls[0].pathname).toBe('/search/users')
-    expect(calls[0].searchParams.get('limit')).toBe('6')
+    expect((await sc.users('артист', 2, true)).map((u) => u.name)).toEqual(['Один трек', 'Много треков'])
+    expect((await sc.users('артист', 2)).map((u) => u.name)).toEqual(['Слушатель', 'Без данных'])
+    expect(calls.map((url) => url.pathname)).toEqual(['/search/users', '/search/users'])
+    expect(calls.map((url) => url.searchParams.get('limit'))).toEqual(['6', '2'])
   })
 
   it('находит скрипты сайта и client_id', () => {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Playlist, Track } from '../../shared/types'
+import type { Playlist, ScArtist, Track } from '../../shared/types'
+import { uniqueBy } from '../../shared/list'
 import { useUi } from '../store/ui'
 import { player } from '../store/playerInstance'
 import { VirtualTrackList } from '../ui/VirtualTrackList'
@@ -11,6 +12,7 @@ import { mergeSources } from '../ui/mergeSearch'
 import { asPlaylist } from '../store/sc'
 import { ScLink, isScUrl } from './ScLink'
 import { useHScroll, Arrows } from '../ui/HScroll'
+import { isPhone } from '../ui/layout'
 
 type Where = 'all' | 'vk' | 'sc'
 
@@ -27,7 +29,9 @@ function SearchResults({ q }: { q: string }) {
   const [sc, setSc] = useState<Track[] | null>(null)
   const [scErr, setScErr] = useState('')
   const [scPl, setScPl] = useState<Playlist[]>([])
+  const [scPeople, setScPeople] = useState<{ query: string; users: ScArtist[] }>()
   const where = useUi((s) => s.searchWhere)
+  const showScPeople = where !== 'vk' && !isPhone()
   const [noMixes, setNoMixes] = useState(localStorage.getItem('noMixes') === '1')
   const toggleNoMixes = () => { localStorage.setItem('noMixes', noMixes ? '0' : '1'); setNoMixes(!noMixes) }
   const pickWhere = (w: Where) => useUi.getState().setSearchWhere(w)
@@ -57,6 +61,12 @@ function SearchResults({ q }: { q: string }) {
     window.api.invoke('sc:searchPlaylists', q).then((r) => alive && setScPl(r.map(asPlaylist))).catch(() => {})
     return () => { alive = false }
   }, [q])
+  useEffect(() => {
+    if (!q || !showScPeople) return
+    let alive = true
+    window.api.invoke('sc:users', q, 6).then((users) => { if (alive) setScPeople({ query: q, users }) }).catch(() => {})
+    return () => { alive = false }
+  }, [q, showScPeople])
   const vkTracks = res?.tracks ?? []
   const scTracks = sc ?? []
   const merged = where === 'vk' ? vkTracks : where === 'sc' ? scTracks : mergeSources(vkTracks, scTracks)
@@ -67,7 +77,11 @@ function SearchResults({ q }: { q: string }) {
     const refs = src === 'sc' ? [{ name: t.artistProfileName || t.artist, id: t.artistId }] : t.artists?.length ? t.artists : t.artist.split(/,\s*|\s+(?:feat\.?|ft\.?)\s+/i).map((name) => ({ name: name.trim(), id: undefined }))
     return refs.map((a) => ({ ...a, src, cover: t.coverUrl, key: src + ':' + (a.id ?? a.name.toLowerCase()) }))
   })
-  const artists = [...new Map(profiles.map((a) => [a.key, a])).values()].slice(0, 10)
+  const foundPeople = showScPeople && scPeople?.query === q
+    ? scPeople.users.map((a) => ({ name: a.name, id: a.id, src: 'sc' as const, link: a.link, cover: a.avatar, key: 'sc:' + (a.id ?? a.name.toLowerCase()) }))
+    : []
+  const trackProfiles = [...new Map(profiles.map((a) => [a.key, a])).values()]
+  const artists = uniqueBy([...foundPeople, ...trackProfiles], (a) => a.key).slice(0, 10)
   return (
     <div className="page fill">
       <div className="ph"><h1>«{q}»</h1>{res && <span className="cnt">{tracks.length} треков</span>}<span className="sp" />
@@ -87,18 +101,18 @@ function SearchResults({ q }: { q: string }) {
       <div className="pagescroll" ref={scroll}>
       {err && <div className="empty-state">{err}</div>}
       {scErr && where !== 'vk' && <div className="scdown"><SrcBadge src="sc" />{scErr}</div>}
+      {(res || foundPeople.length > 0) && artists.length > 0 && <div className="artists">{artists.map((a) => (
+        <button key={a.key} className={a.src} title={a.src === 'sc' ? 'Профиль SoundCloud' : 'Артист ВКонтакте'}
+          onClick={() => useUi.getState().openArtist(a)}>
+          <Cover className="av" url={a.cover} seed={a.key} /><SrcBadge src={a.src} />{a.name}
+        </button>))}</div>}
       {!res && !err && [0, 1, 2, 3, 4].map((i) => <div key={i} className="skeleton" />)}
       {res && <>
-        {artists.length > 0 && <div className="artists">{artists.map((a) => (
-          <button key={a.key} className={a.src} title={a.src === 'sc' ? 'Артист SoundCloud' : 'Артист ВКонтакте'}
-            onClick={() => useUi.getState().openArtist(a)}>
-            <Cover className="av" url={a.cover} seed={a.key} /><SrcBadge src={a.src} />{a.name}
-          </button>))}</div>}
         {where !== 'sc' && res.playlists.length > 0 && <><div className="h"><h3><SrcBadge src="vk" />Плейлисты ВК</h3><Arrows s={vkRow} /></div><Crates list={res.playlists} rowRef={vkRow.ref} /><div style={{ height: 16 }} /></>}
         {where !== 'vk' && scPl.length > 0 && <><div className="h"><h3><SrcBadge src="sc" />Плейлисты SoundCloud</h3><Arrows s={scRow} /></div><Crates list={scPl} rowRef={scRow.ref} /><div style={{ height: 16 }} /></>}
         <div className="h"><h3>Треки</h3></div>
         {!tracks.length && <div className="tags" style={{ marginBottom: 12 }}>{TAGS.slice(0, 8).map((t) => <span key={t} className="tag" onClick={() => useUi.getState().submit(t)}>#{t}</span>)}</div>}
-        {tracks.length ? <VirtualTrackList tracks={tracks} showSrc scroller={scroll} onPlay={(t) => void player.getState().playList(tracks, t.id, `search:${q}`)} /> : <div className="empty-state">{where === 'sc' && sc === null ? 'Ищу в SoundCloud…' : where === 'sc' && scErr ? 'В SoundCloud сейчас не поискать — нужен VPN' : 'Ничего не нашлось'}</div>}
+        {tracks.length ? <VirtualTrackList tracks={tracks} showSrc scroller={scroll} onPlay={(t) => void player.getState().playList(tracks, t.id, `search:${q}`)} /> : <div className="empty-state">{where === 'sc' && sc === null ? 'Ищу в SoundCloud…' : where === 'sc' && scErr ? 'В SoundCloud сейчас не поискать — нужен VPN' : artists.length ? 'Треки не найдены' : 'Ничего не нашлось'}</div>}
       </>}
       </div>
     </div>

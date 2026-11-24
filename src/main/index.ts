@@ -150,9 +150,9 @@ async function setup() {
     const r = await api.search(q)
     return [...new Set(r.tracks.flatMap((t) => [t.artist.toLowerCase(), `${t.artist} ${t.title}`.toLowerCase()]))].slice(0, 6)
   })
-  handle('sc:users', async (q: string, limit = 4) => {
+  handle('sc:users', async (q: string, limit = 4, withTracks = false) => {
     if (SC_DOWN_TEST) throw new ScUnavailable()
-    if (!MOCK) return sc.users(q, Number.isInteger(limit) ? Math.max(1, Math.min(limit, 20)) : 4).catch(scLog('поиск исполнителей'))
+    if (!MOCK) return sc.users(q, Number.isInteger(limit) ? Math.max(1, Math.min(limit, 20)) : 4, withTracks === true).catch(scLog('поиск исполнителей'))
     const r = await scSearch(q)
     return [...new Set(r.map((t) => t.artist))].slice(0, 2).map((name) => ({ name: name + ' (SC)', followers: 1200 }))
   })
