@@ -1,3 +1,5 @@
+import type { Track } from '../../shared/types'
+
 /** Меняем интерфейс сразу, отправляем в ВК; при ошибке — откатываем. */
 export async function optimistic<T>(apply: () => T, commit: () => Promise<void>, rollback: (prev: T) => void): Promise<boolean> {
   const prev = apply()
@@ -24,4 +26,12 @@ export function moveItem(list: string[], id: string, to: number): { list: string
   const at = Math.max(0, Math.min(to, out.length))
   out.splice(at, 0, id)
   return { list: out, before: out[at + 1], after: out[at - 1] }
+}
+
+export function sortPlaylistByAddedAt(tracks: Track[], order: 'new' | 'old'): Track[] {
+  return [...tracks].sort((a, b) => {
+    const left = a.addedAt, right = b.addedAt
+    if (left === undefined || right === undefined) return Number(left === undefined) - Number(right === undefined)
+    return order === 'old' ? left - right : right - left
+  })
 }
