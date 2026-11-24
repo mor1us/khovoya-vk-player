@@ -28,6 +28,7 @@ function SubscriptionGroup({ source, account }: { source: ArtistService; account
   const artists = current?.artists ?? []
   const service = source === 'vk' ? 'ВК' : 'SoundCloud'
   const loading = !!account && (!current || current.status === 'loading')
+  const waitingForList = loading && current?.artists == null
   const failed = current?.status === 'failed'
   const [openingVk, setOpeningVk] = useState(false)
   const [requestedPage, setPage] = useState(0)
@@ -56,7 +57,8 @@ function SubscriptionGroup({ source, account }: { source: ArtistService; account
     <section className="box">
       <div className="ph">
         <h3><SrcBadge src={source} />{service}</h3><span className="sp" />
-        {account && <button className={'btn-s' + (source === 'sc' ? ' sco' : '')} disabled={loading || openingVk} onClick={refresh}>{loading ? 'Загружаю…' : 'Обновить'}</button>}
+        {account && <button className={'btn-s' + (source === 'sc' ? ' sco' : '')} disabled={loading || openingVk} aria-busy={loading}
+          onClick={refresh}>{waitingForList ? 'Загружаю…' : 'Обновить'}</button>}
       </div>
       <SubscriptionArtistSearch source={source} service={service} />
       {failed && <p className="subscription-status" role="status">
@@ -66,7 +68,7 @@ function SubscriptionGroup({ source, account }: { source: ArtistService; account
         {openingVk ? 'Окно ВК открыто' : 'Открыть ВК'}
       </button>}
       {!artists.length && !failed && <div className="empty-state">
-        {loading ? 'Загружаю подписки…' : !account || current?.artists === null ? `Войди в ${service}, чтобы увидеть подписки.` : 'У тебя пока нет подписок. Найди исполнителя через поиск.'}
+        {waitingForList ? 'Загружаю подписки…' : !account || current?.artists === null ? `Войди в ${service}, чтобы увидеть подписки.` : 'У тебя пока нет подписок. Найди исполнителя через поиск.'}
       </div>}
       {artists.length > 0 && <div className={'subscription-carousel' + (paged ? ' paged' : '')} role="group" aria-label={'Подписки ' + service}>
         {paged && <button type="button" className="ic" title="Предыдущая страница" aria-label={'Предыдущая страница ' + service}

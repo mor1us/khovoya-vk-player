@@ -178,7 +178,7 @@ export function MiniBar() {
         <div className="now nodrag" onContextMenu={(e) => cur && openTrackMenu(e, [cur])} onWheel={wheelVolume}>{cur && <><Cover className="cv" url={cur.coverUrl} seed={cur.id} /><div style={{ minWidth: 0 }}><div className="tt">{cur.title}</div><div className="ar"><SrcBadge src={cur.src === 'sc' ? 'sc' : 'vk'} /><Artists names={cur.artist} src={cur.src} id={cur.src === 'sc' ? cur.artistId : cur.artists?.[0]?.id} artists={cur.artists} profileName={cur.artistProfileName} /></div></div></>}</div>
       <Controls reactions />
       <div className="mright">
-        {cur && <><span className="muted" style={{ font: '500 11px var(--M)' }}>{fmtTime(pos)}</span><Waveform id={cur.id} track={cur} n={36} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} /></>}
+        {cur && <><span className="muted" style={{ font: '500 11px var(--M)' }}>{fmtTime(pos)}</span><Waveform key={cur.id} id={cur.id} track={cur} n={36} progress={dur ? pos / dur : 0} onSeek={(f) => player.getState().seek(f * dur)} dragSeek={dur > 0} /></>}
         <QueueBtn />
         <button className="ic" onClick={() => player.getState().setVolume(volume > 0 ? 0 : 0.8)} title={volume > 0 ? 'Выключить звук' : 'Включить звук'}>{volume > 0 ? <I.IVol size={18} /> : <I.IMute size={18} />}</button>
         <input className="mvol" type="range" min={0} max={1} step={0.01} value={volume} onWheel={wheelVolume} title={`Громкость ${Math.round(volume * 100)}%`} onChange={(e) => player.getState().setVolume(+e.target.value)} />
