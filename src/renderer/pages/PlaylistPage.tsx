@@ -13,7 +13,6 @@ import { VirtualTrackList } from '../ui/VirtualTrackList'
 import { fmtTotal, plural } from '../ui/format'
 import { playPlaylist } from '../ui/Crates'
 import { isPhone } from '../ui/layout'
-import { sortPlaylistByAddedAt } from '../store/playlistLogic'
 import * as I from '../ui/icons'
 
 type Sort = 'default' | 'title' | 'artist' | 'added'
@@ -26,7 +25,6 @@ export function PlaylistPage() {
   const loading = usePlTracks((s) => (p ? s.loading[p.id] : false))
   const [q, setQ] = useState('')
   const [phoneSort, setPhoneSort] = useState<Sort>('default')
-  const [dateOrder, setDateOrder] = useState<'new' | 'old' | null>(null)
   const [err, setErr] = useState('')
   useEffect(() => { if (p) loadPlaylistTracks(p).catch((e) => setErr((e as Error).message)) }, [p?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -35,14 +33,13 @@ export function PlaylistPage() {
     const s = q.trim().toLowerCase()
     if (s) l = l.filter((t) => (t.artist + ' ' + t.title).toLowerCase().includes(s))
     const cmp = { title: (a: Track, b: Track) => a.title.localeCompare(b.title, 'ru'), artist: (a: Track, b: Track) => a.artist.localeCompare(b.artist, 'ru'), added: (a: Track, b: Track) => (b.addedAt ?? 0) - (a.addedAt ?? 0) }
-    if (!phone && dateOrder) return sortPlaylistByAddedAt(l, dateOrder)
     if (phone && phoneSort !== 'default') l = [...l].sort(cmp[phoneSort])
     return l
-  }, [tracks, q, phone, phoneSort, dateOrder])
+  }, [tracks, q, phone, phoneSort])
 
   if (!p) return <div className="page"><div className="empty-state">Плейлист не найден</div></div>
   const total = (tracks ?? []).reduce((a, t) => a + t.duration, 0)
-  const canReorder = p.isMine && !q && (phone ? phoneSort === 'default' : dateOrder === null)
+  const canReorder = p.isMine && !q && (!phone || phoneSort === 'default')
 
   async function edit() {
     const name = await ask('Название плейлиста', p!.title, 'Сохранить')
@@ -73,14 +70,9 @@ export function PlaylistPage() {
       </div>
       <div className="ph" style={{ marginBottom: 10 }}>
         <input className="filter" placeholder="Поиск в плейлисте" value={q} onChange={(e) => setQ(e.target.value)} />
-        {phone ? <select className="filter" value={phoneSort} onChange={(e) => setPhoneSort(e.target.value as Sort)}>
+        {phone && <select className="filter" value={phoneSort} onChange={(e) => setPhoneSort(e.target.value as Sort)}>
           <option value="default">{p.sc ? 'Как на SoundCloud' : p.local ? 'Как в плейлисте' : 'Как в ВК'}</option><option value="added">По дате добавления</option><option value="title">По названию</option><option value="artist">По артисту</option>
-        </select> : <div className={'seg' + (p.sc ? ' sc' : '')} role="group" aria-label={p.sc ? 'По дате загрузки на SoundCloud' : 'По дате добавления'}>
-          <button type="button" className={dateOrder === 'new' ? 'on' : ''} aria-pressed={dateOrder === 'new'}
-            onClick={() => setDateOrder((current) => current === 'new' ? null : 'new')}>Новые</button>
-          <button type="button" className={dateOrder === 'old' ? 'on' : ''} aria-pressed={dateOrder === 'old'}
-            onClick={() => setDateOrder((current) => current === 'old' ? null : 'old')}>Старые</button>
-        </div>}
+        </select>}
         {p.isMine && (canReorder || phone) && <span className="hint">{canReorder ? 'Перетаскивай треки, чтобы поменять порядок' : 'Порядок меняется только при сортировке по умолчанию'}</span>}
       </div>
       {err && <div className="empty-state">{err}</div>}

@@ -1,15 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { optimistic, planAdd, moveItem, sortPlaylistByAddedAt } from '../src/renderer/store/playlistLogic'
-import type { Track } from '../src/shared/types'
-
-it('сортирует плейлист по датам в обе стороны и оставляет треки без даты в конце', () => {
-  const track = (vkId: number, addedAt?: number): Track => ({ id: '1_' + vkId, vkId, ownerId: 1, title: 'Трек', artist: 'Артист', duration: 1, url: '', available: true, addedAt })
-  const missing = track(1), fresh = track(2, 200), old = track(3, 100), same = track(4, 200)
-  const original = [missing, fresh, old, same]
-  expect(sortPlaylistByAddedAt(original, 'new')).toEqual([fresh, same, old, missing])
-  expect(sortPlaylistByAddedAt(original, 'old')).toEqual([old, fresh, same, missing])
-  expect(original[0]).toBe(missing)
-})
+import { optimistic, planAdd, moveItem } from '../src/renderer/store/playlistLogic'
 
 describe('optimistic', () => {
   it('rolls back and returns false when commit fails', async () => {
